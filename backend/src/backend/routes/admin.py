@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import extract, func, select
 
 from backend.deps import Db, RequireAdmin
 from backend.models import (
@@ -14,9 +16,13 @@ from backend.models import (
     Location,
     Profile,
     Slot,
+    SlotStatus,
     Specialty,
     Visit,
 )
+
+SLOT_START_HOUR = 9
+SLOT_END_HOUR = 16
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -343,6 +349,96 @@ async def delete_doctor(
     await db.delete(doctor)
     await db.commit()
     return {"deleted": True, "cascade": {"slots": slot_count}}
+
+
+# --- Slots ---
+
+
+class SlotCreate(BaseModel):
+    doctor_id: int
+    start_at: datetime
+
+
+class SlotOut(BaseModel):
+    id: int
+    doctor_id: int
+    start_at: datetime
+    status: str
+
+
+def _validate_slot_time(start_at: datetime) -> None:
+    utc_dt = start_at.astimezone(UTC)
+    if utc_dt.minute != 0 or utc_dt.second != 0 or utc_dt.microsecond != 0:
+        raise _error("invalid_time", "Slot must start on the hour.", 422)
+    if utc_dt.hour < SLOT_START_HOUR or utc_dt.hour > SLOT_END_HOUR:
+        raise _error(
+            "invalid_time",
+            f"Slot must be within working hours ({SLOT_START_HOUR}:00-{SLOT_END_HOUR + 1}:00 UTC).",
+            422,
+        )
+
+
+@router.get("/slots")
+async def list_slots(
+    admin: RequireAdmin,
+    db: Db,
+    doctor_id: int = Query(...),
+    year: int = Query(...),
+    month: int = Query(..., ge=1, le=12),
+) -> list[SlotOut]:
+    result = await db.execute(
+        select(Slot)
+        .where(
+            Slot.doctor_id == doctor_id,
+            extract("year", Slot.start_at) == year,
+            extract("month", Slot.start_at) == month,
+        )
+        .order_by(Slot.start_at)
+    )
+    return [
+        SlotOut(id=s.id, doctor_id=s.doctor_id, start_at=s.start_at, status=s.status.value)
+        for s in result.scalars()
+    ]
+
+
+@router.post("/slots", status_code=201)
+async def create_slot(body: SlotCreate, admin: RequireAdmin, db: Db) -> SlotOut:
+    _validate_slot_time(body.start_at)
+
+    doctor = await db.get(Doctor, body.doctor_id)
+    if doctor is None:
+        raise _error("not_found", "Doctor not found.", 404)
+
+    existing = await db.execute(
+        select(Slot).where(
+            Slot.doctor_id == body.doctor_id,
+            Slot.start_at == body.start_at,
+        )
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise _error("duplicate", "Duplicate slot for this doctor and time.", 409)
+
+    slot = Slot(doctor_id=body.doctor_id, start_at=body.start_at)
+    db.add(slot)
+    await db.flush()
+    await db.commit()
+    return SlotOut(
+        id=slot.id, doctor_id=slot.doctor_id, start_at=slot.start_at, status=slot.status.value
+    )
+
+
+@router.delete("/slots/{slot_id}")
+async def delete_slot(
+    slot_id: int, admin: RequireAdmin, db: Db
+) -> dict[str, object]:
+    slot = await db.get(Slot, slot_id)
+    if slot is None:
+        raise _error("not_found", "Slot not found.", 404)
+    if slot.status != SlotStatus.available:
+        raise _error("slot_booked", "Cannot remove a booked slot.", 409)
+    await db.delete(slot)
+    await db.commit()
+    return {"deleted": True}
 
 
 # --- KB placeholder ---
