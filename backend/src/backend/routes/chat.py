@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from collections.abc import AsyncGenerator
 from typing import Any, cast
@@ -14,7 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
 from backend.auth import Clock
-from backend.deps import ClockDep, CurrentSession, Db, RequireUserMode, SettingsDep
+from backend.deps import (
+    ClockDep,
+    CurrentSession,
+    Db,
+    RequireUserMode,
+    SettingsDep,
+    TurnRunnerDep,
+)
 from backend.models import (
     AccountRole,
     ChatMessage,
@@ -33,7 +39,7 @@ from chatbot_ai.interface import (
     Token,
     TurnRequest,
 )
-from chatbot_ai.stub import StubError, run_stub_turn
+from chatbot_ai.stub import StubError
 
 router = APIRouter(prefix="/me", tags=["chat"])
 
@@ -59,6 +65,7 @@ async def chat(
     db: Db,
     clock: ClockDep,
     settings: SettingsDep,
+    run_turn: TurnRunnerDep,
 ) -> StreamingResponse:
     if len(body.message) > settings.rate_limit_message_max_chars:
         raise _error(
@@ -142,10 +149,7 @@ async def chat(
 
         intent_code: str | None = None
         try:
-            async for event in run_stub_turn(turn_req):
-                if await request.is_disconnected():
-                    return
-
+            async for event in run_turn(turn_req):
                 if isinstance(event, Intent):
                     intent_code = event.code
                     yield _sse("intent", json.dumps({"intent": event.code}))
@@ -156,11 +160,8 @@ async def chat(
                 elif isinstance(event, Done):
                     await _store_turn(db, session_id, event, clock, intent_code, needs_label)
                     yield _sse("done", "{}")
-
         except StubError:
             yield _sse("error", json.dumps({"code": "turn_error", "message": "Something went wrong."}))
-        except asyncio.CancelledError:
-            return
 
     return StreamingResponse(
         content=event_generator(),

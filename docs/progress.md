@@ -22,7 +22,6 @@ Status values: not started, in progress, done, blocked (say why below).
 
 Phase 5 close-out: `docker compose up` smoke test, rule coverage for phase 5, and the independent review. Known items for the review:
 
-- F16 server side has no real test. httpx ASGITransport buffers the whole response, so a disconnect cannot be simulated; it needs a test against a live uvicorn server that closes the stream after the `session` event and asserts no `chat_message` rows. The client side of F16 is covered (Vitest and Playwright Stop tests).
 - `backend/routes/chat.py` uses `StreamingResponse` with hand-built SSE frames, not the built-in `fastapi.sse` that CLAUDE.md names (step 5.3).
 - `packages/chatbot_ai/src/chatbot_ai/stub.py` carries docstrings and comments against the code conventions (step 5.1).
 
@@ -60,6 +59,9 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [5.5] Cards live in the transcript next to the turn that produced them, so older cards stay visible and are locked while a turn streams (F13), and are re-enabled after it ends.
 - [5.5] Playwright chat specs (`e2e/chat.spec.ts`) mock the API with `page.route` and replay stub-shaped event streams for book, slot taken, complaint, cancel, Stop, and error with Retry. They need only the Vite dev server, so they run in `make check` (`test-e2e-mocked`) and in CI. The stub cannot emit complaint or cancel cards that point at real visits, which is why these specs do not use the live stack. The stack-backed `e2e/auth.spec.ts` stays under `make e2e`.
 - [5 housekeeping] Phases 0 to 5 had all landed on `phase-1` and there was no `main`. Created `phase-1` at 0c41fad, `phase-2` at 886c47f, `phase-3` at 58dff7a, `phase-4` at dc102ee, and `main` at dc102ee (end of phase 4, the last finished phase, equal to fast-forward merges of phases 0 to 4). Work continues on `phase-5`. No history was rewritten.
+- [5.3] F16 server side is tested against a live uvicorn server in a thread (`backend/tests/test_chat_disconnect.py`): read the first token, close the connection, wait on a cancellation event with a deadline, assert no `chat_message` rows. Proven to fail when the turn is shielded from cancellation.
+- [5.3] The turn runner is injected through `app.state.turn_runner` (`TurnRunnerDep`, default `run_stub_turn`; `TurnRunner` type in `chatbot_ai.interface`). The F16 test injects a turn that hangs after one token; phase 6e swaps in the real `run_turn` here.
+- [5.3] Disconnect cancellation relies on Starlette: uvicorn 0.54 reports ASGI spec 2.3, so the streaming response listens for `http.disconnect` and cancels the generator, which cancels the turn. The route no longer swallows `CancelledError` and no longer polls `is_disconnected()`. If a uvicorn upgrade moves to spec 2.4 (disconnect seen only on the next write), the F16 test fails and the route needs its own disconnect watcher.
 - [5 housekeeping] Added `.gitattributes` with `* text=auto eol=lf` - a Windows clone with `core.autocrlf=true` checked out `scripts/check.sh` with CRLF and bash failed (`set: pipefail: invalid option name`).
 - [5.5] HTTP errors from `POST /me/chat` (for example 429 `rate_limited`) show the server's message with Retry; stream `error` events always show "Something went wrong."
 

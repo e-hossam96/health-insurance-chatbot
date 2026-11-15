@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
@@ -81,6 +81,8 @@ class Done:
 
 
 TurnEvent = Intent | Token | Cards | Done
+
+TurnRunner = Callable[["TurnRequest"], AsyncIterator[TurnEvent]]
 
 
 # --- Ports ---

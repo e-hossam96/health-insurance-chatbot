@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import socket
+import threading
+from collections.abc import AsyncIterator, Iterator
+from datetime import UTC, datetime
+
+import httpx
+import pytest
+import uvicorn
+from sqlalchemy import text
+from sqlalchemy.engine import Engine
+
+from backend.app import create_app
+from backend.config import Settings
+from chatbot_ai.interface import Done, HistoryRow, Token, TurnEvent, TurnRequest
+
+TEST_DB_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
+)
+SERVER_START_TIMEOUT = 15.0
+CANCEL_DEADLINE = 5.0
+
+
+class FixedClock:
+    def now(self) -> datetime:
+        return datetime(2026, 12, 1, 8, 0, tzinfo=UTC)
+
+
+class HangingTurn:
+    def __init__(self) -> None:
+        self.started = threading.Event()
+        self.cancelled = threading.Event()
+        self.finished = threading.Event()
+
+    async def __call__(self, request: TurnRequest) -> AsyncIterator[TurnEvent]:
+        yield Token(text="first ", elapsed=0.0)
+        self.started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            self.cancelled.set()
+            raise
+        self.finished.set()
+        yield Done(
+            new_rows=[
+                HistoryRow(role="user", content=request.message),
+                HistoryRow(role="assistant", content="never"),
+            ]
+        )
+
+
+class ReadyServer(uvicorn.Server):
+    def __init__(self, config: uvicorn.Config) -> None:
+        super().__init__(config)
+        self.ready = threading.Event()
+
+    async def startup(self, sockets: list[socket.socket] | None = None) -> None:
+        await super().startup(sockets)
+        self.ready.set()
+
+
+def _free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        port: int = sock.getsockname()[1]
+        return port
+
+
+@pytest.fixture()
+def hanging_turn() -> HangingTurn:
+    return HangingTurn()
+
+
+@pytest.fixture()
+def live_server(_migrate_fresh: None, hanging_turn: HangingTurn) -> Iterator[str]:
+    application = create_app(Settings(database_url=TEST_DB_URL))  # type: ignore[call-arg]
+    application.state.clock = FixedClock()
+    application.state.turn_runner = hanging_turn
+    port = _free_port()
+    server = ReadyServer(
+        uvicorn.Config(application, host="127.0.0.1", port=port, log_level="warning", loop="asyncio")
+    )
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    assert server.ready.wait(SERVER_START_TIMEOUT), "uvicorn did not start"
+    yield f"http://127.0.0.1:{port}"
+    server.should_exit = True
+    thread.join(SERVER_START_TIMEOUT)
+
+
+def _signed_in_cookie(base_url: str) -> str:
+    with httpx.Client(base_url=base_url) as client:
+        client.post("/auth/signup", json={"username": "user1", "password": "userpass1"})
+        login = client.post("/auth/login", json={"username": "user1", "password": "userpass1"})
+        token = login.cookies.get("session_id")
+        assert token, "login did not set the session cookie"
+        cookie = f"session_id={token}"
+        locations = client.get("/locations", headers={"Cookie": cookie}).json()
+        profile = client.post(
+            "/me/profile",
+            json={"name": "Test User", "location_id": locations[0]["id"]},
+            headers={"Cookie": cookie},
+        )
+        assert profile.status_code in (200, 201)
+        return cookie
+
+
+def _chat_message_count(db_engine: Engine) -> int:
+    with db_engine.connect() as conn:
+        count: int = conn.execute(text("SELECT count(*) FROM chat_message")).scalar_one()
+        return count
+
+
+def test_F16_disconnect_cancels_turn_and_stores_nothing(
+    live_server: str, hanging_turn: HangingTurn, db_engine: Engine
+) -> None:
+    from scripts.create_admin import create_admin
+
+    create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "TestCity")
+    cookie = _signed_in_cookie(live_server)
+
+    events: list[str] = []
+    with httpx.Client(base_url=live_server) as client, client.stream(
+        "POST", "/me/chat", json={"message": "hello"}, headers={"Cookie": cookie}
+    ) as response:
+        assert response.status_code == 200
+        for line in response.iter_lines():
+            if line.startswith("event: "):
+                events.append(line.removeprefix("event: "))
+            if events and events[-1] == "token" and line.startswith("data: "):
+                assert json.loads(line.removeprefix("data: ")) == {"text": "first "}
+                break
+
+    assert events == ["session", "token"]
+    assert hanging_turn.started.is_set()
+    assert hanging_turn.cancelled.wait(CANCEL_DEADLINE), "turn was not cancelled after the client disconnected"
+    assert not hanging_turn.finished.is_set()
+    assert _chat_message_count(db_engine) == 0
