@@ -1,0 +1,12 @@
+{"id": "a-outpatient-copay", "question": "How much is the co-pay for an outpatient visit?", "answerable": true, "must_include": ["50 EGP"]}
+{"id": "a-inpatient", "question": "How many hospital nights does the plan cover per year?", "answerable": true, "must_include": ["30 nights"]}
+{"id": "a-claim-deadline", "question": "What is the deadline for a reimbursement claim?", "answerable": true, "must_include": ["90 days"]}
+{"id": "a-appeal", "question": "How long does it take to get an answer to an appeal?", "answerable": true, "must_include": ["15 working days"]}
+{"id": "a-maternity", "question": "Is maternity covered and up to what amount?", "answerable": true, "must_include": ["35000 EGP"]}
+{"id": "a-cosmetic", "question": "Will the plan pay for cosmetic surgery?", "answerable": true, "must_include": ["not cover"]}
+{"id": "a-mri", "question": "Do I need approval before an MRI, and how far ahead?", "answerable": true, "must_include": ["3 working days"]}
+{"id": "a-missed", "question": "Is there a penalty for missing visits?", "answerable": true, "must_include": ["30 days"]}
+{"id": "u-abroad", "question": "Am I covered for treatment while travelling abroad?", "answerable": false, "must_include": []}
+{"id": "u-ivf", "question": "Does the plan cover IVF treatment?", "answerable": false, "must_include": []}
+{"id": "u-premium-price", "question": "How much does the Premium tier cost per month?", "answerable": false, "must_include": []}
+{"id": "u-pet", "question": "Can I add my dog to the policy?", "answerable": false, "must_include": []}

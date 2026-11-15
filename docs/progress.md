@@ -12,7 +12,7 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 3 | Admin catalog and slots | done | 3.5 |
 | 4 | Visits and complaints | done | 4.6 |
 | 5 | Chat shell with a stub | done | 5.5 |
-| 6 | AI package | in progress | 6c |
+| 6 | AI package | blocked (Gate 2) | 6d |
 | 7 | Observability | not started | - |
 | 8 | Hardening and demo | not started | - |
 
@@ -20,7 +20,7 @@ Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 6, step 6d (knowledge pipeline) on branch `phase-6`.
+Waiting at Gate 2: approve the eval datasets (`chatbot_ai/evals/datasets/*.jsonl`) and the synthetic KB fixtures (`chatbot_ai/evals/kb_fixtures/`). After that: step 6e (integration) on branch `phase-6`; its real-model smoke run waits for Gate 1.
 
 ## Needs confirmation
 
@@ -63,6 +63,13 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [5.3] Disconnect cancellation relies on Starlette: uvicorn 0.54 reports ASGI spec 2.3, so the streaming response listens for `http.disconnect` and cancels the generator, which cancels the turn. The route no longer swallows `CancelledError` and no longer polls `is_disconnected()`. If a uvicorn upgrade moves to spec 2.4 (disconnect seen only on the next write), the F16 test fails and the route needs its own disconnect watcher.
 - [5.3] The chat route streams with `fastapi.sse` (`EventSourceResponse`, `ServerSentEvent`; FastAPI 0.163). The endpoint body is the generator and the 200 headers go out before it runs, so everything that can fail with a status code (length cap, rate limits, profile, session create or validate, history load) moved into the `prepare_turn` dependency. FastAPI also adds a `: ping` keep-alive comment every 15 s, which the frontend parser ignores.
 - [5 conventions] Removed every docstring (41 files) and collapsed multi-line comment blocks to one line. `tests/test_conventions.py` guards it in `make check`: `ast` for docstrings and `tokenize` for runs of standalone comment lines in Python, and a string-aware scan for `/*` and runs of `//` lines in the frontend `.ts` and `.tsx`. It has its own detector tests, and failed on a deliberate docstring and block comment before they were reverted. `backend/alembic/` is excluded because Alembic generates those files (edit generated files minimally).
+- [6d] The knowledge agent runs rewrite, then embed (all queries in one call, dense plus BM25), one Qdrant search per query, RRF merge (k = 60) to `AI_FUSED_K`, dedupe by point id and then by `content_hash`, rerank to `AI_CONTEXT_K`, grounding, and answer (I6, I7). Each search filters on the ready document ids from a new `KnowledgePort.ready_document_ids()` (G8), because a document's points can exist while it is 'processing' or before a re-index has cleared them. `Ports` now has `scheduling`, `complaints` and `knowledge`.
+- [6d] `AI_RETRIEVAL_MODE` dense or sparse queries a single named vector; hybrid sends both prefetches and fuses server-side with RRF (I13). With `AI_QUERY_COUNT=1` the rewrite schema has no `alternates`. A rewrite failure searches with the raw message.
+- [6d] Grounding (I8): no ready documents, no collection, no candidates, or a best rerank score below `AI_RERANK_MIN_SCORE` gives "I couldn't find that in the documents." with no chat call. With the passthrough reranker the scores are None, so the threshold never applies, as ai.md says.
+- [6d] Retrieval is stored as an assistant row with a synthetic `search_kb(query=<standalone>)` call and a tool row `{"excerpts": [{"section", "content"}]}` (I6). The answer model gets the excerpts in its system prompt, each labelled with its breadcrumb.
+- [6d] `TargetReranker.rerank` raises `NotImplementedError("Reranker provider not chosen yet")`; with `AI_RERANK_PROVIDER=target` a knowledge turn fails with the error event until it is implemented.
+- [6d] `RoleClients` also holds one lazily created Qdrant client and closes it with the model clients. `AgentResult.stages` carries rewrite, embed, search and rerank times into `Done.timings`.
+- [6d] Draft eval datasets for Gate 2: `retrieval.jsonl` (16 questions with `expected_phrases` and the expected document), `answers.jsonl` (8 answerable with `must_include`, 4 unanswerable), `tools.jsonl` (7 scenarios, including scheduling, then knowledge, then scheduling). `routing.jsonl` from 6a (26 items). Schemas are in `chatbot_ai/evals/schemas.py`, and a test checks that every phrase and fact exists in the fixtures. The retrieval, answers and tools suites themselves are built with the ablation in 8.3.
 - [6c] Added `docling` and `fastembed` to `chatbot_ai` (both named in the stack and ai.md). Both are imported lazily inside the parse and BM25 functions, so the API process starts without loading them.
 - [6c] Docling runs with OCR off (`PdfPipelineOptions(do_ocr=False)`), so a scanned PDF yields no text and fails with "No extractable text (scanned PDFs are not supported)" (ai.md). Docling reports every PDF section header at level 1, so the breadcrumb depth comes from the heading number when there is one ("2.1 Outpatient care" is level 2), else from Docling's level. Document titles are left out of breadcrumbs. A table that Docling splits at a page break becomes two tables, each with the header, and each is chunked on its own.
 - [6c] Token budgets are estimated as characters / 4 (no tokenizer dependency). Text under one breadcrumb is merged up to `AI_CHUNK_MAX_TOKENS`; an over-long paragraph is split at sentence ends, then at words. Tables render as Markdown; a table over the budget is split into row groups with the header repeated.

@@ -11,6 +11,7 @@ from openai.types.chat import (
     ChatCompletionToolParam,
 )
 from openai.types.shared_params import ResponseFormatJSONSchema
+from qdrant_client import AsyncQdrantClient
 
 from chatbot_ai.settings import AISettings, Role, RoleConfig
 
@@ -80,6 +81,12 @@ def make_role_client(config: RoleConfig) -> RoleClient:
 class RoleClients:
     settings: AISettings
     _clients: dict[Role, RoleClient] = field(default_factory=dict)
+    _qdrant: AsyncQdrantClient | None = None
+
+    def qdrant(self) -> AsyncQdrantClient:
+        if self._qdrant is None:
+            self._qdrant = AsyncQdrantClient(url=self.settings.qdrant_url, check_compatibility=False)
+        return self._qdrant
 
     def get(self, role: Role) -> RoleClient:
         if role not in self._clients:
@@ -90,3 +97,6 @@ class RoleClients:
         for role_client in self._clients.values():
             await role_client.client.close()
         self._clients.clear()
+        if self._qdrant is not None:
+            await self._qdrant.close()
+            self._qdrant = None

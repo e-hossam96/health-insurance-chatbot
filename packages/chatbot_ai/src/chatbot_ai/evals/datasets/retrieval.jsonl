@@ -1,0 +1,16 @@
+{"id": "outpatient-copay", "question": "How much do I pay for an outpatient visit at a network clinic?", "expected_phrases": ["co-pay of 50 EGP per visit"], "expected_document": "policy_handbook.pdf"}
+{"id": "referral", "question": "Do I need a referral to see a specialist?", "expected_phrases": ["Specialist visits need no referral"], "expected_document": "policy_handbook.pdf"}
+{"id": "telemedicine", "question": "Is there a co-pay for telemedicine consultations?", "expected_phrases": ["Telemedicine consultations are covered at no co-pay"], "expected_document": "policy_handbook.pdf"}
+{"id": "inpatient-nights", "question": "How many nights of hospital stay are covered each year?", "expected_phrases": ["up to 30 nights per year"], "expected_document": "policy_handbook.pdf"}
+{"id": "planned-admission", "question": "How early must I get approval for a planned hospital admission?", "expected_phrases": ["at least 5 working days in advance"], "expected_document": "policy_handbook.pdf"}
+{"id": "drug-limit", "question": "What is the annual limit for prescription drugs?", "expected_phrases": ["Prescription drugs", "20000 EGP"], "expected_document": "policy_handbook.pdf"}
+{"id": "maternity-limit", "question": "How much maternity cover do I have?", "expected_phrases": ["Maternity", "35000 EGP"], "expected_document": "policy_handbook.pdf"}
+{"id": "exclusions-cosmetic", "question": "Is cosmetic surgery covered?", "expected_phrases": ["does not cover cosmetic surgery"], "expected_document": "policy_handbook.pdf"}
+{"id": "claim-deadline", "question": "How long do I have to submit a reimbursement claim?", "expected_phrases": ["within 90 days of the service date"], "expected_document": "policy_handbook.pdf"}
+{"id": "appeal", "question": "Can I appeal a rejected claim, and how long does an answer take?", "expected_phrases": ["appealed once", "within 15 working days"], "expected_document": "policy_handbook.pdf"}
+{"id": "fee-schedule", "question": "What does an X-ray cost at Giza Care?", "expected_phrases": ["Giza Care", "X-ray"], "expected_document": "policy_handbook.pdf"}
+{"id": "member-card", "question": "When will my member card arrive?", "expected_phrases": ["within 10 days of enrollment"], "expected_document": "member_guide.docx"}
+{"id": "missed-visits", "question": "What happens if I miss visits without cancelling?", "expected_phrases": ["three missed visits in a year suspend online booking for 30 days"], "expected_document": "member_guide.docx"}
+{"id": "complaint-reply-time", "question": "How quickly does the care team reply to a complaint?", "expected_phrases": ["replies within 3 working days"], "expected_document": "member_guide.docx"}
+{"id": "mri-approval", "question": "Does an MRI scan need pre-authorization?", "expected_phrases": ["MRI scan", "3 working days"], "expected_document": "member_guide.docx"}
+{"id": "dental-crown", "question": "What is the yearly limit for a dental crown on the Premium tier?", "expected_phrases": ["Crown"], "expected_document": "member_guide.docx"}

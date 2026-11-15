@@ -13,6 +13,8 @@ from backend.models import (
     Complaint,
     ComplaintReply,
     Doctor,
+    KbDocument,
+    KbDocumentStatus,
     Location,
     Slot,
     SlotStatus,
@@ -235,8 +237,20 @@ class SqlComplaintsPort:
         return [_visit_card(r) for r in rows.all()]
 
 
+class SqlKnowledgePort:
+    def __init__(self, db: AsyncSession) -> None:
+        self._db = db
+
+    async def ready_document_ids(self) -> list[int]:
+        rows = await self._db.execute(
+            select(KbDocument.id).where(KbDocument.status == KbDocumentStatus.ready).order_by(KbDocument.id)
+        )
+        return list(rows.scalars())
+
+
 def make_ports(db: AsyncSession, profile_id: int, profile_location_id: int, clock: Clock) -> Ports:
     return Ports(
         scheduling=SqlSchedulingPort(db, profile_id, profile_location_id, clock),
         complaints=SqlComplaintsPort(db, profile_id),
+        knowledge=SqlKnowledgePort(db),
     )

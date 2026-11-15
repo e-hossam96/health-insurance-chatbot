@@ -1,0 +1,57 @@
+from __future__ import annotations
+
+import io
+import re
+import zipfile
+from pathlib import Path
+
+from chatbot_ai.evals.schemas import AnswerItem, RetrievalItem, ToolScenario, load_jsonl
+from chatbot_ai.tools.registry import COMPLAINT_TOOLS, SCHEDULING_TOOLS
+
+EVALS = Path(__file__).resolve().parent.parent / "src" / "chatbot_ai" / "evals"
+DATASETS = EVALS / "datasets"
+FIXTURES = EVALS / "kb_fixtures"
+CARD_TYPES = {"doctors", "cancel_confirm", "visits_for_complaint"}
+
+
+def _fixture_text() -> dict[str, str]:
+    pdf = (FIXTURES / "policy_handbook.pdf").read_bytes().decode("latin-1")
+    pdf_text = " ".join(m.replace("\\(", "(").replace("\\)", ")") for m in re.findall(r"\(((?:\\.|[^\\)])*)\) Tj", pdf))
+    docx_xml = zipfile.ZipFile(io.BytesIO((FIXTURES / "member_guide.docx").read_bytes())).read("word/document.xml").decode("utf-8")
+    docx_text = " ".join(re.findall(r"<w:t[^>]*>([^<]*)</w:t>", docx_xml))
+    return {"policy_handbook.pdf": " ".join(pdf_text.split()), "member_guide.docx": " ".join(docx_text.split())}
+
+
+def test_retrieval_draft_phrases_exist_in_the_expected_fixture() -> None:
+    texts = _fixture_text()
+    items = load_jsonl(DATASETS / "retrieval.jsonl", RetrievalItem)
+    assert len(items) >= 15
+    assert len({i.id for i in items}) == len(items)
+    assert {i.expected_document for i in items} == set(texts)
+    for item in items:
+        for phrase in item.expected_phrases:
+            assert phrase in texts[item.expected_document], f"{item.id}: {phrase!r}"
+
+
+def test_answers_draft_mixes_answerable_and_unanswerable_questions() -> None:
+    texts = " ".join(_fixture_text().values())
+    items = load_jsonl(DATASETS / "answers.jsonl", AnswerItem)
+    answerable = [i for i in items if i.answerable]
+    unanswerable = [i for i in items if not i.answerable]
+    assert len(answerable) >= 8 and len(unanswerable) >= 4
+    assert all(i.must_include for i in answerable) and not any(i.must_include for i in unanswerable)
+    for item in answerable:
+        for fact in item.must_include:
+            assert fact in texts, f"{item.id}: {fact!r}"
+
+
+def test_tools_draft_uses_real_tools_and_card_types() -> None:
+    known = {t.name for t in SCHEDULING_TOOLS + COMPLAINT_TOOLS}
+    scenarios = load_jsonl(DATASETS / "tools.jsonl", ToolScenario)
+    assert len(scenarios) >= 6
+    for scenario in scenarios:
+        for turn in scenario.turns:
+            assert {call.name for call in turn.expected_tools} <= known, scenario.id
+            assert turn.expected_cards is None or turn.expected_cards in CARD_TYPES
+    cross = next(s for s in scenarios if s.id == "cross-agent")
+    assert [t.expected_intent.value for t in cross.turns] == ["visit.book", "qa.kb", "visit.book"]

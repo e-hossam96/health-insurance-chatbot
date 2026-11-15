@@ -46,7 +46,13 @@ class ComplaintsPort(Protocol):
     async def eligible_visits(self) -> list[VisitCard]: ...
 
 
+@runtime_checkable
+class KnowledgePort(Protocol):
+    async def ready_document_ids(self) -> list[int]: ...
+
+
 @dataclass(frozen=True)
 class Ports:
     scheduling: SchedulingPort
     complaints: ComplaintsPort
+    knowledge: KnowledgePort

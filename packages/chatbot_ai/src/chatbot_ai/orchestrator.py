@@ -10,6 +10,7 @@ from chatbot_ai.agents.base import (
     AgentResult,
     Clock,
 )
+from chatbot_ai.agents.knowledge import KnowledgeAgent
 from chatbot_ai.agents.responder import ResponderAgent
 from chatbot_ai.agents.tool_loop import complaints_agent, scheduling_agent
 from chatbot_ai.clients import RoleClients
@@ -32,6 +33,7 @@ def default_agents() -> dict[AgentName, Agent]:
     return {
         AgentName.scheduling: scheduling_agent(),
         AgentName.complaints: complaints_agent(),
+        AgentName.knowledge: KnowledgeAgent(),
         AgentName.responder: ResponderAgent(),
     }
 
@@ -82,6 +84,10 @@ async def run_turn(
             new_rows=[HistoryRow(role="user", content=req.message), *result.rows],
             timings=Timings(
                 classify=classified - started,
+                rewrite=result.stages.get("rewrite", 0.0),
+                embed=result.stages.get("embed", 0.0),
+                search=result.stages.get("search", 0.0),
+                rerank=result.stages.get("rerank", 0.0),
                 ttft=result.ttft,
                 generate=result.generate,
                 total=clock() - started,

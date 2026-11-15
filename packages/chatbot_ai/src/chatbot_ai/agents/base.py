@@ -28,6 +28,7 @@ class AgentResult:
     ttft: float = 0.0
     generate: float = 0.0
     tool_calls: list[tuple[str, float]] = field(default_factory=list)
+    stages: dict[str, float] = field(default_factory=dict)
 
 
 AgentEvent = Token | Cards | AgentResult

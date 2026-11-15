@@ -250,13 +250,22 @@ class FakeComplaintsPort:
         ]
 
 
+@dataclass
+class FakeKnowledgePort:
+    ready_ids: list[int] = field(default_factory=list)
+
+    async def ready_document_ids(self) -> list[int]:
+        return list(self.ready_ids)
+
+
 @dataclass(frozen=True)
 class FakePorts:
     scheduling: FakeSchedulingPort
     complaints: FakeComplaintsPort
+    knowledge: FakeKnowledgePort
 
     def as_ports(self) -> Ports:
-        return Ports(scheduling=self.scheduling, complaints=self.complaints)
+        return Ports(scheduling=self.scheduling, complaints=self.complaints, knowledge=self.knowledge)
 
 
 def fake_ports(catalog: FakeCatalog, profile_id: int, profile_location_id: int, now: datetime) -> Ports:
@@ -267,6 +276,7 @@ def make_fake_ports(catalog: FakeCatalog, profile_id: int, profile_location_id: 
     return FakePorts(
         scheduling=FakeSchedulingPort(catalog, profile_id, profile_location_id, now),
         complaints=FakeComplaintsPort(catalog, profile_id),
+        knowledge=FakeKnowledgePort(),
     )
 
 

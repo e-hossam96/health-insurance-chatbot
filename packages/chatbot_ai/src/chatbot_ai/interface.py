@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from chatbot_ai.tools.ports import ComplaintsPort, Ports, SchedulingPort
+from chatbot_ai.tools.ports import ComplaintsPort, KnowledgePort, Ports, SchedulingPort
 
 
 @dataclass(frozen=True)
@@ -86,6 +86,7 @@ __all__ = [
     "Done",
     "HistoryRow",
     "Intent",
+    "KnowledgePort",
     "Ports",
     "ProfileInfo",
     "SchedulingPort",
