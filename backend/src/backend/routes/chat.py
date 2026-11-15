@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-import json
-from collections.abc import AsyncGenerator
-from typing import Any, cast
+from collections.abc import AsyncIterable
+from dataclasses import dataclass
+from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.responses import StreamingResponse
 
 from backend.auth import Clock
 from backend.deps import (
@@ -56,17 +56,21 @@ class ChatRequest(BaseModel):
     message: str
 
 
-@router.post("/chat")
-async def chat(
+@dataclass(frozen=True)
+class PreparedTurn:
+    session_id: int
+    needs_label: bool
+    request: TurnRequest
+
+
+async def prepare_turn(
     body: ChatRequest,
-    request: Request,
     user: RequireUserMode,
     session: CurrentSession,
     db: Db,
     clock: ClockDep,
     settings: SettingsDep,
-    run_turn: TurnRunnerDep,
-) -> StreamingResponse:
+) -> PreparedTurn:
     if len(body.message) > settings.rate_limit_message_max_chars:
         raise _error(
             "rate_limited",
@@ -83,7 +87,6 @@ async def chat(
 
     user_key = str(profile.id)
 
-    # F15: per-minute rate limit
     retry = chat_minute_limiter.check(user_key, clock=clock)
     if retry is not None:
         raise HTTPException(
@@ -92,21 +95,18 @@ async def chat(
             headers={"Retry-After": str(retry)},
         )
 
-    # F15: per-day rate limit (admins exempt)
     if user.role != AccountRole.admin and chat_daily_limiter.check(user_key, clock=clock):
         raise HTTPException(
             status_code=429,
             detail={"error": {"code": "rate_limited", "message": "Daily message limit reached."}},
         )
 
-    # Count now so cancelled/failed turns count too (F15)
+    # F15: counted when the turn starts, so cancelled and failed turns count too
     chat_minute_limiter.record(user_key, clock=clock)
     if user.role != AccountRole.admin:
         chat_daily_limiter.record(user_key, clock=clock)
 
-    # F1: create session on first message, or validate existing
     chat_session: ChatSession
-    needs_label = False
     if body.session_id is None:
         chat_session = ChatSession(profile_id=profile.id)
         db.add(chat_session)
@@ -125,49 +125,50 @@ async def chat(
     session_id = chat_session.id
     await db.commit()
 
-    # F4: load and trim history
     history_rows = await _load_history(db, session_id)
-    context = build_context(history_rows)
-
-    turn_req = TurnRequest(
-        history=context,
-        message=body.message,
-        profile=ProfileInfo(
-            display_name=profile.name,
-            location_name="",
-            location_id=profile.location_id,
-        ),
-        needs_label=needs_label,
+    return PreparedTurn(
         session_id=session_id,
+        needs_label=needs_label,
+        request=TurnRequest(
+            history=build_context(history_rows),
+            message=body.message,
+            profile=ProfileInfo(
+                display_name=profile.name,
+                location_name="",
+                location_id=profile.location_id,
+            ),
+            needs_label=needs_label,
+            session_id=session_id,
+        ),
     )
 
-    def _sse(event: str, data: str) -> str:
-        return f"event: {event}\ndata: {data}\n\n"
 
-    async def event_generator() -> AsyncGenerator[str]:
-        yield _sse("session", json.dumps({"session_id": session_id}))
+@router.post("/chat", response_class=EventSourceResponse)
+async def chat(
+    turn: Annotated[PreparedTurn, Depends(prepare_turn)],
+    db: Db,
+    clock: ClockDep,
+    run_turn: TurnRunnerDep,
+) -> AsyncIterable[ServerSentEvent]:
+    yield ServerSentEvent(event="session", data={"session_id": turn.session_id})
 
-        intent_code: str | None = None
-        try:
-            async for event in run_turn(turn_req):
-                if isinstance(event, Intent):
-                    intent_code = event.code
-                    yield _sse("intent", json.dumps({"intent": event.code}))
-                elif isinstance(event, Token):
-                    yield _sse("token", json.dumps({"text": event.text}))
-                elif isinstance(event, Cards):
-                    yield _sse("cards", json.dumps({"type": event.type, "items": event.items}))
-                elif isinstance(event, Done):
-                    await _store_turn(db, session_id, event, clock, intent_code, needs_label)
-                    yield _sse("done", "{}")
-        except StubError:
-            yield _sse("error", json.dumps({"code": "turn_error", "message": "Something went wrong."}))
-
-    return StreamingResponse(
-        content=event_generator(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    intent_code: str | None = None
+    try:
+        async for event in run_turn(turn.request):
+            if isinstance(event, Intent):
+                intent_code = event.code
+                yield ServerSentEvent(event="intent", data={"intent": event.code})
+            elif isinstance(event, Token):
+                yield ServerSentEvent(event="token", data={"text": event.text})
+            elif isinstance(event, Cards):
+                yield ServerSentEvent(event="cards", data={"type": event.type, "items": event.items})
+            elif isinstance(event, Done):
+                await _store_turn(db, turn.session_id, event, clock, intent_code, turn.needs_label)
+                yield ServerSentEvent(event="done", data={})
+    except StubError:
+        yield ServerSentEvent(
+            event="error", data={"code": "turn_error", "message": "Something went wrong."}
+        )
 
 
 async def _load_history(db: AsyncSession, session_id: int) -> list[HistoryRow]:
