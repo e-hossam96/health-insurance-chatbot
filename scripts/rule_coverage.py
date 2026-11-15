@@ -43,12 +43,14 @@ def load_exemptions(exemptions_path: Path) -> set[str]:
 
 def scan_test_files(test_dirs: list[Path]) -> set[str]:
     covered: set[str] = set()
+    extensions = {"*.py", "*.ts", "*.tsx"}
     for d in test_dirs:
         if not d.exists():
             continue
-        for f in d.rglob("*.py"):
-            content = f.read_text(encoding="utf-8")
-            covered |= set(re.findall(r"[A-Z]\d+", content))
+        for ext in extensions:
+            for f in d.rglob(ext):
+                content = f.read_text(encoding="utf-8")
+                covered |= set(re.findall(r"[A-Z]\d+", content))
     return covered
 
 
