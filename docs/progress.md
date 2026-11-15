@@ -7,7 +7,7 @@ State file for Claude Code. Read it at the start of every session and update it 
 | Phase | Name | Status | Last step done |
 |---|---|---|---|
 | 0 | Skeleton and test harness | done | 0.7 |
-| 1 | Data model | not started | - |
+| 1 | Data model | done | 1.3 |
 | 2 | Accounts and access | not started | - |
 | 3 | Admin catalog and slots | not started | - |
 | 4 | Visits and complaints | not started | - |
@@ -20,7 +20,7 @@ Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 1, step 1.1.
+Phase 2, step 2.1.
 
 ## Needs confirmation
 
