@@ -10,6 +10,7 @@ from backend.database import create_engine
 from backend.metrics import prometheus_middleware
 from backend.routes.admin import router as admin_router
 from backend.routes.auth import router as auth_router
+from backend.routes.chat import router as chat_router
 from backend.routes.locations import router as locations_router
 from backend.routes.me import router as me_router
 from backend.routes.visits import router as visits_router
@@ -39,6 +40,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(admin_router)
     application.include_router(locations_router)
     application.include_router(me_router)
+    application.include_router(chat_router)
     application.include_router(visits_router)
 
     @application.get("/health")
