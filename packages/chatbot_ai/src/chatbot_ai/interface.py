@@ -126,15 +126,3 @@ class ComplaintsPort(Protocol):
 class Ports:
     scheduling: SchedulingPort
     complaints: ComplaintsPort
-
-
-# --- Public functions ---
-
-
-async def run_turn(
-    req: TurnRequest,
-    ports: Ports,
-    settings: object,
-) -> AsyncIterator[TurnEvent]:
-    raise NotImplementedError("Real orchestrator is built in Phase 6")
-    yield  # make it an async generator

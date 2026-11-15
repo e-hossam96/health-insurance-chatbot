@@ -426,12 +426,14 @@ version = "0.1.0"
 source = { editable = "packages/chatbot_ai" }
 dependencies = [
     { name = "openai" },
+    { name = "pydantic-settings" },
     { name = "qdrant-client" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "openai", specifier = ">=3.51.0" },
+    { name = "pydantic-settings", specifier = ">=2.16.3" },
     { name = "qdrant-client", specifier = ">=1.20.0" },
 ]
 

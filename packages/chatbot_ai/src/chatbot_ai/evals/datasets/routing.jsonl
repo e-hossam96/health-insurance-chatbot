@@ -1,0 +1,26 @@
+{"id": "starter-book", "message": "I'd like to book a clinic visit.", "history": [], "expected": "visit.book"}
+{"id": "starter-check-visits", "message": "Show me my visits.", "history": [], "expected": "visit.check"}
+{"id": "starter-cancel", "message": "I want to cancel a visit.", "history": [], "expected": "visit.cancel"}
+{"id": "starter-complaint", "message": "I want to file a complaint about a visit.", "history": [], "expected": "complaint.file"}
+{"id": "starter-check-complaints", "message": "Show me my complaints.", "history": [], "expected": "complaint.check"}
+{"id": "starter-coverage", "message": "What does my health insurance cover?", "history": [], "expected": "qa.kb"}
+{"id": "book-dermatologist", "message": "I need a dermatologist next week", "history": [], "expected": "visit.book"}
+{"id": "book-earliest", "message": "When is the earliest cardiology slot in Giza?", "history": [], "expected": "visit.book"}
+{"id": "check-next-visit", "message": "When is my next appointment?", "history": [], "expected": "visit.check"}
+{"id": "cancel-tomorrow", "message": "Cancel my appointment tomorrow please", "history": [], "expected": "visit.cancel"}
+{"id": "complaint-rude", "message": "The receptionist at Nile Medical was rude to me yesterday", "history": [], "expected": "complaint.file"}
+{"id": "complaint-reply", "message": "Did anyone answer my complaint?", "history": [], "expected": "complaint.check"}
+{"id": "db-clinics-in-cairo", "message": "Which clinics in Cairo have a pediatrician?", "history": [], "expected": "qa.db"}
+{"id": "db-doctors-list", "message": "What specialties does Cairo Clinic offer?", "history": [], "expected": "qa.db"}
+{"id": "kb-copay", "message": "How much is the co-pay for an outpatient visit?", "history": [], "expected": "qa.kb"}
+{"id": "kb-exclusions", "message": "Is cosmetic surgery covered?", "history": [], "expected": "qa.kb"}
+{"id": "kb-claims-deadline", "message": "How long do I have to submit a reimbursement claim?", "history": [], "expected": "qa.kb"}
+{"id": "other-greeting", "message": "Hi there!", "history": [], "expected": "other"}
+{"id": "other-thanks", "message": "Thanks, that's all for today", "history": [], "expected": "other"}
+{"id": "other-weather", "message": "What's the weather like in Cairo?", "history": [], "expected": "other"}
+{"id": "followup-pick-option", "message": "the second one", "history": [{"role": "user", "content": "I need a dermatologist"}, {"role": "assistant", "content": "Here are the earliest options: Dr. Sara Nabil (Tue 15 Dec, 10:00 UTC), Dr. Lina Fares (Wed 16 Dec, 11:00 UTC)."}], "expected": "visit.book"}
+{"id": "followup-yes-cancel", "message": "yes", "history": [{"role": "user", "content": "I want to cancel a visit"}, {"role": "assistant", "content": "You have one scheduled visit: Dr. Sara Nabil on Tue 15 Dec, 10:00 UTC. Do you want to cancel it?"}], "expected": "visit.cancel"}
+{"id": "followup-kb-more", "message": "and what about maternity?", "history": [{"role": "user", "content": "What is the annual limit for prescription drugs?"}, {"role": "assistant", "content": "Prescription drugs are covered up to 20000 EGP per year with a 10% co-pay."}], "expected": "qa.kb"}
+{"id": "followup-new-task", "message": "Also, I'd like to complain about my last visit", "history": [{"role": "user", "content": "Show me my visits"}, {"role": "assistant", "content": "You have one completed visit with Dr. Omar Hassan on Mon 9 Nov, 14:00 UTC."}], "expected": "complaint.file"}
+{"id": "mixed-policy-and-booking", "message": "Is physiotherapy covered, and can I book a session this week?", "history": [], "expected": "visit.book"}
+{"id": "mixed-medical-advice", "message": "I have a rash, what cream should I use? Maybe I should see someone", "history": [], "expected": "visit.book"}

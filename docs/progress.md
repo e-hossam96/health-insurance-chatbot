@@ -12,7 +12,7 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 3 | Admin catalog and slots | done | 3.5 |
 | 4 | Visits and complaints | done | 4.6 |
 | 5 | Chat shell with a stub | done | 5.5 |
-| 6 | AI package | in progress | 6.0 |
+| 6 | AI package | in progress | 6a |
 | 7 | Observability | not started | - |
 | 8 | Hardening and demo | not started | - |
 
@@ -20,7 +20,7 @@ Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 6, step 6a (routing) on branch `phase-6`.
+Phase 6, step 6b (scheduling and complaints) on branch `phase-6`.
 
 ## Needs confirmation
 
@@ -62,6 +62,14 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [5.3] Disconnect cancellation relies on Starlette: uvicorn 0.54 reports ASGI spec 2.3, so the streaming response listens for `http.disconnect` and cancels the generator, which cancels the turn. The route no longer swallows `CancelledError` and no longer polls `is_disconnected()`. If a uvicorn upgrade moves to spec 2.4 (disconnect seen only on the next write), the F16 test fails and the route needs its own disconnect watcher.
 - [5.3] The chat route streams with `fastapi.sse` (`EventSourceResponse`, `ServerSentEvent`; FastAPI 0.163). The endpoint body is the generator and the 200 headers go out before it runs, so everything that can fail with a status code (length cap, rate limits, profile, session create or validate, history load) moved into the `prepare_turn` dependency. FastAPI also adds a `: ping` keep-alive comment every 15 s, which the frontend parser ignores.
 - [5 conventions] Removed every docstring (41 files) and collapsed multi-line comment blocks to one line. `tests/test_conventions.py` guards it in `make check`: `ast` for docstrings and `tokenize` for runs of standalone comment lines in Python, and a string-aware scan for `/*` and runs of `//` lines in the frontend `.ts` and `.tsx`. It has its own detector tests, and failed on a deliberate docstring and block comment before they were reverted. `backend/alembic/` is excluded because Alembic generates those files (edit generated files minimally).
+- [6a] `AISettings` (pydantic-settings) has `AI_<ROLE>_BASE_URL`, `_API_KEY`, `_MODEL` for chat, router, rewrite, embedding, rerank and judge (I11). Base URLs default to OpenAI's, keys fall back to `OPENAI_API_KEY`, and models have no default, so a role without `AI_<ROLE>_MODEL` raises `RoleNotConfigured` when first used. Global `AI_TIMEOUT_S` (60) and `AI_MAX_RETRIES` (2). `AI_<ROLE>_OUTPUT_TOKEN_PARAM` (`max_completion_tokens` default, or `max_tokens`) for the chat-completion roles is the one provider difference handled in `clients.py`.
+- [6a] Added `AI_ROUTER_HISTORY_ROWS` (default 6) so the I1 window size is config, not a literal.
+- [6a] The router sees only the conversation text in its window (user rows and final assistant rows); tool rows and tool-call-only rows are dropped, because the router sends no tools. The window is the last 6 rows cut to start at the first user row; with no user row the window is empty.
+- [6a] Any router failure (API error, rate limit, unparseable or out-of-enum reply) gives no intent: the turn falls back to the responder and no `Intent` event is sent, so the backend's `needs_label` stays true and the next successful turn sets the label (F6, I1).
+- [6a] `run_turn(req, ports, settings, clients=None, agents=None, clock=time.monotonic)` lives in `chatbot_ai.orchestrator` and is exported from the package; the placeholder in `interface.py` was removed. `clients` lets the backend reuse one `RoleClients` per process; `agents` lets tests inject a registry. An intent whose agent is not registered raises `AgentNotAvailable` (scheduling, complaints and knowledge arrive in 6b and 6d).
+- [6a] `Done.usage` sums the router call and the agent's calls.
+- [6a] Prompts are Markdown files in `chatbot_ai/prompts/`: `shared_persona`, `shared_rules` (F5, F8, F17, C8, foreign tool calls, D9, I14), `shared_profile`, `router` and one per agent. `agent_system_prompt` joins the shared blocks, the profile block and the agent's prompt (I4).
+- [6a] Routing eval scaffold: `python -m chatbot_ai.evals routing [--smoke] [--set KEY=VALUE]` writes a Markdown and a JSON report (config snapshot without keys, accuracy, per-class recall, confusion matrix, mistakes, latency) to `chatbot_ai/evals/reports/` (git-ignored). `--langfuse` and the other suites report "not implemented yet". The draft `datasets/routing.jsonl` has 26 items (six starter cards, follow-ups with history, off-topic, mixed) and waits for Gate 2; the target is about 60.
 - [6.0] Test helpers live in a top-level `testkit/` package (importable through the root `pythonpath`), because the fake OpenAI server uses FastAPI and `chatbot_ai` must hold no web-framework code. It is type-checked with mypy strict and scanned by the conventions guard.
 - [6.0] `testkit.fake_openai` is a real HTTP server (uvicorn in a thread, `testkit.live_server`) that the OpenAI SDK talks to. Replies are scripted in a FIFO queue, optionally per model (router vs chat). It serves streaming and non-streaming Chat Completions with tool calls, `json_schema` structured outputs checked against the request schema, and `include_usage`. Embeddings are deterministic feature-hashing vectors (`testkit.embeddings.hash_embedding`), float or base64. Every request is recorded for call-count assertions (I9, I10, I8 grounding).
 - [6.0] `testkit.fake_ports` implements `SchedulingPort` and `ComplaintsPort` over an in-memory catalog with the profile bound in. 6b replaces the dict returns with typed results and the real SQLAlchemy ports.

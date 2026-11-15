@@ -6,6 +6,9 @@ import pytest
 from openai import AsyncOpenAI
 from qdrant_client import AsyncQdrantClient
 
+from chatbot_ai.clients import RoleClients
+from chatbot_ai.settings import AISettings
+from testkit.ai_settings import settings_for
 from testkit.fake_openai import FakeOpenAI, run_fake_openai
 from testkit.qdrant import make_test_client
 
@@ -35,3 +38,16 @@ async def qdrant() -> AsyncIterator[AsyncQdrantClient]:
     client = make_test_client()
     yield client
     await client.close()
+
+
+
+@pytest.fixture()
+def ai_settings(fake_openai: FakeOpenAI) -> AISettings:
+    return settings_for(fake_openai.base_url)
+
+
+@pytest.fixture()
+async def role_clients(ai_settings: AISettings) -> AsyncIterator[RoleClients]:
+    clients = RoleClients(ai_settings)
+    yield clients
+    await clients.aclose()

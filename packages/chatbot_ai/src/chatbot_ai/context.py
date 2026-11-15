@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from typing import cast
+
+from openai.types.chat import (
+    ChatCompletionMessageFunctionToolCallParam,
+    ChatCompletionMessageParam,
+)
+
 from chatbot_ai.interface import HistoryRow
 
 CONTEXT_LIMIT = 40
@@ -14,15 +21,18 @@ def cap_stored_tool_result(content: str) -> str:
     return content[:STORED_TOOL_RESULT_MAX_LEN] + TOOL_RESULT_PLACEHOLDER
 
 
-def to_openai_messages(rows: list[HistoryRow]) -> list[dict[str, object]]:
-    messages: list[dict[str, object]] = []
+def to_openai_messages(rows: list[HistoryRow]) -> list[ChatCompletionMessageParam]:
+    messages: list[ChatCompletionMessageParam] = []
     for row in rows:
         if row.role == "tool":
-            messages.append({"role": "tool", "tool_call_id": row.tool_call_id, "content": row.content})
+            messages.append({"role": "tool", "tool_call_id": row.tool_call_id or "", "content": row.content})
         elif row.role == "assistant" and row.tool_calls:
-            messages.append({"role": "assistant", "content": row.content or None, "tool_calls": row.tool_calls})
+            tool_calls = cast(list[ChatCompletionMessageFunctionToolCallParam], row.tool_calls)
+            messages.append({"role": "assistant", "content": row.content or None, "tool_calls": tool_calls})
+        elif row.role == "assistant":
+            messages.append({"role": "assistant", "content": row.content})
         else:
-            messages.append({"role": row.role, "content": row.content})
+            messages.append({"role": "user", "content": row.content})
     return messages
 
 

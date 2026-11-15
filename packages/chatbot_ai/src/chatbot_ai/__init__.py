@@ -13,6 +13,7 @@ from chatbot_ai.interface import (
     TurnRequest,
     Usage,
 )
+from chatbot_ai.orchestrator import run_turn
 from chatbot_ai.stub import StubError, run_stub_turn
 
 __all__ = [
@@ -31,4 +32,5 @@ __all__ = [
     "TurnRequest",
     "Usage",
     "run_stub_turn",
+    "run_turn",
 ]
