@@ -339,3 +339,57 @@ async def test_F3_last_message_at_updated(
             {"s": sid},
         ).scalar_one()
     assert ts is not None
+
+
+@pytest.mark.anyio()
+async def test_completed_slow_stream_stores_rows(
+    user_client: AsyncClient, db_engine: Engine
+) -> None:
+    resp = await user_client.post("/me/chat", json={"message": "slow stream test"})
+    assert resp.status_code == 200
+    events = _parse_sse(resp.text)
+    done_events = [e for e in events if e.get("event") == "done"]
+    assert len(done_events) == 1
+
+    sid = json.loads(events[0]["data"])["session_id"]
+    with db_engine.connect() as conn:
+        count = conn.execute(
+            text("SELECT count(*) FROM chat_message WHERE session_id = :s"),
+            {"s": sid},
+        ).scalar_one()
+    assert count >= 2
+
+
+@pytest.mark.anyio()
+async def test_F12_cards_not_stored_in_messages(
+    user_client: AsyncClient,
+) -> None:
+    resp = await user_client.post("/me/chat", json={"message": "I want to book a visit"})
+    events = _parse_sse(resp.text)
+    assert any(e.get("event") == "cards" for e in events)
+
+    sid = json.loads(events[0]["data"])["session_id"]
+
+    msg_resp = await user_client.get(f"/me/sessions/{sid}/messages")
+    assert msg_resp.status_code == 200
+    messages = msg_resp.json()
+    for m in messages:
+        assert "cards" not in m
+        assert m["role"] in ("user", "assistant")
+
+
+@pytest.mark.anyio()
+async def test_C8_timestamps_are_utc(
+    user_client: AsyncClient, clock: FakeClock
+) -> None:
+    resp = await user_client.post("/me/chat", json={"message": "hello"})
+    assert resp.status_code == 200
+
+    sessions_resp = await user_client.get("/me/sessions")
+    sessions = sessions_resp.json()
+    assert len(sessions) >= 1
+
+    session = sessions[0]
+    ts = session["last_message_at"]
+    assert ts is not None
+    assert "+00:00" in ts or ts.endswith("Z")

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('auth flows', () => {
-  test('signup, onboarding, and chat placeholder', async ({ page }) => {
+  test('signup, onboarding, and empty chat', async ({ page }) => {
     await page.goto('/signup');
     await expect(page.getByText('Create your account')).toBeVisible();
 
@@ -19,7 +19,7 @@ test.describe('auth flows', () => {
     await page.click('button:has-text("Continue")');
 
     await expect(page).toHaveURL(/\/chat/, { timeout: 5000 });
-    await expect(page.getByText('Chat coming soon')).toBeVisible();
+    await expect(page.getByText('How can I help today?')).toBeVisible();
   });
 
   test('admin login to /admin/kb', async ({ page }) => {

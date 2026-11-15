@@ -22,9 +22,13 @@ case "$cmd" in
   test-frontend)
     cd frontend && npx vitest run
     ;;
+  test-e2e-mocked)
+    cd frontend && npx playwright test e2e/chat.spec.ts
+    ;;
   test)
     bash "$0" test-backend
     bash "$0" test-frontend
+    bash "$0" test-e2e-mocked
     ;;
   check)
     bash "$0" lint
@@ -41,7 +45,7 @@ case "$cmd" in
     bash scripts/smoke_compose.sh
     ;;
   *)
-    echo "Usage: $0 {check|lint|typecheck|test|test-backend|test-frontend|e2e|evals|smoke}"
+    echo "Usage: $0 {check|lint|typecheck|test|test-backend|test-frontend|test-e2e-mocked|e2e|evals|smoke}"
     exit 1
     ;;
 esac

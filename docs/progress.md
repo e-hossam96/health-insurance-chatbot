@@ -11,7 +11,7 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 2 | Accounts and access | done | 2.6 |
 | 3 | Admin catalog and slots | done | 3.5 |
 | 4 | Visits and complaints | done | 4.6 |
-| 5 | Chat shell with a stub | not started | - |
+| 5 | Chat shell with a stub | in progress | 5.5 |
 | 6 | AI package | not started | - |
 | 7 | Observability | not started | - |
 | 8 | Hardening and demo | not started | - |
@@ -20,7 +20,11 @@ Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 5, step 5.1.
+Phase 5 close-out: `docker compose up` smoke test, rule coverage for phase 5, and the independent review. Known items for the review:
+
+- F16 server side has no real test. httpx ASGITransport buffers the whole response, so a disconnect cannot be simulated; it needs a test against a live uvicorn server that closes the stream after the `session` event and asserts no `chat_message` rows. The client side of F16 is covered (Vitest and Playwright Stop tests).
+- `backend/routes/chat.py` uses `StreamingResponse` with hand-built SSE frames, not the built-in `fastapi.sse` that CLAUDE.md names (step 5.3).
+- `packages/chatbot_ai/src/chatbot_ai/stub.py` carries docstrings and comments against the code conventions (step 5.1).
 
 ## Needs confirmation
 
@@ -49,6 +53,13 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [2.5] Rate limit counters use module-level singletons reset via conftest fixture between tests.
 - [2.6] Using Tailwind CSS v4 with @tailwindcss/vite plugin - simpler than shadcn for now; will add shadcn components as needed.
 - [2.6] Playwright e2e tests defined but run only via `make e2e` (need docker compose stack).
+- [5.5] Declared `sqlalchemy[asyncio]`, `asyncpg`, `alembic`, `argon2-cffi` and `psycopg2-binary` in `backend/pyproject.toml` with `uv add`, and committed the generated `alembic.ini`, `alembic/README` and `alembic/script.py.mako` - the code used them since phase 1 but they were only installed locally, so a fresh clone could not run.
+- [5.5] `react-markdown` with `skipHtml` renders assistant text (F17) - covers lists, bold and links; raw HTML is dropped and `javascript:` links are neutralised by its default URL transform.
+- [5.5] `@testing-library/user-event` for typing and clicking in page tests.
+- [5.5] The SSE reader is a pure parser (`createSseParser`) that keeps the event name across network chunks; tested at every split point.
+- [5.5] Cards live in the transcript next to the turn that produced them, so older cards stay visible and are locked while a turn streams (F13), and are re-enabled after it ends.
+- [5.5] Playwright chat specs (`e2e/chat.spec.ts`) mock the API with `page.route` and replay stub-shaped event streams for book, slot taken, complaint, cancel, Stop, and error with Retry. They need only the Vite dev server, so they run in `make check` (`test-e2e-mocked`) and in CI. The stub cannot emit complaint or cancel cards that point at real visits, which is why these specs do not use the live stack. The stack-backed `e2e/auth.spec.ts` stays under `make e2e`.
+- [5.5] HTTP errors from `POST /me/chat` (for example 429 `rate_limited`) show the server's message with Retry; stream `error` events always show "Something went wrong."
 
 ## Deviations from spec
 
@@ -67,4 +78,5 @@ Places where a spec file was changed because the code showed it was wrong or sil
 - React Router v7 for frontend routing
 - TanStack Query v5 for data fetching
 - Tailwind CSS v4 for styling
-- Playwright for e2e tests
+- Playwright for e2e tests (mocked chat specs in `make check` and CI; stack-backed specs under `make e2e`)
+- react-markdown 10.x for assistant Markdown

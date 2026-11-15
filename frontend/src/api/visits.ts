@@ -24,9 +24,26 @@ export type ComplaintItem = {
   replies: ReplyItem[];
 };
 
+export type StaticMessage = {
+  id: number;
+  session_id: number;
+  role: string;
+  content: string;
+};
+
 export type BookResponse = {
   visit: { id: number; status: string };
-  messages: { role: string; content: string }[];
+  messages: StaticMessage[];
+};
+
+export type CancelResponse = {
+  visit: { id: number; status: string };
+  messages?: StaticMessage[] | null;
+};
+
+export type FileComplaintResponse = {
+  complaint: { id: number; visit_id: number; description: string; status: string };
+  messages: StaticMessage[];
 };
 
 export function bookVisit(sessionId: number, slotId: number): Promise<BookResponse> {
@@ -40,7 +57,7 @@ export function getMyVisits(): Promise<VisitItem[]> {
   return apiFetch('/me/visits');
 }
 
-export function cancelVisit(visitId: number, sessionId?: number): Promise<unknown> {
+export function cancelVisit(visitId: number, sessionId?: number): Promise<CancelResponse> {
   return apiFetch(`/me/visits/${visitId}/cancel`, {
     method: 'POST',
     body: JSON.stringify(sessionId ? { session_id: sessionId } : {}),
@@ -51,7 +68,11 @@ export function getMyComplaints(): Promise<ComplaintItem[]> {
   return apiFetch('/me/complaints');
 }
 
-export function fileComplaint(sessionId: number, visitId: number, description: string): Promise<unknown> {
+export function fileComplaint(
+  sessionId: number,
+  visitId: number,
+  description: string,
+): Promise<FileComplaintResponse> {
   return apiFetch('/me/complaints', {
     method: 'POST',
     body: JSON.stringify({ session_id: sessionId, visit_id: visitId, description }),
