@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import calendar
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import extract, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from backend.deps import Db, RequireAdmin
+from backend.deps import ClockDep, Db, RequireAdmin
 from backend.models import (
     Clinic,
     ClinicSpecialty,
@@ -439,6 +441,55 @@ async def delete_slot(
     await db.delete(slot)
     await db.commit()
     return {"deleted": True}
+
+
+# --- Auto-fill ---
+
+
+class AutofillRequest(BaseModel):
+    doctor_id: int
+
+
+class AutofillResponse(BaseModel):
+    created: int
+    message: str
+
+
+@router.post("/slots/autofill")
+async def autofill_slots(
+    body: AutofillRequest, admin: RequireAdmin, db: Db, clock: ClockDep
+) -> AutofillResponse:
+    doctor = await db.get(Doctor, body.doctor_id)
+    if doctor is None:
+        raise _error("not_found", "Doctor not found.", 404)
+
+    now = clock.now().astimezone(UTC)
+    today = now.date()
+    last_day = date(today.year, today.month, calendar.monthrange(today.year, today.month)[1])
+
+    rows: list[dict[str, int | datetime]] = []
+    current = today
+    while current <= last_day:
+        for hour in range(SLOT_START_HOUR, SLOT_END_HOUR + 1):
+            slot_dt = datetime(current.year, current.month, current.day, hour, 0, tzinfo=UTC)
+            if slot_dt < now:
+                continue
+            rows.append({"doctor_id": body.doctor_id, "start_at": slot_dt})
+        current += timedelta(days=1)
+
+    if not rows:
+        return AutofillResponse(created=0, message="Nothing to create")
+
+    stmt = pg_insert(Slot).values(rows).on_conflict_do_nothing(
+        index_elements=["doctor_id", "start_at"]
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+    created = int(result.rowcount)  # type: ignore[attr-defined]
+
+    if created == 0:
+        return AutofillResponse(created=0, message="Nothing to create")
+    return AutofillResponse(created=created, message=f"Created {created} slot(s)")
 
 
 # --- KB placeholder ---
