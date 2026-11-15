@@ -12,7 +12,7 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 3 | Admin catalog and slots | done | 3.5 |
 | 4 | Visits and complaints | done | 4.6 |
 | 5 | Chat shell with a stub | done | 5.5 |
-| 6 | AI package | not started | - |
+| 6 | AI package | in progress | 6.0 |
 | 7 | Observability | not started | - |
 | 8 | Hardening and demo | not started | - |
 
@@ -20,7 +20,7 @@ Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 6, step 6.0 (test infrastructure) on branch `phase-6`.
+Phase 6, step 6a (routing) on branch `phase-6`.
 
 ## Needs confirmation
 
@@ -62,6 +62,13 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [5.3] Disconnect cancellation relies on Starlette: uvicorn 0.54 reports ASGI spec 2.3, so the streaming response listens for `http.disconnect` and cancels the generator, which cancels the turn. The route no longer swallows `CancelledError` and no longer polls `is_disconnected()`. If a uvicorn upgrade moves to spec 2.4 (disconnect seen only on the next write), the F16 test fails and the route needs its own disconnect watcher.
 - [5.3] The chat route streams with `fastapi.sse` (`EventSourceResponse`, `ServerSentEvent`; FastAPI 0.163). The endpoint body is the generator and the 200 headers go out before it runs, so everything that can fail with a status code (length cap, rate limits, profile, session create or validate, history load) moved into the `prepare_turn` dependency. FastAPI also adds a `: ping` keep-alive comment every 15 s, which the frontend parser ignores.
 - [5 conventions] Removed every docstring (41 files) and collapsed multi-line comment blocks to one line. `tests/test_conventions.py` guards it in `make check`: `ast` for docstrings and `tokenize` for runs of standalone comment lines in Python, and a string-aware scan for `/*` and runs of `//` lines in the frontend `.ts` and `.tsx`. It has its own detector tests, and failed on a deliberate docstring and block comment before they were reverted. `backend/alembic/` is excluded because Alembic generates those files (edit generated files minimally).
+- [6.0] Test helpers live in a top-level `testkit/` package (importable through the root `pythonpath`), because the fake OpenAI server uses FastAPI and `chatbot_ai` must hold no web-framework code. It is type-checked with mypy strict and scanned by the conventions guard.
+- [6.0] `testkit.fake_openai` is a real HTTP server (uvicorn in a thread, `testkit.live_server`) that the OpenAI SDK talks to. Replies are scripted in a FIFO queue, optionally per model (router vs chat). It serves streaming and non-streaming Chat Completions with tool calls, `json_schema` structured outputs checked against the request schema, and `include_usage`. Embeddings are deterministic feature-hashing vectors (`testkit.embeddings.hash_embedding`), float or base64. Every request is recorded for call-count assertions (I9, I10, I8 grounding).
+- [6.0] `testkit.fake_ports` implements `SchedulingPort` and `ComplaintsPort` over an in-memory catalog with the profile bound in. 6b replaces the dict returns with typed results and the real SQLAlchemy ports.
+- [6.0] Qdrant tests use the real compose/CI server through `testkit.qdrant` (one throwaway collection per test). The client (qdrant-client 1.20) is newer than the pinned server image (v1.13.6), so `check_compatibility=False`; hybrid dense + sparse RRF queries are verified against the real server.
+- [6.0] Added `openai` and `qdrant-client` to `chatbot_ai` (both in the stack).
+- [6.0] `scripts/generate_kb_fixtures.py` writes the synthetic KB fixtures to `chatbot_ai/evals/kb_fixtures/` with the standard library only (raw PDF objects and a minimal DOCX zip), so no PDF or Word writer dependency outside the stack was added. Output is byte-for-byte deterministic and committed; a test fails if the committed files are stale. Fixtures: `policy_handbook.pdf` (headings, a 5-row table and a 60-row fee table across pages with the header repeated), `member_guide.docx` (Heading 1/2 styles, a 4-row and a 45-row table) and `scanned_notice.pdf` (a page with shapes and no text, for the G-rule scanned-PDF error). The first Docling parse of them happens in 6c.
+- [6.0] Ruff treats the repo root as first-party (`src` includes `.`), so `testkit` and `scripts` imports sort with the project's own modules.
 - [5 review] Card actions (book, cancel, complaint) given another user's or a missing chat session now return 404 `not_found` instead of 403, matching api.md (404 "not found, or not yours").
 - [5 review] Any exception from the turn runner (not only the stub's) rolls back and sends the `error` event (F3, ai.md section 1). Proven by a turn that fails after streaming a token and by a turn whose rows fail to insert.
 - [5 review] Stored tool results are capped at 8000 characters plus the `[truncated]` placeholder (`cap_stored_tool_result`, F4); replayed old results stay capped at 500.
@@ -91,3 +98,5 @@ Places where a spec file was changed because the code showed it was wrong or sil
 - Tailwind CSS v4 for styling
 - Playwright for e2e tests (mocked chat specs in `make check` and CI; stack-backed specs under `make e2e`)
 - react-markdown 10.x for assistant Markdown
+- openai 3.51 (Chat Completions and embeddings), qdrant-client 1.20 against Qdrant server 1.13.6
+- Fake OpenAI-compatible server in `testkit/` (FastAPI + uvicorn in a thread) for every model call in tests

@@ -4,6 +4,7 @@ from pathlib import Path
 from textwrap import dedent
 
 import pytest
+
 from scripts.rule_coverage import (
     check_coverage,
     extract_all_rule_ids,

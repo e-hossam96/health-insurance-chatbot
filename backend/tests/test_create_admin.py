@@ -3,10 +3,11 @@ from __future__ import annotations
 import os
 
 import pytest
-from scripts.create_admin import create_admin
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
+
+from scripts.create_admin import create_admin
 
 TEST_DB_URL = os.environ.get(
     "DATABASE_URL",

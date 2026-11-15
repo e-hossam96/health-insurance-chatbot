@@ -27,7 +27,7 @@ dev = [
 
 [tool.mypy]
 strict = true
-packages = ["backend", "chatbot_ai"]
+packages = ["backend", "chatbot_ai", "testkit"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "backend/tests", "packages/chatbot_ai/tests"]
@@ -35,4 +35,4 @@ pythonpath = ["."]
 consider_namespace_packages = true
 
 [tool.ruff]
-src = ["backend/src", "packages/chatbot_ai/src"]
+src = [".", "backend/src", "packages/chatbot_ai/src"]

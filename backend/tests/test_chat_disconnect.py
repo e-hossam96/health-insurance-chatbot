@@ -3,26 +3,24 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import socket
 import threading
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime
 
 import httpx
 import pytest
-import uvicorn
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from backend.app import create_app
 from backend.config import Settings
 from chatbot_ai.interface import Done, HistoryRow, Token, TurnEvent, TurnRequest
+from testkit.live_server import serve_in_thread
 
 TEST_DB_URL = os.environ.get(
     "DATABASE_URL",
     "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
 )
-SERVER_START_TIMEOUT = 15.0
 CANCEL_DEADLINE = 5.0
 
 
@@ -54,23 +52,6 @@ class HangingTurn:
         )
 
 
-class ReadyServer(uvicorn.Server):
-    def __init__(self, config: uvicorn.Config) -> None:
-        super().__init__(config)
-        self.ready = threading.Event()
-
-    async def startup(self, sockets: list[socket.socket] | None = None) -> None:
-        await super().startup(sockets)
-        self.ready.set()
-
-
-def _free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        port: int = sock.getsockname()[1]
-        return port
-
-
 @pytest.fixture()
 def hanging_turn() -> HangingTurn:
     return HangingTurn()
@@ -81,16 +62,8 @@ def live_server(_migrate_fresh: None, hanging_turn: HangingTurn) -> Iterator[str
     application = create_app(Settings(database_url=TEST_DB_URL))  # type: ignore[call-arg]
     application.state.clock = FixedClock()
     application.state.turn_runner = hanging_turn
-    port = _free_port()
-    server = ReadyServer(
-        uvicorn.Config(application, host="127.0.0.1", port=port, log_level="warning", loop="asyncio")
-    )
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    assert server.ready.wait(SERVER_START_TIMEOUT), "uvicorn did not start"
-    yield f"http://127.0.0.1:{port}"
-    server.should_exit = True
-    thread.join(SERVER_START_TIMEOUT)
+    with serve_in_thread(application) as url:
+        yield url
 
 
 def _signed_in_cookie(base_url: str) -> str:
