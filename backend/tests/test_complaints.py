@@ -310,3 +310,80 @@ async def test_B7_complaint_reply_admin_account_id(
             text("SELECT role FROM account WHERE id = :a"), {"a": admin_id}
         ).scalar_one()
     assert role == "admin"
+
+
+# --- E1: complaint on another user's visit rejected ---
+
+
+@pytest.mark.anyio()
+async def test_E1_complaint_on_other_users_visit_rejected(
+    user_client: AsyncClient, db_engine: Engine
+) -> None:
+    """E1: filing a complaint on a visit owned by another user returns 404."""
+    # Create another user's completed visit
+    with db_engine.connect() as conn:
+        from argon2 import PasswordHasher
+
+        ph = PasswordHasher()
+        acct_id = conn.execute(
+            text("INSERT INTO account (username, password_hash, role) VALUES ('other', :h, 'user') RETURNING id"),
+            {"h": ph.hash("otherpass")},
+        ).scalar_one()
+        loc_id = conn.execute(text("SELECT id FROM location LIMIT 1")).scalar_one()
+        other_profile_id = conn.execute(
+            text("INSERT INTO profile (account_id, name, location_id) VALUES (:a, 'Other', :l) RETURNING id"),
+            {"a": acct_id, "l": loc_id},
+        ).scalar_one()
+        clinic_id = conn.execute(
+            text("INSERT INTO clinic (name, location_id) VALUES ('OC', :l) RETURNING id"), {"l": loc_id}
+        ).scalar_one()
+        spec_id = conn.execute(text("INSERT INTO specialty (name) VALUES ('OS') RETURNING id")).scalar_one()
+        cs_id = conn.execute(
+            text("INSERT INTO clinic_specialty (clinic_id, specialty_id) VALUES (:c, :s) RETURNING id"),
+            {"c": clinic_id, "s": spec_id},
+        ).scalar_one()
+        doctor_id = conn.execute(
+            text("INSERT INTO doctor (name, clinic_specialty_id) VALUES ('DrO', :cs) RETURNING id"),
+            {"cs": cs_id},
+        ).scalar_one()
+        slot_id = conn.execute(
+            text("INSERT INTO slot (doctor_id, start_at, status) VALUES (:d, '2026-12-15 12:00:00+00', 'booked') RETURNING id"),
+            {"d": doctor_id},
+        ).scalar_one()
+        other_visit_id = conn.execute(
+            text("INSERT INTO visit (profile_id, slot_id, status) VALUES (:p, :s, 'completed') RETURNING id"),
+            {"p": other_profile_id, "s": slot_id},
+        ).scalar_one()
+        conn.commit()
+
+    session_id = _get_chat_session_id(db_engine)
+    resp = await user_client.post(
+        "/me/complaints",
+        json={"session_id": session_id, "visit_id": other_visit_id, "description": "Not mine"},
+    )
+    assert resp.status_code == 404
+    assert resp.json()["detail"]["error"]["code"] == "not_found"
+
+
+# --- E3: user cannot reply to complaint ---
+
+
+@pytest.mark.anyio()
+async def test_E3_user_reply_rejected(
+    user_client: AsyncClient, db_engine: Engine
+) -> None:
+    """E3: a non-admin user gets 403 when trying to reply to a complaint."""
+    visit_id = _setup_completed_visit(db_engine)
+    session_id = _get_chat_session_id(db_engine)
+    file_resp = await user_client.post(
+        "/me/complaints",
+        json={"session_id": session_id, "visit_id": visit_id, "description": "Bad"},
+    )
+    complaint_id = file_resp.json()["complaint"]["id"]
+
+    # user_client is in user mode, should be rejected
+    resp = await user_client.post(
+        f"/admin/complaints/{complaint_id}/reply",
+        json={"body": "I am not admin."},
+    )
+    assert resp.status_code == 403

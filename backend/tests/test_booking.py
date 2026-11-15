@@ -145,10 +145,10 @@ async def test_D6_booking_writes_4_messages(
 
 
 @pytest.mark.anyio()
-async def test_D7_past_slot_rejected(
+async def test_D1_past_slot_rejected(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:
-    """A past slot is rejected."""
+    """D1: A past slot is rejected."""
     with db_engine.connect() as conn:
         loc_id = conn.execute(text("SELECT id FROM location LIMIT 1")).scalar_one()
         clinic_id = conn.execute(
@@ -230,6 +230,38 @@ async def test_D1_failure_leaves_no_messages(
     )
     assert resp.status_code != 201
 
+    with db_engine.connect() as conn:
+        msg_count_after = conn.execute(text("SELECT count(*) FROM chat_message")).scalar_one()
+    assert msg_count_after == msg_count_before
+
+
+@pytest.mark.anyio()
+async def test_D7_slot_taken_conflict(
+    user_client: AsyncClient, setup_slot: int, db_engine: Engine
+) -> None:
+    """D7: booking an already-booked slot returns 409 slot_taken with no messages."""
+    session_id = _get_chat_session_id(db_engine)
+
+    # First booking succeeds
+    resp1 = await user_client.post(
+        "/me/visits",
+        json={"session_id": session_id, "slot_id": setup_slot},
+    )
+    assert resp1.status_code == 201
+
+    msg_count_before: int
+    with db_engine.connect() as conn:
+        msg_count_before = conn.execute(text("SELECT count(*) FROM chat_message")).scalar_one()
+
+    # Second booking on same slot fails with slot_taken
+    resp2 = await user_client.post(
+        "/me/visits",
+        json={"session_id": session_id, "slot_id": setup_slot},
+    )
+    assert resp2.status_code == 409
+    assert resp2.json()["detail"]["error"]["code"] == "slot_taken"
+
+    # No messages written for failed booking
     with db_engine.connect() as conn:
         msg_count_after = conn.execute(text("SELECT count(*) FROM chat_message")).scalar_one()
     assert msg_count_after == msg_count_before

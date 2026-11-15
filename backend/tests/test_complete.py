@@ -95,3 +95,30 @@ async def test_D3_cancelled_is_final(
     resp = await admin_client.post(f"/admin/visits/{visit_id}/complete")
     assert resp.status_code == 409
     assert resp.json()["detail"]["error"]["code"] == "invalid_transition"
+
+
+@pytest.mark.anyio()
+async def test_D3_user_cannot_complete(app: object, db_engine: Engine) -> None:
+    """D3: non-admin user gets 403 on the complete endpoint."""
+    from scripts.create_admin import create_admin
+
+    create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "DefaultLoc")
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),  # type: ignore[arg-type]
+        base_url="https://test",
+    ) as c:
+        await c.post("/auth/signup", json={"username": "user1", "password": "userpass1"})
+        await c.post("/auth/login", json={"username": "user1", "password": "userpass1"})
+        locs = (await c.get("/locations")).json()
+        await c.post("/me/profile", json={"name": "Test User", "location_id": locs[0]["id"]})
+
+    visit_id = _setup_visit(db_engine, "scheduled")
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),  # type: ignore[arg-type]
+        base_url="https://test",
+    ) as c:
+        await c.post("/auth/login", json={"username": "user1", "password": "userpass1"})
+        resp = await c.post(f"/admin/visits/{visit_id}/complete")
+    assert resp.status_code == 403

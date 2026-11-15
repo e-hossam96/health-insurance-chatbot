@@ -10,7 +10,7 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 1 | Data model | done | 1.3 |
 | 2 | Accounts and access | done | 2.6 |
 | 3 | Admin catalog and slots | done | 3.5 |
-| 4 | Visits and complaints | not started | - |
+| 4 | Visits and complaints | done | 4.6 |
 | 5 | Chat shell with a stub | not started | - |
 | 6 | AI package | not started | - |
 | 7 | Observability | not started | - |
@@ -20,7 +20,7 @@ Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 4, step 4.1.
+Phase 5, step 5.1.
 
 ## Needs confirmation
 
