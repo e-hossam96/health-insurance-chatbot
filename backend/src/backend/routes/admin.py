@@ -21,6 +21,7 @@ from backend.models import (
     SlotStatus,
     Specialty,
     Visit,
+    VisitStatus,
 )
 
 SLOT_START_HOUR = 9
@@ -490,6 +491,32 @@ async def autofill_slots(
     if created == 0:
         return AutofillResponse(created=0, message="Nothing to create")
     return AutofillResponse(created=created, message=f"Created {created} slot(s)")
+
+
+# --- Visit completion (D3) ---
+
+
+class VisitStatusOut(BaseModel):
+    id: int
+    status: str
+
+
+@router.post("/visits/{visit_id}/complete")
+async def complete_visit(
+    visit_id: int, admin: RequireAdmin, db: Db
+) -> VisitStatusOut:
+    visit = await db.get(Visit, visit_id)
+    if visit is None:
+        raise _error("not_found", "Visit not found.", 404)
+    if visit.status != VisitStatus.scheduled:
+        raise _error(
+            "invalid_transition",
+            f"Cannot complete a visit with status '{visit.status.value}'.",
+            409,
+        )
+    visit.status = VisitStatus.completed
+    await db.commit()
+    return VisitStatusOut(id=visit.id, status=visit.status.value)
 
 
 # --- KB placeholder ---
