@@ -12,6 +12,7 @@ from backend.routes.admin import router as admin_router
 from backend.routes.auth import router as auth_router
 from backend.routes.locations import router as locations_router
 from backend.routes.me import router as me_router
+from backend.routes.visits import router as visits_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -38,6 +39,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(admin_router)
     application.include_router(locations_router)
     application.include_router(me_router)
+    application.include_router(visits_router)
 
     @application.get("/health")
     async def health() -> dict[str, str]:
