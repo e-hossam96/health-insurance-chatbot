@@ -1,5 +1,3 @@
-"""Contract tests for the stub agent (step 5.1)."""
-
 from __future__ import annotations
 
 import pytest
@@ -37,7 +35,6 @@ async def _collect(req: TurnRequest) -> list[object]:
 
 @pytest.mark.anyio()
 async def test_text_only_event_order() -> None:
-    """Text-only scenario: Token+ then Done with 2 rows."""
     events = await _collect(_req("hello"))
     tokens = [e for e in events if isinstance(e, Token)]
     assert len(tokens) > 0
@@ -55,7 +52,6 @@ async def test_text_only_event_order() -> None:
 
 @pytest.mark.anyio()
 async def test_tool_call_with_cards_event_order() -> None:
-    """Tool call scenario: Token+, Cards, then Done with 4 rows (tool call shape)."""
     events = await _collect(_req("I want to book a visit"))
     tokens = [e for e in events if isinstance(e, Token)]
     assert len(tokens) > 0
@@ -84,7 +80,6 @@ async def test_tool_call_with_cards_event_order() -> None:
 
 @pytest.mark.anyio()
 async def test_error_scenario_raises() -> None:
-    """Error scenario raises StubError."""
     with pytest.raises(StubError, match="Simulated error"):
         async for _ in run_stub_turn(_req("trigger error please")):
             pass
@@ -92,7 +87,6 @@ async def test_error_scenario_raises() -> None:
 
 @pytest.mark.anyio()
 async def test_slow_stream_event_order() -> None:
-    """Slow stream: Token+ then Done, with measurable elapsed times."""
     events = await _collect(_req("slow response", needs_label=False))
     tokens = [e for e in events if isinstance(e, Token)]
     assert len(tokens) > 1
@@ -104,7 +98,6 @@ async def test_slow_stream_event_order() -> None:
 
 @pytest.mark.anyio()
 async def test_intent_emitted_when_needs_label() -> None:
-    """Intent event is emitted when needs_label=True."""
     events = await _collect(_req("I want to book a visit", needs_label=True))
     intent_events = [e for e in events if isinstance(e, Intent)]
     assert len(intent_events) == 1
@@ -115,14 +108,12 @@ async def test_intent_emitted_when_needs_label() -> None:
 
 @pytest.mark.anyio()
 async def test_no_intent_when_not_needed() -> None:
-    """No Intent event when needs_label=False."""
     events = await _collect(_req("I want to book a visit", needs_label=False))
     assert not any(isinstance(e, Intent) for e in events)
 
 
 @pytest.mark.anyio()
 async def test_intent_before_error() -> None:
-    """Error scenario still emits Intent if needs_label before raising."""
     events: list[object] = []
     with pytest.raises(StubError):
         async for ev in run_stub_turn(_req("trigger error", needs_label=True)):
@@ -134,7 +125,6 @@ async def test_intent_before_error() -> None:
 
 @pytest.mark.anyio()
 async def test_done_has_timings_and_usage() -> None:
-    """Done event carries timings and usage."""
     events = await _collect(_req("hello"))
     done = next(e for e in events if isinstance(e, Done))
     assert done.timings.total > 0
@@ -144,7 +134,6 @@ async def test_done_has_timings_and_usage() -> None:
 
 @pytest.mark.anyio()
 async def test_tool_call_timings_include_tool_name() -> None:
-    """Tool call scenario includes tool call timings."""
     events = await _collect(_req("book a slot"))
     done = next(e for e in events if isinstance(e, Done))
     assert len(done.timings.tool_calls) > 0
@@ -153,7 +142,6 @@ async def test_tool_call_timings_include_tool_name() -> None:
 
 @pytest.mark.anyio()
 async def test_history_row_contract() -> None:
-    """HistoryRow has the expected fields."""
     row = HistoryRow(role="user", content="hello")
     assert row.role == "user"
     assert row.content == "hello"

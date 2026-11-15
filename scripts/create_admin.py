@@ -1,5 +1,3 @@
-"""Create an admin account with a profile."""
-
 from __future__ import annotations
 
 import argparse

@@ -1,5 +1,3 @@
-"""Tests for step 4.5: Visit and complaint lists (D4)."""
-
 from __future__ import annotations
 
 import os
@@ -74,7 +72,6 @@ async def admin_client(app: object, _setup_accounts: None) -> AsyncClient:
 
 
 def _setup_visit_data(db_engine: Engine) -> dict[str, int]:
-    """Create 2 completed visits and 1 scheduled, return ids."""
     with db_engine.connect() as conn:
         loc_id = conn.execute(text("SELECT id FROM location LIMIT 1")).scalar_one()
         clinic_id = conn.execute(
@@ -152,7 +149,6 @@ async def test_D4_my_visits_with_joins(
 async def test_D4_my_visits_no_leakage(
     user_client: AsyncClient, db_engine: Engine, app: object
 ) -> None:
-    """Other user's visits are not returned."""
     _setup_visit_data(db_engine)
 
     # Create another user and visit

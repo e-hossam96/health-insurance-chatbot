@@ -1,5 +1,3 @@
-"""Tests for step 1.2: database rules A1-A6."""
-
 from __future__ import annotations
 
 import pytest
@@ -108,7 +106,6 @@ def _insert_visit(
 
 
 def _setup_doctor(conn: object) -> tuple[int, int, int]:
-    """Create account, location, profile, specialty, clinic, clinic_specialty, doctor. Return (profile_id, doctor_id, location_id)."""
     loc_id = _insert_location(conn)
     acct_id = _insert_account(conn)
     profile_id = _insert_profile(conn, acct_id, loc_id)

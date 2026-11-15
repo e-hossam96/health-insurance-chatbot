@@ -1,5 +1,3 @@
-"""Visit routes (booking, cancel, complete, lists)."""
-
 from __future__ import annotations
 
 import json

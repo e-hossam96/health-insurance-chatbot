@@ -1,5 +1,3 @@
-"""Tests for step 2.4: profile (B2, B3, B4, B9)."""
-
 from __future__ import annotations
 
 import os

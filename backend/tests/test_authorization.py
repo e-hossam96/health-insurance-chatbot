@@ -1,9 +1,3 @@
-"""Tests for step 2.3: authorization (B8, B11).
-
-The parametrized matrix is generated from the app's registered routes,
-so adding a new /admin/* or /me/* route without proper guards will fail here.
-"""
-
 from __future__ import annotations
 
 import os
@@ -37,7 +31,6 @@ async def client(app: object) -> AsyncGenerator[AsyncClient]:
 
 
 def _get_protected_routes(app: object) -> list[tuple[str, str]]:
-    """Extract all routes starting with /admin/ or /me/ from the OpenAPI schema."""
     from fastapi import FastAPI
 
     assert isinstance(app, FastAPI)
@@ -78,7 +71,6 @@ async def _create_admin_and_login(client: AsyncClient) -> None:
 
 @pytest.mark.anyio()
 async def test_B8_protected_routes_exist(app: object) -> None:
-    """Sanity check that we have at least one admin and one me route."""
     assert len(_admin_routes(app)) > 0, "No /admin/ routes found"
     assert len(_me_routes(app)) > 0, "No /me/ routes found"
 

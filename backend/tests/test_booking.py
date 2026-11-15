@@ -1,5 +1,3 @@
-"""Tests for step 4.1: Booking (D1, D6, D7, F2)."""
-
 from __future__ import annotations
 
 import asyncio
@@ -38,7 +36,6 @@ def app(_migrate_fresh: None) -> object:
 
 @pytest.fixture()
 async def user_client(app: object, db_engine: Engine) -> AsyncClient:
-    """Create a user account with profile and a chat session."""
     from scripts.create_admin import create_admin
 
     create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "TestCity")
@@ -71,7 +68,6 @@ async def user_client(app: object, db_engine: Engine) -> AsyncClient:
 
 @pytest.fixture()
 def setup_slot(db_engine: Engine) -> int:
-    """Create a doctor + available slot, return the slot id."""
     with db_engine.connect() as conn:
         loc_id: int = conn.execute(text("SELECT id FROM location LIMIT 1")).scalar_one()
         clinic_id: int = conn.execute(
@@ -106,7 +102,6 @@ def _get_chat_session_id(db_engine: Engine) -> int:
 async def test_D1_concurrent_booking(
     user_client: AsyncClient, setup_slot: int, db_engine: Engine, app: object
 ) -> None:
-    """Two concurrent booking requests on one slot: exactly one 201 and one 409."""
     session_id = _get_chat_session_id(db_engine)
 
     async def try_book() -> int:
@@ -124,7 +119,6 @@ async def test_D1_concurrent_booking(
 async def test_D6_booking_writes_4_messages(
     user_client: AsyncClient, setup_slot: int, db_engine: Engine
 ) -> None:
-    """Booking writes 4 static messages with the correct shape."""
     session_id = _get_chat_session_id(db_engine)
     resp = await user_client.post(
         "/me/visits",
@@ -148,7 +142,6 @@ async def test_D6_booking_writes_4_messages(
 async def test_D1_past_slot_rejected(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:
-    """D1: A past slot is rejected."""
     with db_engine.connect() as conn:
         loc_id = conn.execute(text("SELECT id FROM location LIMIT 1")).scalar_one()
         clinic_id = conn.execute(
@@ -186,7 +179,6 @@ async def test_D1_past_slot_rejected(
 async def test_F2_session_not_owned_rejected(
     user_client: AsyncClient, setup_slot: int, db_engine: Engine
 ) -> None:
-    """A chat session that does not belong to the requester is rejected."""
     # Create another user's chat session
     with db_engine.connect() as conn:
         from argon2 import PasswordHasher
@@ -217,7 +209,6 @@ async def test_F2_session_not_owned_rejected(
 async def test_D1_failure_leaves_no_messages(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:
-    """A failed booking writes no messages."""
     # Try to book a nonexistent slot
     session_id = _get_chat_session_id(db_engine)
     msg_count_before = 0
@@ -239,7 +230,6 @@ async def test_D1_failure_leaves_no_messages(
 async def test_D7_slot_taken_conflict(
     user_client: AsyncClient, setup_slot: int, db_engine: Engine
 ) -> None:
-    """D7: booking an already-booked slot returns 409 slot_taken with no messages."""
     session_id = _get_chat_session_id(db_engine)
 
     # First booking succeeds

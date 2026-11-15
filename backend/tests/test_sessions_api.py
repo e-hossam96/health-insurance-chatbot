@@ -1,5 +1,3 @@
-"""Tests for step 5.4: Sessions API (F11)."""
-
 from __future__ import annotations
 
 import json
@@ -79,7 +77,6 @@ def _parse_sse(content: str) -> list[dict[str, str]]:
 
 @pytest.mark.anyio()
 async def test_F11_list_sessions_ordered(user_client: AsyncClient, clock: FakeClock) -> None:
-    """Sessions are ordered by last_message_at desc."""
     resp1 = await user_client.post("/me/chat", json={"message": "first session"})
     sid1 = json.loads(_parse_sse(resp1.text)[0]["data"])["session_id"]
 
@@ -98,7 +95,6 @@ async def test_F11_list_sessions_ordered(user_client: AsyncClient, clock: FakeCl
 
 @pytest.mark.anyio()
 async def test_F11_session_has_first_message(user_client: AsyncClient) -> None:
-    """Session listing includes the first user message truncated."""
     resp = await user_client.post("/me/chat", json={"message": "Hello there, I need help"})
     sid = json.loads(_parse_sse(resp.text)[0]["data"])["session_id"]
 
@@ -110,7 +106,6 @@ async def test_F11_session_has_first_message(user_client: AsyncClient) -> None:
 
 @pytest.mark.anyio()
 async def test_F11_messages_filter(user_client: AsyncClient) -> None:
-    """F11: only user rows and final assistant rows are returned."""
     # Use a tool call scenario to generate tool_call and tool rows
     resp = await user_client.post("/me/chat", json={"message": "I want to book a visit"})
     sid = json.loads(_parse_sse(resp.text)[0]["data"])["session_id"]
@@ -130,7 +125,6 @@ async def test_F11_messages_filter(user_client: AsyncClient) -> None:
 async def test_F11_other_users_session_rejected(
     user_client: AsyncClient, app: object
 ) -> None:
-    """F11: accessing another user's session messages returns 404."""
     resp = await user_client.post("/me/chat", json={"message": "hello"})
     sid = json.loads(_parse_sse(resp.text)[0]["data"])["session_id"]
 

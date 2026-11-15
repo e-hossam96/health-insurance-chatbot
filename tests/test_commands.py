@@ -1,5 +1,3 @@
-"""Tests for the command runner (scripts/check.sh)."""
-
 from __future__ import annotations
 
 import subprocess

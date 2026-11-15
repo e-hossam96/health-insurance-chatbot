@@ -1,5 +1,3 @@
-"""Tests for step 3.4: Seed script (idempotent, slots valid)."""
-
 from __future__ import annotations
 
 import os

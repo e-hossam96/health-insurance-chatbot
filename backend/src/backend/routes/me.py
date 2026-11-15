@@ -1,5 +1,3 @@
-"""User routes (requires user mode)."""
-
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
@@ -132,7 +130,6 @@ async def list_messages(
     session: CurrentSession,
     db: Db,
 ) -> list[MessageOut]:
-    """F11: only user rows and final assistant rows (content non-empty, no tool_calls)."""
     profile_result = await db.execute(
         select(Profile).where(Profile.account_id == session.account_id)
     )

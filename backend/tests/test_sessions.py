@@ -1,5 +1,3 @@
-"""Tests for step 2.1: sessions (B10, B12)."""
-
 from __future__ import annotations
 
 import hashlib

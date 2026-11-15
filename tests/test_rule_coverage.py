@@ -1,5 +1,3 @@
-"""Tests for the rule coverage tool using fixture files."""
-
 from __future__ import annotations
 
 from pathlib import Path

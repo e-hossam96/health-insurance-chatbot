@@ -1,5 +1,3 @@
-"""Tests for step 3.2: Slots API (C1-C4)."""
-
 from __future__ import annotations
 
 import os
@@ -38,7 +36,6 @@ async def admin_client(app: object) -> AsyncClient:
 
 
 async def _setup_doctor(client: AsyncClient) -> tuple[int, int]:
-    """Create location + clinic + specialty + clinic_specialty + doctor. Return (doctor_id, cs_id)."""
     loc = await client.post("/admin/locations", json={"name": "TestCity"})
     loc_id = loc.json()["id"]
     clinic = await client.post("/admin/clinics", json={"name": "Clinic A", "location_id": loc_id})

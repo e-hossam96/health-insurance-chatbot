@@ -1,5 +1,3 @@
-"""Tests for step 2.2: auth endpoints (B1, B5, B10, B11)."""
-
 from __future__ import annotations
 
 import os

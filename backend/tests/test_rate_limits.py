@@ -1,5 +1,3 @@
-"""Tests for step 2.5: auth rate limits (F15)."""
-
 from __future__ import annotations
 
 import os

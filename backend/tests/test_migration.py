@@ -1,5 +1,3 @@
-"""Tests for step 1.1: models and migration."""
-
 from __future__ import annotations
 
 import os

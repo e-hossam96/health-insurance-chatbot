@@ -1,5 +1,3 @@
-"""Public interface for the chatbot_ai package (ai.md section 1)."""
-
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
@@ -138,9 +136,5 @@ async def run_turn(
     ports: Ports,
     settings: object,
 ) -> AsyncIterator[TurnEvent]:
-    """Run one chat turn. This delegates to the real orchestrator (Phase 6).
-
-    During Phase 5 this is replaced by the stub agent.
-    """
     raise NotImplementedError("Real orchestrator is built in Phase 6")
     yield  # make it an async generator

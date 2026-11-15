@@ -1,5 +1,3 @@
-"""Tests for step 4.3: Complete visit (D3)."""
-
 from __future__ import annotations
 
 import os
@@ -38,7 +36,6 @@ async def admin_client(app: object) -> AsyncClient:
 
 
 def _setup_visit(db_engine: Engine, status: str = "scheduled") -> int:
-    """Create a visit with the given status, return visit_id."""
     with db_engine.connect() as conn:
         loc_id = conn.execute(text("SELECT id FROM location LIMIT 1")).scalar_one()
         clinic_id = conn.execute(
@@ -99,7 +96,6 @@ async def test_D3_cancelled_is_final(
 
 @pytest.mark.anyio()
 async def test_D3_user_cannot_complete(app: object, db_engine: Engine) -> None:
-    """D3: non-admin user gets 403 on the complete endpoint."""
     from scripts.create_admin import create_admin
 
     create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "DefaultLoc")

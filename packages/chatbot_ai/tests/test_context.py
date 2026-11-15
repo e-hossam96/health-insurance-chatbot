@@ -1,5 +1,3 @@
-"""Tests for the context builder (F4, F10)."""
-
 from __future__ import annotations
 
 from chatbot_ai.context import (
@@ -31,14 +29,12 @@ def _tool_result(call_id: str = "c1", content: str = '{"ok": true}') -> HistoryR
 
 
 def test_F4_limit_to_40_rows() -> None:
-    """F4: at most 40 rows are returned."""
     rows = [_user(f"msg {i}") if i % 2 == 0 else _assistant(f"reply {i}") for i in range(60)]
     result = build_context(rows)
     assert len(result) <= 40
 
 
 def test_F4_trim_to_user_start() -> None:
-    """F4: leading non-user rows are dropped."""
     rows = [_assistant("orphan"), _user("hi"), _assistant("hello")]
     result = build_context(rows)
     assert result[0].role == "user"
@@ -46,13 +42,7 @@ def test_F4_trim_to_user_start() -> None:
 
 
 def test_F4_no_split_tool_call_result() -> None:
-    """F4: never split a tool call from its result.
-
-    If a naive trim would put the cut between an assistant(tool_calls)
-    and a tool result, the builder keeps the pair together.
-    """
-    # Build history: many old messages, then a tool-call/result pair,
-    # then a user message. The limit forces trimming.
+    # old messages, then a tool pair, then a user message; the limit forces trimming
     old = [_user(f"old {i}") if i % 2 == 0 else _assistant(f"old {i}") for i in range(38)]
     tool_pair = [_tool_call_assistant("tc1"), _tool_result("tc1")]
     final = [_user("new"), _assistant("done")]
@@ -67,11 +57,6 @@ def test_F4_no_split_tool_call_result() -> None:
 
 
 def test_F4_tool_result_not_orphaned() -> None:
-    """F4: a complete tool pair before a user row can be safely dropped.
-
-    When the tool_call and its result are both before the user row,
-    the pair is intact (not split) so trimming at the user row is valid.
-    """
     rows = [
         _tool_call_assistant("c1"),
         _tool_result("c1"),
@@ -85,7 +70,6 @@ def test_F4_tool_result_not_orphaned() -> None:
 
 
 def test_F10_truncate_old_tool_results() -> None:
-    """F10: old tool results are truncated."""
     long_content = "x" * (TOOL_RESULT_MAX_LEN + 100)
     rows = [
         _user("q1"),
@@ -103,7 +87,6 @@ def test_F10_truncate_old_tool_results() -> None:
 
 
 def test_F10_recent_tool_result_not_truncated() -> None:
-    """F10: tool results in the current turn are not truncated."""
     long_content = "x" * (TOOL_RESULT_MAX_LEN + 100)
     rows = [
         _user("q1"),
@@ -117,12 +100,10 @@ def test_F10_recent_tool_result_not_truncated() -> None:
 
 
 def test_F4_empty_history() -> None:
-    """F4: empty input returns empty output."""
     assert build_context([]) == []
 
 
 def test_F4_all_user_rows() -> None:
-    """F4: a history of only user rows works."""
     rows = [_user(f"msg {i}") for i in range(5)]
     result = build_context(rows)
     assert len(result) == 5
@@ -130,19 +111,13 @@ def test_F4_all_user_rows() -> None:
 
 
 def test_F4_under_limit_returned_as_is() -> None:
-    """F4: history under the limit is returned without truncation."""
     rows = [_user("hi"), _assistant("hello")]
     result = build_context(rows)
     assert len(result) == 2
 
 
 def test_F4_trim_skips_past_tool_pair_to_next_user() -> None:
-    """F4: if the first candidate user row would split a pair,
-    the builder skips to the next safe user row."""
-    # Rows: assistant(tool_calls), tool_result, user, assistant
-    # Limit 3: take last 3 = [tool_result, user, assistant]
-    # Cutting at the user row (index 1) would orphan tool_result, so
-    # the builder should either keep all or skip past tool_result to user
+    # a limit of 3 would start at the tool result and orphan it
     rows = [
         _tool_call_assistant("c1"),
         _tool_result("c1"),

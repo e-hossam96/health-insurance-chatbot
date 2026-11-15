@@ -1,5 +1,3 @@
-"""Tests for step 3.1: catalog API (A4 friendly errors, A5 cascade/restrict)."""
-
 from __future__ import annotations
 
 import os
@@ -185,8 +183,7 @@ async def test_doctor_needs_clinic_specialty(admin_client: AsyncClient) -> None:
 
 @pytest.mark.anyio()
 async def test_A5_delete_location_blocked_by_profile(admin_client: AsyncClient) -> None:
-    # The admin created via create_admin has a profile in "DefaultLoc".
-    # Find that location and try to delete it.
+    # create_admin gives the admin a profile in "DefaultLoc"
     result = await admin_client.get("/admin/locations")
     locations = result.json()
     default_loc = next((l for l in locations if l["name"] == "DefaultLoc"), None)

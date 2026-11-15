@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Check that every rule in scope for completed phases has a test containing its ID."""
 
 from __future__ import annotations
 

@@ -1,5 +1,3 @@
-"""Stub agent with scripted scenarios for Phase 5 testing."""
-
 from __future__ import annotations
 
 import asyncio
@@ -54,14 +52,13 @@ def _classify_intent(message: str) -> str | None:
 
 
 class StubError(Exception):
-    """Raised by the error scenario."""
+    pass
 
 
 async def run_stub_turn(
     req: TurnRequest,
     token_delay: float = 0.0,
 ) -> AsyncIterator[TurnEvent]:
-    """Run a scripted stub turn. Yields TurnEvents in the correct order."""
     scenario = _classify_scenario(req.message)
     start = time.monotonic()
 

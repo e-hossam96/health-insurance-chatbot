@@ -1,5 +1,3 @@
-"""Review fixes for Phase 2: B6, B10 purge-on-login, B12 signup argon2."""
-
 from __future__ import annotations
 
 import os
@@ -35,7 +33,6 @@ async def client(app: object) -> AsyncClient:
 
 @pytest.mark.anyio()
 async def test_B6_profile_comes_from_session(client: AsyncClient, db_engine: Engine) -> None:
-    """The acting identity comes from the session, not the request body."""
     await client.post(
         "/auth/signup",
         json={"username": "alice", "password": "password123"},
@@ -61,7 +58,6 @@ async def test_B6_profile_comes_from_session(client: AsyncClient, db_engine: Eng
 
 @pytest.mark.anyio()
 async def test_B10_login_purges_expired(client: AsyncClient, db_engine: Engine) -> None:
-    """Login triggers purge of expired sessions."""
     await client.post(
         "/auth/signup",
         json={"username": "alice", "password": "password123"},
@@ -93,7 +89,6 @@ async def test_B10_login_purges_expired(client: AsyncClient, db_engine: Engine) 
 
 @pytest.mark.anyio()
 async def test_B12_signup_stores_argon2(client: AsyncClient, db_engine: Engine) -> None:
-    """Signup endpoint stores passwords with argon2."""
     await client.post(
         "/auth/signup",
         json={"username": "alice", "password": "password123"},

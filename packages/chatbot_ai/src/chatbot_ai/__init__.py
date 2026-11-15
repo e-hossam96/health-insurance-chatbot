@@ -1,5 +1,3 @@
-"""chatbot_ai - AI package for the health insurance chatbot."""
-
 from chatbot_ai.interface import (
     Cards,
     ComplaintsPort,

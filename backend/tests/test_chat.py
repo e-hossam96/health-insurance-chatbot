@@ -1,5 +1,3 @@
-"""Tests for step 5.3: Chat endpoint (F1-F3, F12, F15, F16)."""
-
 from __future__ import annotations
 
 import json
@@ -65,7 +63,6 @@ async def user_client(app: object, db_engine: Engine) -> AsyncClient:
 
 @pytest.fixture()
 async def admin_user_client(app: object, user_client: AsyncClient) -> AsyncClient:
-    """Admin in user mode. Depends on user_client to ensure admin account is created."""
     async with AsyncClient(
         transport=ASGITransport(app=app),  # type: ignore[arg-type]
         base_url="https://test",
@@ -76,7 +73,6 @@ async def admin_user_client(app: object, user_client: AsyncClient) -> AsyncClien
 
 
 def _parse_sse(content: str) -> list[dict[str, str]]:
-    """Parse SSE text into a list of {event, data} dicts."""
     events: list[dict[str, str]] = []
     current: dict[str, str] = {}
     for line in content.split("\n"):
@@ -96,7 +92,6 @@ def _parse_sse(content: str) -> list[dict[str, str]]:
 async def test_F1_session_created_on_first_message(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:
-    """F1: session is created when session_id is null."""
     resp = await user_client.post(
         "/me/chat",
         json={"message": "hello"},
@@ -114,7 +109,6 @@ async def test_F1_session_created_on_first_message(
 async def test_F3_messages_stored_on_done(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:
-    """F3: all rows stored in one transaction at done."""
     resp = await user_client.post(
         "/me/chat",
         json={"message": "hello"},
@@ -139,7 +133,6 @@ async def test_F3_messages_stored_on_done(
 async def test_F3_error_stores_nothing(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:
-    """F3: an error turn stores nothing."""
     with db_engine.connect() as conn:
         msg_before = conn.execute(text("SELECT count(*) FROM chat_message")).scalar_one()
 
@@ -161,7 +154,6 @@ async def test_F3_error_stores_nothing(
 async def test_F12_event_order(
     user_client: AsyncClient,
 ) -> None:
-    """F12: session first, then tokens, then done."""
     resp = await user_client.post(
         "/me/chat",
         json={"message": "hello"},
@@ -180,7 +172,6 @@ async def test_F12_event_order(
 async def test_F12_cards_after_tokens(
     user_client: AsyncClient,
 ) -> None:
-    """F12: cards come after tokens, before done."""
     resp = await user_client.post(
         "/me/chat",
         json={"message": "I want to book a visit"},
@@ -200,7 +191,6 @@ async def test_F12_cards_after_tokens(
 async def test_F1_existing_session(
     user_client: AsyncClient,
 ) -> None:
-    """F1: can send to an existing session."""
     # First message creates session
     resp1 = await user_client.post("/me/chat", json={"message": "hello"})
     events1 = _parse_sse(resp1.text)
@@ -217,7 +207,6 @@ async def test_F1_existing_session(
 async def test_F2_other_users_session_rejected(
     user_client: AsyncClient, app: object, db_engine: Engine
 ) -> None:
-    """F2: another user's session_id gives 404."""
     # Create a session for user1
     resp = await user_client.post("/me/chat", json={"message": "hello"})
     events = _parse_sse(resp.text)
@@ -241,7 +230,6 @@ async def test_F2_other_users_session_rejected(
 async def test_F15_minute_rate_limit(
     user_client: AsyncClient, clock: FakeClock
 ) -> None:
-    """F15: 6 messages per minute per user, with Retry-After."""
     for i in range(6):
         resp = await user_client.post("/me/chat", json={"message": f"msg {i}"})
         assert resp.status_code == 200
@@ -260,7 +248,6 @@ async def test_F15_minute_rate_limit(
 async def test_F15_daily_rate_limit(
     user_client: AsyncClient, clock: FakeClock
 ) -> None:
-    """F15: 100 messages per day per user."""
     for i in range(100):
         clock.advance(11)  # skip past the per-minute window
         resp = await user_client.post("/me/chat", json={"message": f"msg {i}"})
@@ -276,7 +263,6 @@ async def test_F15_daily_rate_limit(
 async def test_F15_admin_exempt_from_daily(
     admin_user_client: AsyncClient, clock: FakeClock
 ) -> None:
-    """F15: admins are exempt from daily limit."""
     for i in range(7):
         resp = await admin_user_client.post("/me/chat", json={"message": f"msg {i}"})
         # The per-minute limit still applies to admins
@@ -290,7 +276,6 @@ async def test_F15_admin_exempt_from_daily(
 async def test_F15_message_too_long(
     user_client: AsyncClient,
 ) -> None:
-    """F15: message exceeding 1000 characters is rejected."""
     resp = await user_client.post(
         "/me/chat",
         json={"message": "x" * 1001},
@@ -302,7 +287,6 @@ async def test_F15_message_too_long(
 async def test_F1_intent_set_on_first_message(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:
-    """F1/F6: intent is set when the stub detects one on the first message."""
     resp = await user_client.post(
         "/me/chat",
         json={"message": "I want to book a visit"},
@@ -328,7 +312,6 @@ async def test_F1_intent_set_on_first_message(
 async def test_F3_last_message_at_updated(
     user_client: AsyncClient, db_engine: Engine, clock: FakeClock
 ) -> None:
-    """F3: last_message_at is updated after a turn."""
     resp = await user_client.post("/me/chat", json={"message": "hello"})
     events = _parse_sse(resp.text)
     sid = json.loads(events[0]["data"])["session_id"]

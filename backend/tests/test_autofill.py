@@ -1,5 +1,3 @@
-"""Tests for step 3.3: Auto-fill slots (C5, C6)."""
-
 from __future__ import annotations
 
 import os
@@ -65,7 +63,6 @@ async def _setup_doctor(client: AsyncClient) -> int:
 
 @pytest.mark.anyio()
 async def test_C5_autofill_expected_counts(_migrate_fresh: None) -> None:
-    """Full days from Dec 1 to Dec 31 at 8 slots/day = 31 * 8 = 248."""
     app = _make_app(datetime(2026, 12, 1, 0, 0, tzinfo=UTC), _migrate_fresh)
     client = await _make_admin_client(app)
     doctor_id = await _setup_doctor(client)
@@ -78,7 +75,6 @@ async def test_C5_autofill_expected_counts(_migrate_fresh: None) -> None:
 
 @pytest.mark.anyio()
 async def test_C5_autofill_skips_past_hours(_migrate_fresh: None) -> None:
-    """At 12:00 UTC on Dec 15, hours 9-11 are past. Only 12-16 = 5 slots on that day."""
     app = _make_app(datetime(2026, 12, 15, 12, 0, tzinfo=UTC), _migrate_fresh)
     client = await _make_admin_client(app)
     doctor_id = await _setup_doctor(client)
@@ -94,7 +90,6 @@ async def test_C5_autofill_skips_past_hours(_migrate_fresh: None) -> None:
 
 @pytest.mark.anyio()
 async def test_C5_autofill_idempotent(_migrate_fresh: None) -> None:
-    """Running twice creates nothing the second time."""
     app = _make_app(datetime(2026, 12, 1, 0, 0, tzinfo=UTC), _migrate_fresh)
     client = await _make_admin_client(app)
     doctor_id = await _setup_doctor(client)
@@ -109,7 +104,6 @@ async def test_C5_autofill_idempotent(_migrate_fresh: None) -> None:
 
 @pytest.mark.anyio()
 async def test_C5_autofill_current_month_only_last_day(_migrate_fresh: None) -> None:
-    """On the last day of the month, only that day's remaining slots are created."""
     app = _make_app(datetime(2026, 12, 31, 0, 0, tzinfo=UTC), _migrate_fresh)
     client = await _make_admin_client(app)
     doctor_id = await _setup_doctor(client)
@@ -122,7 +116,6 @@ async def test_C5_autofill_current_month_only_last_day(_migrate_fresh: None) -> 
 
 @pytest.mark.anyio()
 async def test_C5_autofill_nothing_to_create(_migrate_fresh: None) -> None:
-    """After working hours on the last day, nothing to create."""
     app = _make_app(datetime(2026, 12, 31, 17, 30, tzinfo=UTC), _migrate_fresh)
     client = await _make_admin_client(app)
     doctor_id = await _setup_doctor(client)

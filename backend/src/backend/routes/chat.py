@@ -1,5 +1,3 @@
-"""Chat endpoint with SSE streaming (F1-F3, F12, F15, F16)."""
-
 from __future__ import annotations
 
 from collections.abc import AsyncIterable

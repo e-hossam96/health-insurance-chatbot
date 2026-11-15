@@ -1,5 +1,3 @@
-"""Auth routes: signup, login, logout, me, mode."""
-
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request, Response

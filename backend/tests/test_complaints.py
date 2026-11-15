@@ -1,5 +1,3 @@
-"""Tests for step 4.4: Complaints (E1-E6, B7)."""
-
 from __future__ import annotations
 
 import os
@@ -319,7 +317,6 @@ async def test_B7_complaint_reply_admin_account_id(
 async def test_E1_complaint_on_other_users_visit_rejected(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:
-    """E1: filing a complaint on a visit owned by another user returns 404."""
     # Create another user's completed visit
     with db_engine.connect() as conn:
         from argon2 import PasswordHasher
@@ -372,7 +369,6 @@ async def test_E1_complaint_on_other_users_visit_rejected(
 async def test_E3_user_reply_rejected(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:
-    """E3: a non-admin user gets 403 when trying to reply to a complaint."""
     visit_id = _setup_completed_visit(db_engine)
     session_id = _get_chat_session_id(db_engine)
     file_resp = await user_client.post(

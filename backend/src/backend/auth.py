@@ -1,5 +1,3 @@
-"""Authentication: session management, password hashing, dependencies."""
-
 from __future__ import annotations
 
 import hashlib

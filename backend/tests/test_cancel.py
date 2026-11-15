@@ -1,5 +1,3 @@
-"""Tests for step 4.2: Cancel visit (D2, D8)."""
-
 from __future__ import annotations
 
 import os
@@ -61,7 +59,6 @@ async def user_client(app: object, db_engine: Engine) -> AsyncClient:
 
 
 def _setup_booked_visit(db_engine: Engine) -> tuple[int, int]:
-    """Create doctor + slot + visit, return (visit_id, slot_id)."""
     with db_engine.connect() as conn:
         loc_id = conn.execute(text("SELECT id FROM location LIMIT 1")).scalar_one()
         clinic_id = conn.execute(
@@ -146,7 +143,6 @@ async def test_D8_cancel_without_session_no_messages(
 async def test_D2_cancel_other_users_visit_404(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:
-    """Another user's visit returns 404."""
     with db_engine.connect() as conn:
         from argon2 import PasswordHasher
         ph = PasswordHasher()

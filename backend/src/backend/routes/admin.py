@@ -1,5 +1,3 @@
-"""Admin routes (requires admin role + admin mode)."""
-
 from __future__ import annotations
 
 import calendar

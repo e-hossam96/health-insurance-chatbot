@@ -1,5 +1,3 @@
-"""Tests for step 1.3: create_admin script (B12, B13)."""
-
 from __future__ import annotations
 
 import os
