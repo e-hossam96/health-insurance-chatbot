@@ -204,6 +204,8 @@ describe('ChatPage', () => {
     expect(screen.queryByText('partial')).toBeNull();
     expect(screen.queryByTestId('msg-user')).toBeNull();
     expect(screen.queryByTestId('chat-error')).toBeNull();
+    const signal = streamChat.mock.calls[0][3];
+    expect(signal.aborted).toBe(true);
   });
 
   it('F3: a stream error shows Retry, which resends the same message once', async () => {
@@ -279,5 +281,64 @@ describe('ChatPage', () => {
     await screen.findByText('Hello there.');
     expect(getMessages).not.toHaveBeenCalled();
     expect(screen.getByText('hi')).toBeTruthy();
+  });
+
+  it('F1: loading the chat page creates no session and sends nothing', async () => {
+    renderChat();
+    await screen.findAllByTestId('starter-card');
+    expect(getSessions).toHaveBeenCalled();
+    expect(streamChat).not.toHaveBeenCalled();
+    expect(getMessages).not.toHaveBeenCalled();
+  });
+
+  it('F1: New chat clears the view without a request and the next send starts a session', async () => {
+    getMessages.mockResolvedValue([
+      { id: 1, session_id: 5, role: 'user', content: 'old question' },
+      { id: 2, session_id: 5, role: 'assistant', content: 'old answer' },
+    ]);
+    scriptStream([{ event: 'session', session_id: 6 }, { event: 'token', text: 'Fresh.' }, { event: 'done' }]);
+    renderChat('/chat/5');
+    await screen.findByText('old answer');
+    const sessionsCallsBefore = getSessions.mock.calls.length;
+
+    await userEvent.setup().click(screen.getByTestId('new-chat-btn'));
+
+    expect(await screen.findAllByTestId('starter-card')).toHaveLength(6);
+    expect(screen.queryByText('old answer')).toBeNull();
+    expect(getMessages).toHaveBeenCalledTimes(1);
+    expect(getSessions.mock.calls.length).toBe(sessionsCallsBefore);
+    expect(streamChat).not.toHaveBeenCalled();
+
+    await send('a new topic');
+    await screen.findByText('Fresh.');
+    expect(streamChat.mock.calls[0][1]).toBeNull();
+  });
+
+  it('F12: cards from a live turn are gone after leaving the session and coming back', async () => {
+    getSessions.mockResolvedValue([
+      { id: 1, intent: 'visit.book', created_at: '2026-11-15T10:00:00Z', last_message_at: '2026-11-15T10:00:00Z', first_user_message: 'book' },
+      { id: 2, intent: 'other', created_at: '2026-11-15T09:00:00Z', last_message_at: '2026-11-15T09:00:00Z', first_user_message: 'hi' },
+    ]);
+    getMessages.mockImplementation(async sessionId =>
+      sessionId === 1
+        ? [
+            { id: 1, session_id: 1, role: 'user', content: 'book' },
+            { id: 4, session_id: 1, role: 'assistant', content: 'Options.' },
+          ]
+        : [{ id: 9, session_id: 2, role: 'user', content: 'hi' }],
+    );
+    scriptStream([{ event: 'session', session_id: 1 }, { event: 'token', text: 'Options.' }, DOCTOR_CARDS, { event: 'done' }]);
+    renderChat();
+    await send('book');
+    expect(await screen.findAllByTestId('doctor-card')).toHaveLength(2);
+
+    const user = userEvent.setup();
+    await user.click(screen.getAllByTestId('session-item')[1]);
+    await screen.findByText('hi', { selector: '[data-testid="msg-user"] *' });
+    await user.click(screen.getAllByTestId('session-item')[0]);
+
+    await waitFor(() => expect(getMessages).toHaveBeenLastCalledWith(1));
+    expect(await screen.findByText('Options.')).toBeTruthy();
+    expect(screen.queryByTestId('doctor-card')).toBeNull();
   });
 });

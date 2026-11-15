@@ -170,3 +170,12 @@ def test_load_exemptions_format(tmp_path: Path) -> None:
     exemptions.write_text("- A1 - reason one\n- B2 - reason two\n", encoding="utf-8")
     result = load_exemptions(exemptions)
     assert result == {"A1", "B2"}
+
+
+def test_id_inside_a_word_is_not_coverage(tmp_path: Path) -> None:
+    (tmp_path / "test_x.py").write_text(
+        'def test_F16_disconnect(): open("x", encoding="UTF8")\n', encoding="utf-8"
+    )
+    covered = scan_test_files([tmp_path])
+    assert "F16" in covered
+    assert "F8" not in covered

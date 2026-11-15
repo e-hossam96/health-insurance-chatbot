@@ -11,7 +11,7 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 2 | Accounts and access | done | 2.6 |
 | 3 | Admin catalog and slots | done | 3.5 |
 | 4 | Visits and complaints | done | 4.6 |
-| 5 | Chat shell with a stub | in progress | 5.5 |
+| 5 | Chat shell with a stub | done | 5.5 |
 | 6 | AI package | not started | - |
 | 7 | Observability | not started | - |
 | 8 | Hardening and demo | not started | - |
@@ -20,14 +20,14 @@ Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 5 close-out: `docker compose up` smoke test, rule coverage for phase 5, and the independent review. Known items for the review:
-
+Phase 6, step 6.0 (test infrastructure) on branch `phase-6`.
 
 ## Needs confirmation
 
 Questions for the user that do not block the current step. Format: `- [phase.step] question (options, your recommendation)`.
 
-- none
+- [5.3] A message over 1000 characters gets 429 `rate_limited` today (F15 lists it among the abuse limits). api.md uses 429 for rate limits with Retry-After and 422 `validation_error` for validation. Options: keep 429 `rate_limited` without Retry-After (current), or 422 `validation_error`. Recommendation: 422, because waiting does not help and the client should not retry. The tests pin the current 429 until you decide.
+- [5.3] The first message creates the `chat_session` row before the turn runs (F1), so a first turn that fails (F3) or is stopped (F16) leaves an empty session that shows in the sidebar as "New chat" with no subtitle. Options: keep it (current), delete the row when a first turn stores nothing, or hide sessions with no messages from GET /me/sessions. Recommendation: delete the row when a first turn stores nothing, so F16's "store nothing" also covers the session.
 
 ## Gates
 
@@ -62,6 +62,13 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [5.3] Disconnect cancellation relies on Starlette: uvicorn 0.54 reports ASGI spec 2.3, so the streaming response listens for `http.disconnect` and cancels the generator, which cancels the turn. The route no longer swallows `CancelledError` and no longer polls `is_disconnected()`. If a uvicorn upgrade moves to spec 2.4 (disconnect seen only on the next write), the F16 test fails and the route needs its own disconnect watcher.
 - [5.3] The chat route streams with `fastapi.sse` (`EventSourceResponse`, `ServerSentEvent`; FastAPI 0.163). The endpoint body is the generator and the 200 headers go out before it runs, so everything that can fail with a status code (length cap, rate limits, profile, session create or validate, history load) moved into the `prepare_turn` dependency. FastAPI also adds a `: ping` keep-alive comment every 15 s, which the frontend parser ignores.
 - [5 conventions] Removed every docstring (41 files) and collapsed multi-line comment blocks to one line. `tests/test_conventions.py` guards it in `make check`: `ast` for docstrings and `tokenize` for runs of standalone comment lines in Python, and a string-aware scan for `/*` and runs of `//` lines in the frontend `.ts` and `.tsx`. It has its own detector tests, and failed on a deliberate docstring and block comment before they were reverted. `backend/alembic/` is excluded because Alembic generates those files (edit generated files minimally).
+- [5 review] Card actions (book, cancel, complaint) given another user's or a missing chat session now return 404 `not_found` instead of 403, matching api.md (404 "not found, or not yours").
+- [5 review] Any exception from the turn runner (not only the stub's) rolls back and sends the `error` event (F3, ai.md section 1). Proven by a turn that fails after streaming a token and by a turn whose rows fail to insert.
+- [5 review] Stored tool results are capped at 8000 characters plus the `[truncated]` placeholder (`cap_stored_tool_result`, F4); replayed old results stay capped at 500.
+- [5 review] `to_openai_messages` in `chatbot_ai.context` turns history rows into Chat Completions messages (F10); phase 6 uses it.
+- [5 review] Vitest runs with `TZ=Asia/Tokyo` and Playwright with `timezoneId: America/New_York`, so a local-time formatter fails the C8 tests even on UTC CI runners.
+- [5 review] Independent review findings fixed: exact row and transcript assertions (F3, F11), live history capture and the 40-row window (F4, F10), page load and New chat (F1), card actions with another user's session (F2), failed and per-user rate limits, UTC date rollover, admin exemption past 100, the 1000-character boundary, and the auth limits keyed by proxy IP (F15), the aborted request on Stop (F16), cards gone after reopening (F12), and the locked open complaint form (F13).
+- [5 review] The rule coverage scan now includes `frontend/e2e` and only counts an ID that is not part of a longer word (`UTF8` no longer covers F8).
 - [5 housekeeping] Added `.gitattributes` with `* text=auto eol=lf` - a Windows clone with `core.autocrlf=true` checked out `scripts/check.sh` with CRLF and bash failed (`set: pipefail: invalid option name`).
 - [5.5] HTTP errors from `POST /me/chat` (for example 429 `rate_limited`) show the server's message with Retry; stream `error` events always show "Something went wrong."
 

@@ -5,6 +5,25 @@ from chatbot_ai.interface import HistoryRow
 CONTEXT_LIMIT = 40
 TOOL_RESULT_MAX_LEN = 500
 TOOL_RESULT_PLACEHOLDER = "[truncated]"
+STORED_TOOL_RESULT_MAX_LEN = 8000
+
+
+def cap_stored_tool_result(content: str) -> str:
+    if len(content) <= STORED_TOOL_RESULT_MAX_LEN:
+        return content
+    return content[:STORED_TOOL_RESULT_MAX_LEN] + TOOL_RESULT_PLACEHOLDER
+
+
+def to_openai_messages(rows: list[HistoryRow]) -> list[dict[str, object]]:
+    messages: list[dict[str, object]] = []
+    for row in rows:
+        if row.role == "tool":
+            messages.append({"role": "tool", "tool_call_id": row.tool_call_id, "content": row.content})
+        elif row.role == "assistant" and row.tool_calls:
+            messages.append({"role": "assistant", "content": row.content or None, "tool_calls": row.tool_calls})
+        else:
+            messages.append({"role": row.role, "content": row.content})
+    return messages
 
 
 def build_context(rows: list[HistoryRow], limit: int = CONTEXT_LIMIT) -> list[HistoryRow]:

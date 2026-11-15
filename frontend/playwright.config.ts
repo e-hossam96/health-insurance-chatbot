@@ -7,6 +7,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3000',
     headless: true,
+    timezoneId: 'America/New_York',
   },
   webServer: {
     command: 'npm run dev -- --port 3000',

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from typing import Annotated, Any, cast
@@ -27,7 +28,7 @@ from backend.models import (
     Profile,
 )
 from backend.rate_limit import chat_daily_limiter, chat_minute_limiter
-from chatbot_ai.context import build_context
+from chatbot_ai.context import build_context, cap_stored_tool_result
 from chatbot_ai.interface import (
     Cards,
     Done,
@@ -37,8 +38,8 @@ from chatbot_ai.interface import (
     Token,
     TurnRequest,
 )
-from chatbot_ai.stub import StubError
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/me", tags=["chat"])
 
 
@@ -163,7 +164,9 @@ async def chat(
             elif isinstance(event, Done):
                 await _store_turn(db, turn.session_id, event, clock, intent_code, turn.needs_label)
                 yield ServerSentEvent(event="done", data={})
-    except StubError:
+    except Exception:
+        logger.exception("chat turn failed for session %s", turn.session_id)
+        await db.rollback()
         yield ServerSentEvent(
             event="error", data={"code": "turn_error", "message": "Something went wrong."}
         )
@@ -199,7 +202,7 @@ async def _store_turn(
         msg = ChatMessage(
             session_id=session_id,
             role=MessageRole(row.role),
-            content=row.content,
+            content=cap_stored_tool_result(row.content) if row.role == "tool" else row.content,
             tool_calls=row.tool_calls,
             tool_call_id=row.tool_call_id,
             tool_name=row.tool_name,

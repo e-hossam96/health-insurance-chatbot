@@ -383,3 +383,36 @@ async def test_E3_user_reply_rejected(
         json={"body": "I am not admin."},
     )
     assert resp.status_code == 403
+
+
+@pytest.mark.anyio()
+async def test_F2_complaint_with_other_users_session_rejected(
+    user_client: AsyncClient, db_engine: Engine
+) -> None:
+    visit_id = _setup_completed_visit(db_engine)
+    with db_engine.connect() as conn:
+        acct_id = conn.execute(
+            text("INSERT INTO account (username, password_hash, role) VALUES ('other', 'x', 'user') RETURNING id")
+        ).scalar_one()
+        loc_id = conn.execute(text("SELECT id FROM location LIMIT 1")).scalar_one()
+        profile_id = conn.execute(
+            text("INSERT INTO profile (account_id, name, location_id) VALUES (:a, 'Other', :l) RETURNING id"),
+            {"a": acct_id, "l": loc_id},
+        ).scalar_one()
+        other_session_id = conn.execute(
+            text("INSERT INTO chat_session (profile_id) VALUES (:p) RETURNING id"), {"p": profile_id}
+        ).scalar_one()
+        conn.commit()
+
+    resp = await user_client.post(
+        "/me/complaints",
+        json={"session_id": other_session_id, "visit_id": visit_id, "description": "Bad service"},
+    )
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"]["error"]["code"] == "not_found"
+    with db_engine.connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM complaint")).scalar_one() == 0
+        assert conn.execute(
+            text("SELECT count(*) FROM chat_message WHERE session_id = :s"), {"s": other_session_id}
+        ).scalar_one() == 0

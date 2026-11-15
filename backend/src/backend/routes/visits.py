@@ -137,7 +137,7 @@ async def book_visit(
     # F2: verify chat session belongs to this profile
     chat_session = await db.get(ChatSession, body.session_id)
     if chat_session is None or chat_session.profile_id != profile.id:
-        raise _error("forbidden", "Chat session does not belong to you.", 403)
+        raise _error("not_found", "Session not found.", 404)
 
     # D1: atomic booking with row lock
     now = clock.now()
@@ -269,7 +269,7 @@ async def cancel_visit(
     if body.session_id is not None:
         chat_session = await db.get(ChatSession, body.session_id)
         if chat_session is None or chat_session.profile_id != profile.id:
-            raise _error("forbidden", "Chat session does not belong to you.", 403)
+            raise _error("not_found", "Session not found.", 404)
         messages = await _write_cancel_messages(db, body.session_id, visit_id)
 
     await db.commit()
@@ -366,7 +366,7 @@ async def file_complaint(
     # F2: verify chat session belongs to this profile
     chat_session = await db.get(ChatSession, body.session_id)
     if chat_session is None or chat_session.profile_id != profile.id:
-        raise _error("forbidden", "Chat session does not belong to you.", 403)
+        raise _error("not_found", "Session not found.", 404)
 
     # E1: only on own completed visit
     visit_result = await db.execute(

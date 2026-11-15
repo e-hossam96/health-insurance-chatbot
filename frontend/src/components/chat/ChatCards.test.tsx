@@ -140,6 +140,17 @@ describe('complaint cards', () => {
     expect(onFileComplaint).toHaveBeenCalledWith(5, 'Rude staff');
   });
 
+  it('F13: an open complaint form is locked while a turn streams', () => {
+    const props = { cards: COMPLAINT, state: INITIAL_CARD_STATE, onBook: vi.fn(), onCancelVisit: vi.fn(), onFileComplaint: vi.fn(), onShowOther: vi.fn() };
+    const { rerender } = render(<ChatCards {...props} locked={false} />);
+    fireEvent.click(buttons('select-visit-btn')[0]);
+    fireEvent.change(screen.getByTestId('complaint-desc'), { target: { value: 'Long wait' } });
+    rerender(<ChatCards {...props} locked />);
+    expect((screen.getByTestId('complaint-desc') as HTMLTextAreaElement).disabled).toBe(true);
+    expect((screen.getByTestId('submit-complaint-btn') as HTMLButtonElement).disabled).toBe(true);
+    expect(buttons('select-visit-btn').every(b => b.disabled)).toBe(true);
+  });
+
   it('F13: complaint cards are disabled while a turn streams', () => {
     renderCards(COMPLAINT, INITIAL_CARD_STATE, true);
     expect(buttons('select-visit-btn').every(b => b.disabled)).toBe(true);

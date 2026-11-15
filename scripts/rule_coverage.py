@@ -49,7 +49,7 @@ def scan_test_files(test_dirs: list[Path]) -> set[str]:
         for ext in extensions:
             for f in d.rglob(ext):
                 content = f.read_text(encoding="utf-8")
-                covered |= set(re.findall(r"[A-Z]\d+", content))
+                covered |= set(re.findall(r"(?<![A-Za-z0-9])[A-Z]\d+(?![0-9])", content))
     return covered
 
 
@@ -106,6 +106,7 @@ def main() -> int:
             root / "backend" / "tests",
             root / "packages" / "chatbot_ai" / "tests",
             root / "frontend" / "src",
+            root / "frontend" / "e2e",
         ],
     )
     if errors:

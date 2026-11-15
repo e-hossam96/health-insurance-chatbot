@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import UTC, datetime
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -11,6 +13,7 @@ from sqlalchemy.engine import Engine
 
 from backend.app import create_app
 from backend.config import Settings
+from chatbot_ai.interface import Done, HistoryRow, Token, TurnEvent, TurnRequest
 
 TEST_DB_URL = os.environ.get(
     "DATABASE_URL",
@@ -26,9 +29,10 @@ class FakeClock:
         return self._now
 
     def advance(self, seconds: int) -> None:
-        from datetime import timedelta
-
         self._now += timedelta(seconds=seconds)
+
+    def set(self, now: datetime) -> None:
+        self._now = now
 
 
 @pytest.fixture()
@@ -72,6 +76,29 @@ async def admin_user_client(app: object, user_client: AsyncClient) -> AsyncClien
         yield c  # type: ignore[misc]
 
 
+def _session_count(db_engine: Engine) -> int:
+    with db_engine.connect() as conn:
+        count: int = conn.execute(text("SELECT count(*) FROM chat_session")).scalar_one()
+        return count
+
+
+def _stored_rows(db_engine: Engine, session_id: int) -> list[tuple[str, str, Any, str | None]]:
+    with db_engine.connect() as conn:
+        rows = conn.execute(
+            text("SELECT role, content, tool_calls, tool_call_id FROM chat_message WHERE session_id = :s ORDER BY id"),
+            {"s": session_id},
+        ).all()
+    return [(r[0], r[1], r[2], r[3]) for r in rows]
+
+
+def _last_message_at(db_engine: Engine, session_id: int) -> datetime:
+    with db_engine.connect() as conn:
+        value: datetime = conn.execute(
+            text("SELECT last_message_at FROM chat_session WHERE id = :s"), {"s": session_id}
+        ).scalar_one()
+        return value
+
+
 def _parse_sse(content: str) -> list[dict[str, str]]:
     events: list[dict[str, str]] = []
     current: dict[str, str] = {}
@@ -92,41 +119,47 @@ def _parse_sse(content: str) -> list[dict[str, str]]:
 async def test_F1_session_created_on_first_message(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:
-    resp = await user_client.post(
-        "/me/chat",
-        json={"message": "hello"},
-    )
+    assert _session_count(db_engine) == 0
+    resp = await user_client.post("/me/chat", json={"message": "hello"})
     assert resp.status_code == 200
     events = _parse_sse(resp.text)
-    session_events = [e for e in events if e.get("event") == "session"]
-    assert len(session_events) == 1
-    session_data = json.loads(session_events[0]["data"])
-    assert "session_id" in session_data
-    assert isinstance(session_data["session_id"], int)
+    assert [e["event"] for e in events].count("session") == 1
+    sid = json.loads(events[0]["data"])["session_id"]
+
+    with db_engine.connect() as conn:
+        owner = conn.execute(
+            text(
+                "SELECT a.username FROM chat_session s JOIN profile p ON p.id = s.profile_id "
+                "JOIN account a ON a.id = p.account_id WHERE s.id = :s"
+            ),
+            {"s": sid},
+        ).scalar_one()
+    assert owner == "user1"
+    assert _session_count(db_engine) == 1
+
+    again = await user_client.post("/me/chat", json={"session_id": sid, "message": "and again"})
+    assert json.loads(_parse_sse(again.text)[0]["data"])["session_id"] == sid
+    assert _session_count(db_engine) == 1
 
 
 @pytest.mark.anyio()
 async def test_F3_messages_stored_on_done(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:
-    resp = await user_client.post(
-        "/me/chat",
-        json={"message": "hello"},
-    )
+    resp = await user_client.post("/me/chat", json={"message": "I want to book a visit"})
     assert resp.status_code == 200
-    events = _parse_sse(resp.text)
+    session_id = json.loads(_parse_sse(resp.text)[0]["data"])["session_id"]
 
-    # Extract session_id
-    session_data = json.loads(events[0]["data"])
-    session_id = session_data["session_id"]
-
-    # Check messages are stored
-    with db_engine.connect() as conn:
-        count = conn.execute(
-            text("SELECT count(*) FROM chat_message WHERE session_id = :s"),
-            {"s": session_id},
-        ).scalar_one()
-    assert count >= 2  # at minimum user + assistant
+    rows = _stored_rows(db_engine, session_id)
+    assert [(r[0], r[2] is not None, r[3] is not None) for r in rows] == [
+        ("user", False, False),
+        ("assistant", True, False),
+        ("tool", False, True),
+        ("assistant", False, False),
+    ]
+    assert rows[0][1] == "I want to book a visit"
+    assert rows[3][1] == "Here are the available options for you."
+    assert rows[2][3] == rows[1][2][0]["id"]
 
 
 @pytest.mark.anyio()
@@ -207,12 +240,10 @@ async def test_F1_existing_session(
 async def test_F2_other_users_session_rejected(
     user_client: AsyncClient, app: object, db_engine: Engine
 ) -> None:
-    # Create a session for user1
     resp = await user_client.post("/me/chat", json={"message": "hello"})
-    events = _parse_sse(resp.text)
-    sid = json.loads(events[0]["data"])["session_id"]
+    sid = json.loads(_parse_sse(resp.text)[0]["data"])["session_id"]
+    rows_before = len(_stored_rows(db_engine, sid))
 
-    # Create another user
     async with AsyncClient(
         transport=ASGITransport(app=app),  # type: ignore[arg-type]
         base_url="https://test",
@@ -224,6 +255,10 @@ async def test_F2_other_users_session_rejected(
 
         resp2 = await c2.post("/me/chat", json={"session_id": sid, "message": "hijack"})
         assert resp2.status_code == 404
+        assert resp2.json()["detail"]["error"]["code"] == "not_found"
+
+    assert len(_stored_rows(db_engine, sid)) == rows_before
+    assert _session_count(db_engine) == 1
 
 
 @pytest.mark.anyio()
@@ -263,24 +298,27 @@ async def test_F15_daily_rate_limit(
 async def test_F15_admin_exempt_from_daily(
     admin_user_client: AsyncClient, clock: FakeClock
 ) -> None:
-    for i in range(7):
+    for i in range(105):
+        clock.advance(11)
         resp = await admin_user_client.post("/me/chat", json={"message": f"msg {i}"})
-        # The per-minute limit still applies to admins
-        if resp.status_code == 429:
-            clock.advance(61)
-            resp = await admin_user_client.post("/me/chat", json={"message": f"msg {i}"})
-        assert resp.status_code == 200
+        assert resp.status_code == 200, f"admin message {i} was limited"
 
 
 @pytest.mark.anyio()
 async def test_F15_message_too_long(
-    user_client: AsyncClient,
+    user_client: AsyncClient, clock: FakeClock
 ) -> None:
-    resp = await user_client.post(
-        "/me/chat",
-        json={"message": "x" * 1001},
-    )
-    assert resp.status_code == 429
+    at_limit = await user_client.post("/me/chat", json={"message": "x" * 1000})
+    assert at_limit.status_code == 200
+
+    clock.advance(11)
+    multibyte_at_limit = await user_client.post("/me/chat", json={"message": "\u00e9" * 1000})
+    assert multibyte_at_limit.status_code == 200
+
+    clock.advance(11)
+    over = await user_client.post("/me/chat", json={"message": "x" * 1001})
+    assert over.status_code == 429
+    assert over.json()["detail"]["error"]["code"] == "rate_limited"
 
 
 @pytest.mark.anyio()
@@ -313,15 +351,18 @@ async def test_F3_last_message_at_updated(
     user_client: AsyncClient, db_engine: Engine, clock: FakeClock
 ) -> None:
     resp = await user_client.post("/me/chat", json={"message": "hello"})
-    events = _parse_sse(resp.text)
-    sid = json.loads(events[0]["data"])["session_id"]
+    sid = json.loads(_parse_sse(resp.text)[0]["data"])["session_id"]
+    assert _last_message_at(db_engine, sid) == clock.now()
 
-    with db_engine.connect() as conn:
-        ts = conn.execute(
-            text("SELECT last_message_at FROM chat_session WHERE id = :s"),
-            {"s": sid},
-        ).scalar_one()
-    assert ts is not None
+    clock.advance(120)
+    await user_client.post("/me/chat", json={"session_id": sid, "message": "second"})
+    second_turn_at = clock.now()
+    assert _last_message_at(db_engine, sid) == second_turn_at
+
+    clock.advance(120)
+    failed = await user_client.post("/me/chat", json={"session_id": sid, "message": "trigger error"})
+    assert any(e.get("event") == "error" for e in _parse_sse(failed.text))
+    assert _last_message_at(db_engine, sid) == second_turn_at
 
 
 @pytest.mark.anyio()
@@ -331,48 +372,261 @@ async def test_completed_slow_stream_stores_rows(
     resp = await user_client.post("/me/chat", json={"message": "slow stream test"})
     assert resp.status_code == 200
     events = _parse_sse(resp.text)
-    done_events = [e for e in events if e.get("event") == "done"]
-    assert len(done_events) == 1
-
+    assert [e["event"] for e in events].count("done") == 1
     sid = json.loads(events[0]["data"])["session_id"]
-    with db_engine.connect() as conn:
-        count = conn.execute(
-            text("SELECT count(*) FROM chat_message WHERE session_id = :s"),
-            {"s": sid},
-        ).scalar_one()
-    assert count >= 2
+    assert [r[0] for r in _stored_rows(db_engine, sid)] == ["user", "assistant"]
 
 
 @pytest.mark.anyio()
 async def test_F12_cards_not_stored_in_messages(
-    user_client: AsyncClient,
+    user_client: AsyncClient, db_engine: Engine
 ) -> None:
     resp = await user_client.post("/me/chat", json={"message": "I want to book a visit"})
     events = _parse_sse(resp.text)
-    assert any(e.get("event") == "cards" for e in events)
+    cards = next(json.loads(e["data"]) for e in events if e.get("event") == "cards")
+    assert cards["type"] == "doctors"
+    for item in cards["items"]:
+        assert set(item) == {"slot_id", "doctor_name", "specialty", "clinic", "location", "start_at"}
 
     sid = json.loads(events[0]["data"])["session_id"]
-
-    msg_resp = await user_client.get(f"/me/sessions/{sid}/messages")
-    assert msg_resp.status_code == 200
-    messages = msg_resp.json()
-    for m in messages:
-        assert "cards" not in m
-        assert m["role"] in ("user", "assistant")
+    with db_engine.connect() as conn:
+        stored = conn.execute(
+            text("SELECT content, coalesce(tool_calls::text, '') FROM chat_message WHERE session_id = :s"),
+            {"s": sid},
+        ).all()
+    card = cards["items"][0]
+    for content, tool_calls in stored:
+        assert card["doctor_name"] not in content and card["doctor_name"] not in tool_calls
+        assert "slot_id" not in content
+    transcript = (await user_client.get(f"/me/sessions/{sid}/messages")).json()
+    assert [m["role"] for m in transcript] == ["user", "assistant"]
+    assert all(set(m) == {"id", "session_id", "role", "content"} for m in transcript)
 
 
 @pytest.mark.anyio()
 async def test_C8_timestamps_are_utc(
     user_client: AsyncClient, clock: FakeClock
 ) -> None:
-    resp = await user_client.post("/me/chat", json={"message": "hello"})
+    resp = await user_client.post("/me/chat", json={"message": "I want to book a visit"})
     assert resp.status_code == 200
+    cards = next(json.loads(e["data"]) for e in _parse_sse(resp.text) if e.get("event") == "cards")
+    for item in cards["items"]:
+        assert datetime.fromisoformat(item["start_at"]).utcoffset() == timedelta(0)
 
-    sessions_resp = await user_client.get("/me/sessions")
-    sessions = sessions_resp.json()
-    assert len(sessions) >= 1
+    sessions = (await user_client.get("/me/sessions")).json()
+    assert len(sessions) == 1
+    for field in ("created_at", "last_message_at"):
+        parsed = datetime.fromisoformat(sessions[0][field])
+        assert parsed.utcoffset() == timedelta(0), field
+    assert datetime.fromisoformat(sessions[0]["last_message_at"]) == clock.now()
 
-    session = sessions[0]
-    ts = session["last_message_at"]
-    assert ts is not None
-    assert "+00:00" in ts or ts.endswith("Z")
+
+@pytest.mark.anyio()
+async def test_C8_time_zone_headers_change_nothing(user_client: AsyncClient) -> None:
+    await user_client.post("/me/chat", json={"message": "hello"})
+    plain = (await user_client.get("/me/sessions")).json()
+    zoned = (
+        await user_client.get(
+            "/me/sessions",
+            headers={"Time-Zone": "Asia/Tokyo", "X-Timezone": "America/New_York", "Accept-Language": "ja-JP"},
+        )
+    ).json()
+    assert zoned == plain
+
+
+class ScriptedTurn:
+    def __init__(self, events: list[TurnEvent], fail_after: bool = False) -> None:
+        self.events = events
+        self.fail_after = fail_after
+        self.requests: list[TurnRequest] = []
+
+    async def __call__(self, request: TurnRequest) -> AsyncIterator[TurnEvent]:
+        self.requests.append(request)
+        for event in self.events:
+            yield event
+        if self.fail_after:
+            raise RuntimeError("model call failed mid-turn")
+
+
+def _reply(message: str, text_reply: str = "ok") -> Done:
+    return Done(new_rows=[HistoryRow(role="user", content=message), HistoryRow(role="assistant", content=text_reply)])
+
+
+@pytest.mark.anyio()
+async def test_F1_page_load_creates_no_session(user_client: AsyncClient, db_engine: Engine) -> None:
+    assert (await user_client.get("/me/sessions")).json() == []
+    assert (await user_client.get("/me/sessions/999/messages")).status_code == 404
+    assert (await user_client.get("/me/visits")).status_code == 200
+    assert _session_count(db_engine) == 0
+
+
+@pytest.mark.anyio()
+async def test_F2_nonexistent_session_rejected(user_client: AsyncClient, db_engine: Engine) -> None:
+    resp = await user_client.post("/me/chat", json={"session_id": 999999, "message": "hello"})
+    assert resp.status_code == 404
+    assert resp.json()["detail"]["error"]["code"] == "not_found"
+    assert _session_count(db_engine) == 0
+
+
+@pytest.mark.anyio()
+async def test_F3_failure_after_tokens_stores_nothing(
+    app: Any, user_client: AsyncClient, db_engine: Engine, clock: FakeClock
+) -> None:
+    first = await user_client.post("/me/chat", json={"message": "hello"})
+    sid = json.loads(_parse_sse(first.text)[0]["data"])["session_id"]
+    rows_before = _stored_rows(db_engine, sid)
+    stamp_before = _last_message_at(db_engine, sid)
+
+    app.state.turn_runner = ScriptedTurn([Token(text="partial ", elapsed=0.0)], fail_after=True)
+    clock.advance(60)
+    resp = await user_client.post("/me/chat", json={"session_id": sid, "message": "this will fail"})
+
+    events = _parse_sse(resp.text)
+    assert [e["event"] for e in events] == ["session", "token", "error"]
+    assert json.loads(events[-1]["data"]) == {"code": "turn_error", "message": "Something went wrong."}
+    assert _stored_rows(db_engine, sid) == rows_before
+    assert _last_message_at(db_engine, sid) == stamp_before
+
+
+@pytest.mark.anyio()
+async def test_F3_rows_are_one_transaction(
+    app: Any, user_client: AsyncClient, db_engine: Engine, clock: FakeClock
+) -> None:
+    first = await user_client.post("/me/chat", json={"message": "hello"})
+    sid = json.loads(_parse_sse(first.text)[0]["data"])["session_id"]
+    rows_before = _stored_rows(db_engine, sid)
+    stamp_before = _last_message_at(db_engine, sid)
+
+    broken_done = Done(
+        new_rows=[
+            HistoryRow(role="user", content="book please"),
+            HistoryRow(
+                role="assistant",
+                content="",
+                tool_calls=[{"id": "c1", "type": "function", "function": {"name": "f", "arguments": "{}"}}],
+            ),
+            HistoryRow(role="tool", content="bad \x00 byte", tool_call_id="c1", tool_name="f"),
+            HistoryRow(role="assistant", content="done"),
+        ]
+    )
+    app.state.turn_runner = ScriptedTurn([Token(text="done", elapsed=0.0), broken_done])
+    clock.advance(60)
+    resp = await user_client.post("/me/chat", json={"session_id": sid, "message": "book please"})
+
+    assert [e["event"] for e in _parse_sse(resp.text)][-1] == "error"
+    assert _stored_rows(db_engine, sid) == rows_before
+    assert _last_message_at(db_engine, sid) == stamp_before
+
+
+@pytest.mark.anyio()
+async def test_F4_F10_history_comes_from_stored_rows(
+    app: Any, user_client: AsyncClient, db_engine: Engine
+) -> None:
+    first = await user_client.post("/me/chat", json={"message": "I want to book a visit"})
+    sid = json.loads(_parse_sse(first.text)[0]["data"])["session_id"]
+
+    capture = ScriptedTurn([_reply("next")])
+    app.state.turn_runner = capture
+    await user_client.post("/me/chat", json={"session_id": sid, "message": "next"})
+
+    history = capture.requests[0].history
+    stored = _stored_rows(db_engine, sid)[:4]
+    assert [(h.role, h.content, h.tool_call_id) for h in history] == [(r[0], r[1], r[3]) for r in stored]
+    assert history[1].tool_calls == stored[1][2]
+    assert capture.requests[0].message == "next"
+
+
+@pytest.mark.anyio()
+async def test_F4_history_is_last_40_rows_from_a_user_row(
+    app: Any, user_client: AsyncClient, db_engine: Engine
+) -> None:
+    first = await user_client.post("/me/chat", json={"message": "hello"})
+    sid = json.loads(_parse_sse(first.text)[0]["data"])["session_id"]
+    with db_engine.connect() as conn:
+        for i in range(50):
+            conn.execute(
+                text("INSERT INTO chat_message (session_id, role, content) VALUES (:s, :r, :c)"),
+                {"s": sid, "r": "assistant" if i % 2 == 0 else "user", "c": f"row {i}"},
+            )
+        conn.commit()
+
+    capture = ScriptedTurn([_reply("latest")])
+    app.state.turn_runner = capture
+    await user_client.post("/me/chat", json={"session_id": sid, "message": "latest"})
+
+    history = capture.requests[0].history
+    assert len(history) == 39
+    assert history[0].role == "user"
+    assert history[0].content == "row 11"
+    assert history[-1].content == "row 49"
+
+
+@pytest.mark.anyio()
+async def test_F4_stored_tool_result_is_capped(
+    app: Any, user_client: AsyncClient, db_engine: Engine
+) -> None:
+    from chatbot_ai.context import STORED_TOOL_RESULT_MAX_LEN, TOOL_RESULT_PLACEHOLDER
+
+    huge = "y" * (STORED_TOOL_RESULT_MAX_LEN * 3)
+    app.state.turn_runner = ScriptedTurn([
+        Done(
+            new_rows=[
+                HistoryRow(role="user", content="q"),
+                HistoryRow(
+                    role="assistant",
+                    content="",
+                    tool_calls=[{"id": "c1", "type": "function", "function": {"name": "f", "arguments": "{}"}}],
+                ),
+                HistoryRow(role="tool", content=huge, tool_call_id="c1", tool_name="f"),
+                HistoryRow(role="assistant", content="a"),
+            ]
+        )
+    ])
+    resp = await user_client.post("/me/chat", json={"message": "q"})
+    sid = json.loads(_parse_sse(resp.text)[0]["data"])["session_id"]
+
+    tool_content = _stored_rows(db_engine, sid)[2][1]
+    assert tool_content == huge[:STORED_TOOL_RESULT_MAX_LEN] + TOOL_RESULT_PLACEHOLDER
+
+
+@pytest.mark.anyio()
+async def test_F15_daily_cap_is_per_utc_date_not_rolling(
+    user_client: AsyncClient, clock: FakeClock
+) -> None:
+    clock.set(datetime(2026, 12, 1, 23, 35, tzinfo=UTC))
+    for i in range(100):
+        clock.advance(11)
+        assert (await user_client.post("/me/chat", json={"message": f"m{i}"})).status_code == 200
+    clock.advance(11)
+    assert (await user_client.post("/me/chat", json={"message": "cap"})).status_code == 429
+
+    clock.set(datetime(2026, 12, 2, 0, 0, 1, tzinfo=UTC))
+    assert (await user_client.post("/me/chat", json={"message": "new day"})).status_code == 200
+
+
+@pytest.mark.anyio()
+async def test_F15_failed_turns_count_toward_the_limit(user_client: AsyncClient) -> None:
+    for _ in range(6):
+        resp = await user_client.post("/me/chat", json={"message": "trigger error"})
+        assert resp.status_code == 200
+        assert any(e.get("event") == "error" for e in _parse_sse(resp.text))
+    blocked = await user_client.post("/me/chat", json={"message": "hello"})
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"]["error"]["code"] == "rate_limited"
+
+
+@pytest.mark.anyio()
+async def test_F15_limits_are_per_user(user_client: AsyncClient, app: object) -> None:
+    for i in range(6):
+        await user_client.post("/me/chat", json={"message": f"m{i}"})
+    assert (await user_client.post("/me/chat", json={"message": "over"})).status_code == 429
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),  # type: ignore[arg-type]
+        base_url="https://test",
+    ) as c2:
+        await c2.post("/auth/signup", json={"username": "user2", "password": "userpass2"})
+        await c2.post("/auth/login", json={"username": "user2", "password": "userpass2"})
+        locs = (await c2.get("/locations")).json()
+        await c2.post("/me/profile", json={"name": "User Two", "location_id": locs[0]["id"]})
+        assert (await c2.post("/me/chat", json={"message": "hi"})).status_code == 200

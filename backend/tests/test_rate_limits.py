@@ -137,3 +137,43 @@ async def test_F15_login_fail_rate_limit_resets(client: AsyncClient, clock: Fake
         json={"username": "alice", "password": "password123"},
     )
     assert resp.status_code == 200
+
+
+@pytest.mark.anyio()
+async def test_F15_signup_limit_is_per_client_ip_from_proxy_header(client: AsyncClient) -> None:
+    first_ip = {"X-Forwarded-For": "203.0.113.1"}
+    for i in range(5):
+        resp = await client.post("/auth/signup", json={"username": f"a{i}", "password": "password123"}, headers=first_ip)
+        assert resp.status_code == 201
+
+    blocked = await client.post("/auth/signup", json={"username": "a_extra", "password": "password123"}, headers=first_ip)
+    assert blocked.status_code == 429
+
+    other_ip = await client.post(
+        "/auth/signup",
+        json={"username": "b0", "password": "password123"},
+        headers={"X-Forwarded-For": "198.51.100.7, 10.0.0.1"},
+    )
+    assert other_ip.status_code == 201
+
+
+@pytest.mark.anyio()
+async def test_F15_login_limit_is_per_ip_and_username(client: AsyncClient) -> None:
+    for name in ("alice", "bob"):
+        await client.post("/auth/signup", json={"username": name, "password": "password123"})
+    attacker = {"X-Forwarded-For": "203.0.113.9"}
+    for _ in range(10):
+        resp = await client.post("/auth/login", json={"username": "alice", "password": "wrong"}, headers=attacker)
+        assert resp.status_code == 401
+    blocked = await client.post("/auth/login", json={"username": "alice", "password": "wrong"}, headers=attacker)
+    assert blocked.status_code == 429
+
+    other_user_same_ip = await client.post(
+        "/auth/login", json={"username": "bob", "password": "password123"}, headers=attacker
+    )
+    assert other_user_same_ip.status_code == 200
+
+    same_user_other_ip = await client.post(
+        "/auth/login", json={"username": "alice", "password": "password123"}, headers={"X-Forwarded-For": "198.51.100.2"}
+    )
+    assert same_user_other_ip.status_code == 200

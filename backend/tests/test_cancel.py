@@ -196,3 +196,39 @@ async def test_D2_cancel_completed_visit_rejected(
     resp = await user_client.post(f"/me/visits/{visit_id}/cancel", json={})
     assert resp.status_code == 409
     assert resp.json()["detail"]["error"]["code"] == "visit_not_cancellable"
+
+
+def _other_users_session(db_engine: Engine) -> int:
+    with db_engine.connect() as conn:
+        acct_id = conn.execute(
+            text("INSERT INTO account (username, password_hash, role) VALUES ('other', 'x', 'user') RETURNING id")
+        ).scalar_one()
+        loc_id = conn.execute(text("SELECT id FROM location LIMIT 1")).scalar_one()
+        profile_id = conn.execute(
+            text("INSERT INTO profile (account_id, name, location_id) VALUES (:a, 'Other', :l) RETURNING id"),
+            {"a": acct_id, "l": loc_id},
+        ).scalar_one()
+        session_id: int = conn.execute(
+            text("INSERT INTO chat_session (profile_id) VALUES (:p) RETURNING id"), {"p": profile_id}
+        ).scalar_one()
+        conn.commit()
+    return session_id
+
+
+@pytest.mark.anyio()
+async def test_F2_cancel_with_other_users_session_rejected(
+    user_client: AsyncClient, db_engine: Engine
+) -> None:
+    visit_id, slot_id = _setup_booked_visit(db_engine)
+    other_session_id = _other_users_session(db_engine)
+
+    resp = await user_client.post(f"/me/visits/{visit_id}/cancel", json={"session_id": other_session_id})
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"]["error"]["code"] == "not_found"
+    with db_engine.connect() as conn:
+        assert conn.execute(text("SELECT status FROM visit WHERE id = :v"), {"v": visit_id}).scalar_one() == "scheduled"
+        assert conn.execute(text("SELECT status FROM slot WHERE id = :s"), {"s": slot_id}).scalar_one() == "booked"
+        assert conn.execute(
+            text("SELECT count(*) FROM chat_message WHERE session_id = :s"), {"s": other_session_id}
+        ).scalar_one() == 0

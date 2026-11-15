@@ -202,7 +202,14 @@ async def test_F2_session_not_owned_rejected(
         "/me/visits",
         json={"session_id": other_session_id, "slot_id": setup_slot},
     )
-    assert resp.status_code == 403
+    assert resp.status_code == 404
+    assert resp.json()["detail"]["error"]["code"] == "not_found"
+    with db_engine.connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM visit")).scalar_one() == 0
+        assert conn.execute(
+            text("SELECT count(*) FROM chat_message WHERE session_id = :s"), {"s": other_session_id}
+        ).scalar_one() == 0
+        assert conn.execute(text("SELECT status FROM slot WHERE id = :s"), {"s": setup_slot}).scalar_one() == "available"
 
 
 @pytest.mark.anyio()

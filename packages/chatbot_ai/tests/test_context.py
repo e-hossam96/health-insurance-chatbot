@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from chatbot_ai.context import (
+    STORED_TOOL_RESULT_MAX_LEN,
     TOOL_RESULT_MAX_LEN,
     TOOL_RESULT_PLACEHOLDER,
     build_context,
+    cap_stored_tool_result,
+    to_openai_messages,
 )
 from chatbot_ai.interface import HistoryRow
 
@@ -31,7 +34,9 @@ def _tool_result(call_id: str = "c1", content: str = '{"ok": true}') -> HistoryR
 def test_F4_limit_to_40_rows() -> None:
     rows = [_user(f"msg {i}") if i % 2 == 0 else _assistant(f"reply {i}") for i in range(60)]
     result = build_context(rows)
-    assert len(result) <= 40
+    assert len(result) == 40
+    assert result[0].content == "msg 20"
+    assert result[-1].content == "reply 59"
 
 
 def test_F4_trim_to_user_start() -> None:
@@ -49,11 +54,11 @@ def test_F4_no_split_tool_call_result() -> None:
     rows = old + tool_pair + final
 
     result = build_context(rows, limit=40)
-    # If the tool pair is in the result, both parts must be present
-    has_tool_call = any(r.role == "assistant" and r.tool_calls for r in result)
-    has_tool_result = any(r.role == "tool" and r.tool_call_id == "tc1" for r in result)
-    if has_tool_call or has_tool_result:
-        assert has_tool_call and has_tool_result
+    call_index = next(i for i, r in enumerate(result) if r.role == "assistant" and r.tool_calls)
+    assert result[call_index + 1].role == "tool"
+    assert result[call_index + 1].tool_call_id == "tc1"
+    assert result[0].role == "user"
+    assert result[-2:] == final
 
 
 def test_F4_tool_result_not_orphaned() -> None:
@@ -69,7 +74,7 @@ def test_F4_tool_result_not_orphaned() -> None:
     assert len(result) == 2
 
 
-def test_F10_truncate_old_tool_results() -> None:
+def test_F4_truncate_old_tool_results() -> None:
     long_content = "x" * (TOOL_RESULT_MAX_LEN + 100)
     rows = [
         _user("q1"),
@@ -86,7 +91,7 @@ def test_F10_truncate_old_tool_results() -> None:
     assert tool_row.content.endswith(TOOL_RESULT_PLACEHOLDER)
 
 
-def test_F10_recent_tool_result_not_truncated() -> None:
+def test_F4_recent_tool_result_not_truncated() -> None:
     long_content = "x" * (TOOL_RESULT_MAX_LEN + 100)
     rows = [
         _user("q1"),
@@ -128,3 +133,30 @@ def test_F4_trim_skips_past_tool_pair_to_next_user() -> None:
     # The result should start at the user row and not include orphans
     assert result[0].role == "user"
     assert len(result) == 2
+
+
+def test_F10_rows_convert_to_openai_messages() -> None:
+    rows = [
+        _user("book me in"),
+        _tool_call_assistant("c1"),
+        _tool_result("c1", content='{"slots": []}'),
+        _assistant("No slots this week."),
+    ]
+    assert to_openai_messages(rows) == [
+        {"role": "user", "content": "book me in"},
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [{"id": "c1", "type": "function", "function": {"name": "test_fn", "arguments": "{}"}}],
+        },
+        {"role": "tool", "tool_call_id": "c1", "content": '{"slots": []}'},
+        {"role": "assistant", "content": "No slots this week."},
+    ]
+
+
+def test_F4_stored_tool_result_cap() -> None:
+    assert cap_stored_tool_result("short") == "short"
+    exact = "z" * STORED_TOOL_RESULT_MAX_LEN
+    assert cap_stored_tool_result(exact) == exact
+    over = "z" * (STORED_TOOL_RESULT_MAX_LEN + 1)
+    assert cap_stored_tool_result(over) == exact + TOOL_RESULT_PLACEHOLDER

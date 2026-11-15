@@ -136,12 +136,14 @@ test.describe('chat against stub scenarios', () => {
 
   test('Stop: the input is locked while streaming and Stop gives the text back', async ({ page }) => {
     await mockSignedInUser(page, ['hang']);
+    const aborted = page.waitForEvent('requestfailed', request => request.url().endsWith('/api/me/chat'));
 
     await page.goto('/chat');
     await send(page, 'a slow question');
     await expect(page.getByTestId('chat-input')).toBeDisabled();
     await expect(page.getByTestId('typing-indicator')).toBeVisible();
     await page.getByTestId('stop-btn').click();
+    expect((await aborted).failure()?.errorText).toBeTruthy();
     await expect(page.getByTestId('chat-input')).toBeEnabled();
     await expect(page.getByTestId('chat-input')).toHaveValue('a slow question');
     await expect(page.getByTestId('msg-user')).toHaveCount(0);

@@ -78,6 +78,11 @@ describe('intent label map', () => {
 });
 
 describe('time formatting', () => {
+  it('C8: the tests run in a non-UTC zone so a local-time formatter would fail', () => {
+    expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe('Asia/Tokyo');
+    expect(new Date('2026-11-15T10:00:00Z').getTimezoneOffset()).toBe(-540);
+  });
+
   it('C8: shows the UTC wall time with a UTC suffix and no conversion', () => {
     expect(formatUtc('2026-11-15T10:00:00Z')).toBe('Sun 15 Nov, 10:00 UTC');
     expect(formatUtc('2026-11-15T23:30:00+00:00')).toBe('Sun 15 Nov, 23:30 UTC');
