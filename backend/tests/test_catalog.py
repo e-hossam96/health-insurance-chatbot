@@ -185,17 +185,15 @@ async def test_doctor_needs_clinic_specialty(admin_client: AsyncClient) -> None:
 
 @pytest.mark.anyio()
 async def test_A5_delete_location_blocked_by_profile(admin_client: AsyncClient) -> None:
-    del_resp = await admin_client.delete("/admin/locations/1")
-    if del_resp.status_code == 404:
-        pytest.skip("No location with profile to test")
+    # The admin created via create_admin has a profile in "DefaultLoc".
+    # Find that location and try to delete it.
     result = await admin_client.get("/admin/locations")
     locations = result.json()
-    for loc in locations:
-        resp = await admin_client.delete(f"/admin/locations/{loc['id']}")
-        if resp.status_code == 409:
-            assert resp.json()["detail"]["error"]["code"] == "has_history"
-            return
-    pytest.skip("No location is blocked by a profile in this test setup")
+    default_loc = next((l for l in locations if l["name"] == "DefaultLoc"), None)
+    assert default_loc is not None, "DefaultLoc should exist from admin setup"
+    resp = await admin_client.delete(f"/admin/locations/{default_loc['id']}")
+    assert resp.status_code == 409
+    assert resp.json()["detail"]["error"]["code"] == "has_history"
 
 
 # --- Specialty blocked by clinic_specialty ---
