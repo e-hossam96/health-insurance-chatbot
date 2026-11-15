@@ -10,10 +10,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import extract, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from backend.deps import ClockDep, Db, RequireAdmin
+from backend.deps import ClockDep, CurrentSession, Db, RequireAdmin
 from backend.models import (
     Clinic,
     ClinicSpecialty,
+    Complaint,
+    ComplaintReply,
+    ComplaintStatus,
     Doctor,
     Location,
     Profile,
@@ -517,6 +520,67 @@ async def complete_visit(
     visit.status = VisitStatus.completed
     await db.commit()
     return VisitStatusOut(id=visit.id, status=visit.status.value)
+
+
+# --- Complaints (E3, E4, E5, B7) ---
+
+
+class ReplyCreate(BaseModel):
+    body: str = Field(min_length=1)
+
+
+class ReplyOut(BaseModel):
+    id: int
+    complaint_id: int
+    admin_account_id: int
+    body: str
+
+
+@router.post("/complaints/{complaint_id}/reply", status_code=201)
+async def reply_to_complaint(
+    complaint_id: int,
+    body: ReplyCreate,
+    admin: RequireAdmin,
+    session: CurrentSession,
+    db: Db,
+) -> ReplyOut:
+    complaint = await db.get(Complaint, complaint_id)
+    if complaint is None:
+        raise _error("not_found", "Complaint not found.", 404)
+
+    # E5: replies on closed complaint rejected
+    if complaint.status == ComplaintStatus.closed:
+        raise _error("complaint_closed", "Cannot reply to a closed complaint.", 409)
+
+    # B7: admin_account_id references an admin role (enforced by RequireAdmin dep)
+    reply = ComplaintReply(
+        complaint_id=complaint_id,
+        admin_account_id=session.account_id,
+        body=body.body,
+    )
+    db.add(reply)
+    await db.flush()
+    await db.commit()
+
+    # E4: reply does NOT change status
+    return ReplyOut(
+        id=reply.id, complaint_id=reply.complaint_id,
+        admin_account_id=reply.admin_account_id, body=reply.body,
+    )
+
+
+@router.post("/complaints/{complaint_id}/close")
+async def close_complaint(
+    complaint_id: int, admin: RequireAdmin, db: Db
+) -> dict[str, object]:
+    complaint = await db.get(Complaint, complaint_id)
+    if complaint is None:
+        raise _error("not_found", "Complaint not found.", 404)
+    if complaint.status == ComplaintStatus.closed:
+        raise _error("complaint_closed", "Complaint is already closed.", 409)
+    complaint.status = ComplaintStatus.closed
+    await db.commit()
+    return {"id": complaint.id, "status": complaint.status.value}
 
 
 # --- KB placeholder ---
