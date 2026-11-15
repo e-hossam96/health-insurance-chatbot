@@ -188,6 +188,21 @@ def test_A3_file_size_zero_rejected(db_engine: Engine) -> None:
         conn.rollback()
 
 
+def test_A3_file_size_negative_rejected(db_engine: Engine) -> None:
+    with db_engine.connect() as conn:
+        acct_id = _insert_account(conn)
+        with pytest.raises(IntegrityError, match="ck_kb_document_file_size"):
+            conn.execute(  # type: ignore[union-attr]
+                text(
+                    "INSERT INTO kb_document "
+                    "(filename, file_type, file_size_bytes, storage_path, content_hash, uploaded_by) "
+                    "VALUES ('a.pdf', 'pdf', -1, '/tmp/a', 'abc123', :u)"
+                ),
+                {"u": acct_id},
+            )
+        conn.rollback()
+
+
 # --- A4: case-insensitive unique ---
 
 
@@ -236,6 +251,19 @@ def test_A5_cascade_clinic_deletes_clinic_specialty(db_engine: Engine) -> None:
         _insert_clinic_specialty(conn, clinic_id, spec_id)
         conn.execute(text("DELETE FROM clinic WHERE id = :c"), {"c": clinic_id})  # type: ignore[union-attr]
         count = conn.execute(text("SELECT count(*) FROM clinic_specialty")).scalar()  # type: ignore[union-attr]
+        assert count == 0
+        conn.rollback()
+
+
+def test_A5_cascade_clinic_specialty_deletes_doctor(db_engine: Engine) -> None:
+    with db_engine.connect() as conn:
+        loc_id = _insert_location(conn)
+        clinic_id = _insert_clinic(conn, loc_id)
+        spec_id = _insert_specialty(conn)
+        cs_id = _insert_clinic_specialty(conn, clinic_id, spec_id)
+        _insert_doctor(conn, cs_id)
+        conn.execute(text("DELETE FROM clinic_specialty WHERE id = :cs"), {"cs": cs_id})  # type: ignore[union-attr]
+        count = conn.execute(text("SELECT count(*) FROM doctor")).scalar()  # type: ignore[union-attr]
         assert count == 0
         conn.rollback()
 
@@ -335,6 +363,16 @@ def test_A5_restrict_visit_profile(db_engine: Engine) -> None:
         _insert_visit(conn, profile_id, slot_id)
         with pytest.raises(IntegrityError):
             conn.execute(text("DELETE FROM profile WHERE id = :p"), {"p": profile_id})  # type: ignore[union-attr]
+        conn.rollback()
+
+
+def test_A5_restrict_profile_account(db_engine: Engine) -> None:
+    with db_engine.connect() as conn:
+        loc_id = _insert_location(conn)
+        acct_id = _insert_account(conn)
+        _insert_profile(conn, acct_id, loc_id)
+        with pytest.raises(IntegrityError):
+            conn.execute(text("DELETE FROM account WHERE id = :a"), {"a": acct_id})  # type: ignore[union-attr]
         conn.rollback()
 
 
