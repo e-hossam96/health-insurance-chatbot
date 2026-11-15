@@ -1,16 +1,50 @@
+import os
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
+from backend.auth import purge_expired
+from backend.config import Settings
+from backend.database import create_engine
 from backend.metrics import prometheus_middleware
-
-app = FastAPI(title="Health Insurance Chatbot")
-app.middleware("http")(prometheus_middleware)
+from backend.routes.auth import router as auth_router
 
 
-@app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+def create_app(settings: Settings | None = None) -> FastAPI:
+    if settings is None:
+        settings = Settings()  # type: ignore[call-arg]
+
+    engine, session_factory = create_engine(settings)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
+        async with session_factory() as db:
+            await purge_expired(db)
+            await db.commit()
+        yield
+        await engine.dispose()
+
+    application = FastAPI(title="Health Insurance Chatbot", lifespan=lifespan)
+    application.state.settings = settings
+    application.state.session_factory = session_factory
+    application.state.engine = engine
+
+    application.middleware("http")(prometheus_middleware)
+    application.include_router(auth_router)
+
+    @application.get("/health")
+    async def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @application.get("/items/{item_id}")
+    async def get_item(item_id: int) -> dict[str, int]:
+        return {"item_id": item_id}
+
+    return application
 
 
-@app.get("/items/{item_id}")
-async def get_item(item_id: int) -> dict[str, int]:
-    return {"item_id": item_id}
+if not os.environ.get("DATABASE_URL"):
+    os.environ["DATABASE_URL"] = "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot"
+
+app = create_app()
