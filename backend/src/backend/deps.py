@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth import Clock, get_session, wall_clock
 from backend.config import Settings
-from backend.models import Account, AuthSession
+from backend.models import Account, AccountRole, AuthSession
 
 
 async def get_db(request: Request) -> AsyncGenerator[AsyncSession]:
@@ -63,3 +63,34 @@ async def get_current_account(
 
 CurrentSession = Annotated[AuthSession, Depends(get_current_session)]
 CurrentAccount = Annotated[Account, Depends(get_current_account)]
+
+
+def _forbidden(msg: str) -> HTTPException:
+    return HTTPException(
+        status_code=403,
+        detail={"error": {"code": "forbidden", "message": msg}},
+    )
+
+
+async def require_admin(
+    session: CurrentSession,
+    account: CurrentAccount,
+) -> Account:
+    if account.role != AccountRole.admin:
+        raise _forbidden("Admin role required.")
+    if session.active_mode != AccountRole.admin:
+        raise _forbidden("Admin mode required.")
+    return account
+
+
+async def require_user_mode(
+    session: CurrentSession,
+    account: CurrentAccount,
+) -> Account:
+    if session.active_mode != AccountRole.user:
+        raise _forbidden("User mode required.")
+    return account
+
+
+RequireAdmin = Annotated[Account, Depends(require_admin)]
+RequireUserMode = Annotated[Account, Depends(require_user_mode)]
