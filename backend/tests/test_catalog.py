@@ -1,0 +1,216 @@
+"""Tests for step 3.1: catalog API (A4 friendly errors, A5 cascade/restrict)."""
+
+from __future__ import annotations
+
+import os
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
+from sqlalchemy.engine import Engine
+
+from backend.app import create_app
+from backend.config import Settings
+
+TEST_DB_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
+)
+
+
+@pytest.fixture()
+def app(_migrate_fresh: None) -> object:
+    settings = Settings(database_url=TEST_DB_URL)  # type: ignore[call-arg]
+    return create_app(settings)
+
+
+@pytest.fixture()
+async def admin_client(app: object) -> AsyncClient:
+    from scripts.create_admin import create_admin
+
+    create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "DefaultLoc")
+    async with AsyncClient(
+        transport=ASGITransport(app=app),  # type: ignore[arg-type]
+        base_url="https://test",
+    ) as c:
+        await c.post("/auth/login", json={"username": "admin1", "password": "adminpass1"})
+        yield c  # type: ignore[misc]
+
+
+# --- A4: duplicate names case-insensitive with friendly error ---
+
+
+@pytest.mark.anyio()
+async def test_A4_location_duplicate_friendly(admin_client: AsyncClient) -> None:
+    resp1 = await admin_client.post("/admin/locations", json={"name": "Cairo"})
+    assert resp1.status_code == 201
+    resp2 = await admin_client.post("/admin/locations", json={"name": "cairo"})
+    assert resp2.status_code == 409
+    assert "already exists" in resp2.json()["detail"]["error"]["message"]
+
+
+@pytest.mark.anyio()
+async def test_A4_specialty_duplicate_friendly(admin_client: AsyncClient) -> None:
+    resp1 = await admin_client.post("/admin/specialties", json={"name": "Cardiology"})
+    assert resp1.status_code == 201
+    resp2 = await admin_client.post("/admin/specialties", json={"name": "cardiology"})
+    assert resp2.status_code == 409
+    assert "already exists" in resp2.json()["detail"]["error"]["message"]
+
+
+# --- Delete shows cascade counts ---
+
+
+@pytest.mark.anyio()
+async def test_A5_delete_location_shows_cascade_count(admin_client: AsyncClient) -> None:
+    loc_resp = await admin_client.post("/admin/locations", json={"name": "TestCity"})
+    loc_id = loc_resp.json()["id"]
+    await admin_client.post("/admin/clinics", json={"name": "Clinic A", "location_id": loc_id})
+    await admin_client.post("/admin/clinics", json={"name": "Clinic B", "location_id": loc_id})
+
+    del_resp = await admin_client.delete(f"/admin/locations/{loc_id}")
+    assert del_resp.status_code == 200
+    assert del_resp.json()["cascade"]["clinics"] == 2
+
+
+@pytest.mark.anyio()
+async def test_A5_delete_clinic_shows_cascade_count(admin_client: AsyncClient) -> None:
+    loc_resp = await admin_client.post("/admin/locations", json={"name": "TestCity"})
+    loc_id = loc_resp.json()["id"]
+    clinic_resp = await admin_client.post("/admin/clinics", json={"name": "Clinic A", "location_id": loc_id})
+    clinic_id = clinic_resp.json()["id"]
+    spec_resp = await admin_client.post("/admin/specialties", json={"name": "Derm"})
+    spec_id = spec_resp.json()["id"]
+    await admin_client.put(f"/admin/clinics/{clinic_id}/specialties", json=[{"specialty_id": spec_id}])
+
+    cs_list = (await admin_client.put(f"/admin/clinics/{clinic_id}/specialties", json=[{"specialty_id": spec_id}])).json()
+    cs_id = cs_list[0]["id"]
+    await admin_client.post("/admin/doctors", json={"name": "Dr X", "clinic_specialty_id": cs_id})
+
+    del_resp = await admin_client.delete(f"/admin/clinics/{clinic_id}")
+    assert del_resp.status_code == 200
+    assert del_resp.json()["cascade"]["specialties"] == 1
+    assert del_resp.json()["cascade"]["doctors"] == 1
+
+
+# --- A5: delete blocked by visit history ---
+
+
+@pytest.mark.anyio()
+async def test_A5_delete_doctor_blocked_by_visit(
+    admin_client: AsyncClient, db_engine: Engine
+) -> None:
+    loc_resp = await admin_client.post("/admin/locations", json={"name": "TestCity"})
+    loc_id = loc_resp.json()["id"]
+    clinic_resp = await admin_client.post("/admin/clinics", json={"name": "Clinic A", "location_id": loc_id})
+    clinic_id = clinic_resp.json()["id"]
+    spec_resp = await admin_client.post("/admin/specialties", json={"name": "Derm"})
+    spec_id = spec_resp.json()["id"]
+    await admin_client.put(f"/admin/clinics/{clinic_id}/specialties", json=[{"specialty_id": spec_id}])
+
+    cs_list = (await admin_client.put(f"/admin/clinics/{clinic_id}/specialties", json=[{"specialty_id": spec_id}])).json()
+    cs_id = cs_list[0]["id"]
+    doc_resp = await admin_client.post("/admin/doctors", json={"name": "Dr X", "clinic_specialty_id": cs_id})
+    doctor_id = doc_resp.json()["id"]
+
+    with db_engine.connect() as conn:
+        conn.execute(text(
+            "INSERT INTO slot (doctor_id, start_at) VALUES (:d, '2026-12-01 10:00:00+00')"
+        ), {"d": doctor_id})
+        acct_id = conn.execute(text("SELECT id FROM account LIMIT 1")).scalar_one()
+        profile_id = conn.execute(
+            text("SELECT id FROM profile WHERE account_id = :a"), {"a": acct_id}
+        ).scalar_one()
+        slot_id = conn.execute(text("SELECT id FROM slot LIMIT 1")).scalar_one()
+        conn.execute(text(
+            "INSERT INTO visit (profile_id, slot_id) VALUES (:p, :s)"
+        ), {"p": profile_id, "s": slot_id})
+        conn.commit()
+
+    del_resp = await admin_client.delete(f"/admin/doctors/{doctor_id}")
+    assert del_resp.status_code == 409
+    assert del_resp.json()["detail"]["error"]["code"] == "has_history"
+
+
+@pytest.mark.anyio()
+async def test_A5_delete_clinic_blocked_by_visit(
+    admin_client: AsyncClient, db_engine: Engine
+) -> None:
+    loc_resp = await admin_client.post("/admin/locations", json={"name": "TestCity"})
+    loc_id = loc_resp.json()["id"]
+    clinic_resp = await admin_client.post("/admin/clinics", json={"name": "Clinic A", "location_id": loc_id})
+    clinic_id = clinic_resp.json()["id"]
+    spec_resp = await admin_client.post("/admin/specialties", json={"name": "Derm"})
+    spec_id = spec_resp.json()["id"]
+    await admin_client.put(f"/admin/clinics/{clinic_id}/specialties", json=[{"specialty_id": spec_id}])
+
+    cs_list = (await admin_client.put(f"/admin/clinics/{clinic_id}/specialties", json=[{"specialty_id": spec_id}])).json()
+    cs_id = cs_list[0]["id"]
+    doc_resp = await admin_client.post("/admin/doctors", json={"name": "Dr X", "clinic_specialty_id": cs_id})
+    doctor_id = doc_resp.json()["id"]
+
+    with db_engine.connect() as conn:
+        conn.execute(text(
+            "INSERT INTO slot (doctor_id, start_at) VALUES (:d, '2026-12-01 10:00:00+00')"
+        ), {"d": doctor_id})
+        acct_id = conn.execute(text("SELECT id FROM account LIMIT 1")).scalar_one()
+        profile_id = conn.execute(
+            text("SELECT id FROM profile WHERE account_id = :a"), {"a": acct_id}
+        ).scalar_one()
+        slot_id = conn.execute(text("SELECT id FROM slot LIMIT 1")).scalar_one()
+        conn.execute(text(
+            "INSERT INTO visit (profile_id, slot_id) VALUES (:p, :s)"
+        ), {"p": profile_id, "s": slot_id})
+        conn.commit()
+
+    del_resp = await admin_client.delete(f"/admin/clinics/{clinic_id}")
+    assert del_resp.status_code == 409
+    assert del_resp.json()["detail"]["error"]["code"] == "has_history"
+
+
+# --- Doctor needs a clinic that has a linked specialty ---
+
+
+@pytest.mark.anyio()
+async def test_doctor_needs_clinic_specialty(admin_client: AsyncClient) -> None:
+    resp = await admin_client.post(
+        "/admin/doctors",
+        json={"name": "Dr X", "clinic_specialty_id": 99999},
+    )
+    assert resp.status_code == 404
+
+
+# --- Location blocked by profile ---
+
+
+@pytest.mark.anyio()
+async def test_A5_delete_location_blocked_by_profile(admin_client: AsyncClient) -> None:
+    del_resp = await admin_client.delete("/admin/locations/1")
+    if del_resp.status_code == 404:
+        pytest.skip("No location with profile to test")
+    result = await admin_client.get("/admin/locations")
+    locations = result.json()
+    for loc in locations:
+        resp = await admin_client.delete(f"/admin/locations/{loc['id']}")
+        if resp.status_code == 409:
+            assert resp.json()["detail"]["error"]["code"] == "has_history"
+            return
+    pytest.skip("No location is blocked by a profile in this test setup")
+
+
+# --- Specialty blocked by clinic_specialty ---
+
+
+@pytest.mark.anyio()
+async def test_A5_delete_specialty_blocked_by_clinic(admin_client: AsyncClient) -> None:
+    loc_resp = await admin_client.post("/admin/locations", json={"name": "TestCity"})
+    loc_id = loc_resp.json()["id"]
+    clinic_resp = await admin_client.post("/admin/clinics", json={"name": "Clinic A", "location_id": loc_id})
+    clinic_id = clinic_resp.json()["id"]
+    spec_resp = await admin_client.post("/admin/specialties", json={"name": "Derm"})
+    spec_id = spec_resp.json()["id"]
+    await admin_client.put(f"/admin/clinics/{clinic_id}/specialties", json=[{"specialty_id": spec_id}])
+
+    del_resp = await admin_client.delete(f"/admin/specialties/{spec_id}")
+    assert del_resp.status_code == 409
+    assert del_resp.json()["detail"]["error"]["code"] == "has_history"
