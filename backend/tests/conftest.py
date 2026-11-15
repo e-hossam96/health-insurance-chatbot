@@ -23,6 +23,13 @@ def db_engine():  # type: ignore[no-untyped-def]
 
 
 @pytest.fixture(autouse=True)
+def _reset_rate_limiters():  # type: ignore[no-untyped-def]
+    from backend.rate_limit import reset_all
+
+    reset_all()
+
+
+@pytest.fixture(autouse=True)
 def _migrate_fresh(db_engine):  # type: ignore[no-untyped-def]
     with db_engine.connect() as conn:
         conn.execute(text("DROP SCHEMA public CASCADE"))

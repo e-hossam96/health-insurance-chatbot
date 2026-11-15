@@ -23,6 +23,7 @@ from backend.deps import (
     SettingsDep,
 )
 from backend.models import Account, AccountRole, Profile
+from backend.rate_limit import login_fail_limiter, signup_limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -67,10 +68,26 @@ def _error(code: str, message: str, status: int = 400) -> HTTPException:
     )
 
 
+def _rate_limited(retry_after: int) -> HTTPException:
+    return HTTPException(
+        status_code=429,
+        detail={"error": {"code": "rate_limited", "message": "Too many requests."}},
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
 def _require_json(request: Request) -> None:
     ct = request.headers.get("content-type", "")
     if "application/json" not in ct:
         raise _error("validation_error", "Content-Type must be application/json.", 422)
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    client = request.client
+    return client.host if client else "unknown"
 
 
 @router.post("/signup", status_code=201)
@@ -84,10 +101,16 @@ async def signup(
 ) -> dict[str, str]:
     _require_json(request)
 
+    ip = _client_ip(request)
+    retry = signup_limiter.check(ip, clock=clock)
+    if retry is not None:
+        raise _rate_limited(retry)
+
     existing = await db.execute(
         select(Account).where(func.lower(Account.username) == body.username.lower())
     )
     if existing.scalar_one_or_none() is not None:
+        signup_limiter.record(ip, clock=clock)
         raise _error("username_taken", "Username is already taken.", 409)
 
     password_hash = hash_password(body.password)
@@ -104,6 +127,7 @@ async def signup(
     )
     await db.commit()
 
+    signup_limiter.record(ip, clock=clock)
     _set_cookie(response, token, settings.session_lifetime_days * 86400)
     return {"message": "Account created."}
 
@@ -119,6 +143,12 @@ async def login(
 ) -> dict[str, str]:
     _require_json(request)
 
+    ip = _client_ip(request)
+    login_key = f"{ip}:{body.username.lower()}"
+    retry = login_fail_limiter.check(login_key, clock=clock)
+    if retry is not None:
+        raise _rate_limited(retry)
+
     await purge_expired(db, clock=clock)
 
     result = await db.execute(
@@ -126,6 +156,7 @@ async def login(
     )
     account = result.scalar_one_or_none()
     if account is None or not verify_password(account.password_hash, body.password):
+        login_fail_limiter.record(login_key, clock=clock)
         raise _error("invalid_credentials", "Invalid username or password.", 401)
 
     token = await create_session(
@@ -145,7 +176,6 @@ async def logout(
     response: Response,
 ) -> dict[str, str]:
     _require_json(request)
-
 
     raw_token = request.cookies.get(SESSION_COOKIE, "")
     await delete_session(db, raw_token)
