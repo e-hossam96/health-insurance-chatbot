@@ -17,6 +17,7 @@ from backend.models import (
     Slot,
     SlotStatus,
     Visit,
+    VisitStatus,
 )
 
 router = APIRouter(prefix="/me", tags=["visits"])
@@ -171,3 +172,112 @@ async def book_visit(
             for m in messages
         ],
     )
+
+
+# --- Cancel (D2, D8) ---
+
+
+class CancelRequest(BaseModel):
+    session_id: int | None = None
+
+
+class CancelResponse(BaseModel):
+    visit: VisitOut
+    messages: list[MessageOut] | None = None
+
+
+async def _write_cancel_messages(
+    db: Db,
+    chat_session_id: int,
+    visit_id: int,
+) -> list[ChatMessage]:
+    tool_call_id = f"cancel_{visit_id}"
+    tool_calls_json = [
+        {"id": tool_call_id, "type": "function", "function": {"name": "cancel_visit", "arguments": json.dumps({"visit_id": visit_id})}}
+    ]
+
+    m1 = ChatMessage(session_id=chat_session_id, role=MessageRole.user, content=f"Cancel visit {visit_id}")
+    db.add(m1)
+    await db.flush()
+
+    m2 = ChatMessage(
+        session_id=chat_session_id,
+        role=MessageRole.assistant,
+        content="",
+        tool_calls=tool_calls_json,
+    )
+    db.add(m2)
+    await db.flush()
+
+    m3 = ChatMessage(
+        session_id=chat_session_id,
+        role=MessageRole.tool,
+        content=json.dumps({"visit_id": visit_id, "status": "cancelled"}),
+        tool_call_id=tool_call_id,
+        tool_name="cancel_visit",
+    )
+    db.add(m3)
+    await db.flush()
+
+    m4 = ChatMessage(
+        session_id=chat_session_id,
+        role=MessageRole.assistant,
+        content="Your visit has been cancelled.",
+    )
+    db.add(m4)
+    await db.flush()
+
+    return [m1, m2, m3, m4]
+
+
+@router.post("/visits/{visit_id}/cancel")
+async def cancel_visit(
+    visit_id: int,
+    body: CancelRequest,
+    user: RequireUserMode,
+    session: CurrentSession,
+    db: Db,
+) -> CancelResponse:
+    profile = await _get_profile_for_session(db, session.account_id)
+
+    # Own visit only (other user's visit -> 404)
+    visit_result = await db.execute(
+        select(Visit).where(Visit.id == visit_id, Visit.profile_id == profile.id)
+    )
+    visit = visit_result.scalar_one_or_none()
+    if visit is None:
+        raise _error("not_found", "Visit not found.", 404)
+
+    if visit.status != VisitStatus.scheduled:
+        raise _error("visit_not_cancellable", "Only scheduled visits can be cancelled.", 409)
+
+    # D2: one transaction: visit -> cancelled, slot -> available
+    await db.execute(
+        update(Visit).where(Visit.id == visit_id).values(status=VisitStatus.cancelled)
+    )
+    await db.execute(
+        update(Slot).where(Slot.id == visit.slot_id).values(status=SlotStatus.available)
+    )
+
+    messages: list[ChatMessage] | None = None
+    # D8: with session_id, write 4 static messages; without, none
+    if body.session_id is not None:
+        chat_session = await db.get(ChatSession, body.session_id)
+        if chat_session is None or chat_session.profile_id != profile.id:
+            raise _error("forbidden", "Chat session does not belong to you.", 403)
+        messages = await _write_cancel_messages(db, body.session_id, visit_id)
+
+    await db.commit()
+
+    resp = CancelResponse(
+        visit=VisitOut(id=visit.id, profile_id=visit.profile_id, slot_id=visit.slot_id, status="cancelled"),
+    )
+    if messages is not None:
+        resp.messages = [
+            MessageOut(
+                id=m.id, session_id=m.session_id, role=m.role.value, content=m.content,
+                tool_calls=m.tool_calls, tool_call_id=m.tool_call_id, tool_name=m.tool_name,
+            )
+            for m in messages
+        ]
+    return resp
