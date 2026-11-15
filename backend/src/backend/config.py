@@ -24,6 +24,10 @@ class Settings(BaseSettings):
         default=10 * 1024 * 1024,
         description="Maximum upload size for KB documents",
     )
+    kb_storage_dir: str = Field(
+        default="./data/kb",
+        description="Directory on the local KB volume that holds the uploaded originals",
+    )
     rate_limit_messages_per_minute: int = Field(
         default=6,
         description="Max messages per minute per user",

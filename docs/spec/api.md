@@ -24,6 +24,7 @@ Per-screen endpoint paths are in the `Calls:` lines of `wireframes.md` (sections
 | 415 | unsupported file type | unsupported_type |
 | 422 | validation | validation_error |
 | 429 | rate limit (F15), with Retry-After | rate_limited |
+| 503 | a dependency is down; nothing was changed | kb_index_unavailable |
 
 ## Auth
 
@@ -64,6 +65,17 @@ All three write the 4 static messages in the same transaction as the change (D6,
 - POST /me/visits {session_id, slot_id} -> 201 {visit, messages}. 409 slot_taken.
 - POST /me/visits/:id/cancel {session_id?} -> {visit, messages?}. `messages` only when session_id is given. 409 visit_not_cancellable.
 - POST /me/complaints {session_id, visit_id, description} -> 201 {complaint, messages}. 409 visit_not_completed, complaint_exists.
+
+## Admin KB documents
+
+Admin only (B11). Statuses and jobs follow G1 to G11.
+
+- GET /admin/kb-documents?limit&offset -> {items, total, max_upload_bytes}. Item: {id, filename, file_type, file_size_bytes, status, error_message, uploaded_by (username), created_at}. Newest first. `max_upload_bytes` is KB_MAX_UPLOAD_BYTES, shown in the drop zone.
+- POST /admin/kb-documents?filename=<name> with the raw file bytes as the body (one request per file, any Content-Type) -> 201 item with status 'uploaded'. The type comes from the filename extension (G1, else 415 unsupported_type). The body is streamed to disk while bytes are counted and hashed: over the limit gives 413 file_too_large and the partial file is deleted (G2); an empty body gives 422 validation_error; a known hash gives 409 duplicate_document (G3). The job starts in the background (G5).
+- POST /admin/kb-documents/:id/reindex -> item. From 'ready' or 'failed' it sets 'uploaded', clears error_message and re-runs the job (G6); from 'uploaded' or 'processing' it changes nothing.
+- DELETE /admin/kb-documents/:id -> 204. Deletes the Qdrant points, then the file, then the row (G9). If Qdrant fails: 503 kb_index_unavailable and the row and file are kept.
+
+The upload is a raw body instead of multipart because the multipart parser reads the whole file before the handler runs, which would defeat the streaming size check in G2.
 
 ## Other
 

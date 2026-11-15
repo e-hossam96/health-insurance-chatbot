@@ -33,9 +33,15 @@ services:
       dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: postgresql+asyncpg://chatbot:chatbot@postgres:5432/chatbot
       QDRANT_URL: http://qdrant:6333
+      KB_STORAGE_DIR: /data/kb
+    volumes:
+      - kb_data:/data/kb
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,3 +67,4 @@ services:
 volumes:
   pgdata:
   qdrant_data:
+  kb_data:
