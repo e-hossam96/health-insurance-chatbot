@@ -1,0 +1,38 @@
+[project]
+name = "health-insurance-chatbot"
+version = "0.1.0"
+description = "AI chatbot for a health insurer"
+authors = [
+    { name = "e-hossam96", email = "ehh.hossam@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = []
+
+[tool.uv]
+managed = true
+
+[tool.uv.workspace]
+members = ["backend", "packages/chatbot_ai"]
+
+[dependency-groups]
+dev = [
+    "anyio>=4.16.0",
+    "httpx>=0.28.1",
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "pytest-anyio>=0.0.0",
+    "pyyaml>=6.0.3",
+    "ruff>=0.17.5",
+]
+
+[tool.mypy]
+strict = true
+packages = ["backend", "chatbot_ai"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "backend/tests", "packages/chatbot_ai/tests"]
+pythonpath = ["."]
+consider_namespace_packages = true
+
+[tool.ruff]
+src = ["backend/src", "packages/chatbot_ai/src"]

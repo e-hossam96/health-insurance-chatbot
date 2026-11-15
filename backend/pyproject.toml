@@ -1,0 +1,24 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "FastAPI backend for the health insurance chatbot"
+authors = [
+    { name = "e-hossam96", email = "ehh.hossam@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]",
+    "chatbot-ai",
+    "pydantic-settings>=2.16.3",
+    "prometheus-client>=0.26.0",
+]
+
+[project.scripts]
+backend = "backend:main"
+
+[tool.uv.sources]
+chatbot-ai = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.13.8,<0.14.0"]
+build-backend = "uv_build"

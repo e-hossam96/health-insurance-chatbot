@@ -1,0 +1,212 @@
+// Health Insurance Chatbot - schema
+// Version: v0.1.0
+
+Enum account_role {
+  user
+  admin
+}
+
+Enum slot_status {
+  available
+  booked
+}
+
+Enum visit_status {
+  scheduled
+  completed
+  cancelled
+}
+
+Enum complaint_status {
+  open
+  closed
+}
+
+Table account {
+  id integer [pk, increment]
+  username varchar [not null, unique]
+  password_hash varchar [not null]
+  role account_role [not null, default: 'user']
+}
+
+Table auth_session {
+  id varchar [pk, note: 'SHA-256 of the random session token. The raw token lives only in the HTTP-only cookie.']
+  account_id integer [not null, ref: > account.id]
+  active_mode account_role [not null, note: "Panel the session is acting in. Always 'user' for user accounts; admins can switch (B5)."]
+  created_at timestamptz [not null, default: `now()`]
+  expires_at timestamptz [not null]
+
+  indexes {
+    account_id
+    expires_at
+  }
+}
+
+Table location {
+  id integer [pk, increment]
+  name varchar [not null, unique]
+}
+
+Table profile {
+  id integer [pk, increment]
+  account_id integer [not null, unique, ref: - account.id]
+  name varchar [not null]
+  location_id integer [not null, ref: > location.id]
+}
+
+Table clinic {
+  id integer [pk, increment]
+  location_id integer [not null, ref: > location.id]
+  name varchar [not null]
+}
+
+Table specialty {
+  id integer [pk, increment]
+  name varchar [not null, unique]
+}
+
+Table clinic_specialty {
+  id integer [pk, increment]
+  clinic_id integer [not null, ref: > clinic.id]
+  specialty_id integer [not null, ref: > specialty.id]
+
+  indexes {
+    (clinic_id, specialty_id) [unique]
+  }
+}
+
+Table doctor {
+  id integer [pk, increment]
+  clinic_specialty_id integer [not null, ref: > clinic_specialty.id]
+  name varchar [not null]
+}
+
+Table slot {
+  id integer [pk, increment]
+  doctor_id integer [not null, ref: > doctor.id]
+  start_at timestamptz [not null, note: 'UTC. Must be on the hour (minutes = 0, seconds = 0). End is implied: start_at + 1 hour.']
+  status slot_status [not null, default: 'available']
+
+  indexes {
+    (doctor_id, start_at) [unique]
+  }
+}
+
+Table visit {
+  id integer [pk, increment]
+  profile_id integer [not null, ref: > profile.id]
+  slot_id integer [not null, ref: > slot.id]
+  status visit_status [not null, default: 'scheduled']
+
+  indexes {
+    slot_id [unique, note: "Partial unique index: WHERE status <> 'cancelled'. DBML can't express the WHERE clause, so add it in the SQL migration."]
+  }
+}
+
+Table complaint {
+  id integer [pk, increment]
+  visit_id integer [not null, unique, ref: - visit.id, note: 'One complaint per visit. Visit must be completed.']
+  description text [not null]
+  status complaint_status [not null, default: 'open']
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table complaint_reply {
+  id integer [pk, increment]
+  complaint_id integer [not null, ref: > complaint.id]
+  admin_account_id integer [not null, ref: > account.id]
+  body text [not null]
+  created_at timestamptz [not null, default: `now()`]
+}
+
+//
+
+Enum message_role {
+  user
+  assistant
+  tool
+}
+
+Table chat_session {
+  id integer [pk, increment]
+  profile_id integer [not null, ref: > profile.id]
+  intent varchar [note: "Set once (F6): from the first message, or from the first later message that classifies successfully if detection failed. Null until set. Flat dotted code such as 'visit.book'. Used as the sidebar label."]
+  created_at timestamptz [not null, default: `now()`]
+  last_message_at timestamptz [not null, default: `now()`, note: 'Updated on every new message so continued chats move to the top.']
+
+  indexes {
+    (profile_id, last_message_at) [note: 'Sidebar query: a profile\'s sessions, newest first.']
+  }
+}
+
+Table chat_message {
+  id bigint [pk, increment, note: 'Ordering within a session follows id.']
+  session_id integer [not null, ref: > chat_session.id]
+  role message_role [not null]
+  content text [not null, default: '', note: 'user/assistant: the text. assistant with tool_calls: may be empty. tool: the serialized tool result.']
+  tool_calls jsonb [note: 'assistant only. List of {id, name, arguments} the model requested. Framework-neutral shape, converted when the context is built.']
+  tool_call_id varchar [note: 'tool only. The id of the tool call this message answers.']
+  tool_name varchar [note: 'tool only.']
+
+  indexes {
+    (session_id, id)
+  }
+}
+
+//
+
+Enum kb_file_type {
+  pdf
+  txt
+  docx
+}
+
+Enum kb_document_status {
+  uploaded
+  processing
+  ready
+  failed
+}
+
+Table kb_document {
+  id integer [pk, increment]
+  filename varchar [not null]
+  file_type kb_file_type [not null]
+  file_size_bytes bigint [not null, note: 'Actual size of the stored file. CHECK (file_size_bytes > 0) in the migration. The upload limit itself lives in config.']
+  storage_path varchar [not null, note: 'Path of the original file on the KB Docker volume (G11).']
+  content_hash varchar [not null, unique, note: 'SHA-256 of the file. Blocks uploading the same file twice.']
+  status kb_document_status [not null, default: 'uploaded']
+  error_message text [note: 'Set when status = failed.']
+  uploaded_by integer [not null, ref: > account.id]
+  created_at timestamptz [not null, default: `now()`]
+}
+
+// =====================================================================
+// MIGRATION NOTES (not expressible in DBML)
+// Behavior rules (sections B to I) are in rules.md. Rule IDs are stable.
+// =====================================================================
+
+// ---------- A. DATABASE (Postgres migration) ----------
+// A1. slot.start_at on the hour:
+//     CHECK (extract(minute from start_at at time zone 'UTC') = 0
+//        AND extract(second from start_at at time zone 'UTC') = 0)
+// A2. One active visit per slot:
+//     CREATE UNIQUE INDEX visit_active_slot_uniq ON visit (slot_id)
+//       WHERE status <> 'cancelled';
+//     Don't let a generator create the plain unique index.
+// A3. CHECK (kb_document.file_size_bytes > 0)
+// A4. Case-insensitive unique on account.username, location.name and
+//     specialty.name: a unique index on lower(column) in the migration (the
+//     plain unique constraints above stay and are redundant). Login matches
+//     usernames case-insensitively.
+// A5. ON DELETE:
+//     CASCADE   clinic.location_id, clinic_specialty.clinic_id,
+//               doctor.clinic_specialty_id, slot.doctor_id,
+//               complaint_reply.complaint_id, chat_message.session_id,
+//               auth_session.account_id
+//     RESTRICT  visit.slot_id, visit.profile_id, complaint.visit_id,
+//               profile.location_id, profile.account_id,
+//               clinic_specialty.specialty_id, chat_session.profile_id,
+//               complaint_reply.admin_account_id, kb_document.uploaded_by
+//     Admin UI shows FK failures as friendly errors.
+// A6. Timestamps are UTC (timestamptz).
