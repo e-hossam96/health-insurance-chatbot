@@ -3,8 +3,10 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AuthProvider } from './api/AuthContext';
 import { GuardedRoute } from './components/GuardedRoute';
 import { AdminCatalogPage } from './pages/AdminCatalogPage';
+import { AdminComplaintsPage } from './pages/AdminComplaintsPage';
 import { AdminKbPage } from './pages/AdminKbPage';
 import { AdminSlotsPage } from './pages/AdminSlotsPage';
+import { AdminVisitsPage } from './pages/AdminVisitsPage';
 import { ChatPage } from './pages/ChatPage';
 import { LoginPage } from './pages/LoginPage';
 import { OnboardingPage } from './pages/OnboardingPage';
@@ -22,6 +24,8 @@ function App(): ReactNode {
           <Route path="/chat/:sessionId" element={<GuardedRoute path="/chat"><ChatPage /></GuardedRoute>} />
           <Route path="/admin/catalog" element={<GuardedRoute path="/admin/catalog"><AdminCatalogPage /></GuardedRoute>} />
           <Route path="/admin/slots" element={<GuardedRoute path="/admin/slots"><AdminSlotsPage /></GuardedRoute>} />
+          <Route path="/admin/visits" element={<GuardedRoute path="/admin/visits"><AdminVisitsPage /></GuardedRoute>} />
+          <Route path="/admin/complaints" element={<GuardedRoute path="/admin/complaints"><AdminComplaintsPage /></GuardedRoute>} />
           <Route path="/admin/kb" element={<GuardedRoute path="/admin/kb"><AdminKbPage /></GuardedRoute>} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>

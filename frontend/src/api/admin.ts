@@ -111,3 +111,44 @@ export function autofillSlots(doctorId: number): Promise<AutofillResult> {
     body: JSON.stringify({ doctor_id: doctorId }),
   });
 }
+
+// --- Admin Visits ---
+
+export type AdminVisit = { id: number; profile_id: number; slot_id: number; status: string };
+export type AdminVisitList = { items: AdminVisit[]; total: number };
+
+export function getAdminVisits(params: { limit?: number; offset?: number; status?: string } = {}): Promise<AdminVisitList> {
+  const search = new URLSearchParams();
+  if (params.limit) search.set('limit', String(params.limit));
+  if (params.offset) search.set('offset', String(params.offset));
+  if (params.status) search.set('status', params.status);
+  return apiFetch(`/admin/visits?${search.toString()}`);
+}
+
+export function completeVisit(visitId: number): Promise<{ id: number; status: string }> {
+  return apiFetch(`/admin/visits/${visitId}/complete`, { method: 'POST' });
+}
+
+// --- Admin Complaints ---
+
+export type AdminComplaint = { id: number; visit_id: number; description: string; status: string };
+export type AdminComplaintList = { items: AdminComplaint[]; total: number };
+
+export function getAdminComplaints(params: { limit?: number; offset?: number; status?: string } = {}): Promise<AdminComplaintList> {
+  const search = new URLSearchParams();
+  if (params.limit) search.set('limit', String(params.limit));
+  if (params.offset) search.set('offset', String(params.offset));
+  if (params.status) search.set('status', params.status);
+  return apiFetch(`/admin/complaints?${search.toString()}`);
+}
+
+export function replyToComplaint(complaintId: number, body: string): Promise<{ id: number; body: string }> {
+  return apiFetch(`/admin/complaints/${complaintId}/reply`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  });
+}
+
+export function closeComplaint(complaintId: number): Promise<{ id: number; status: string }> {
+  return apiFetch(`/admin/complaints/${complaintId}/close`, { method: 'POST' });
+}

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { logout, setMode } from '../api/auth';
 import { useAuth } from '../api/AuthContext';
 
-export function Header(): ReactNode {
+export function Header({ onVisitsClick }: { onVisitsClick?: () => void } = {}): ReactNode {
   const auth = useAuth();
   const navigate = useNavigate();
 
@@ -28,10 +28,11 @@ export function Header(): ReactNode {
       <span className="font-semibold text-lg">Health Assistant</span>
       <div className="flex items-center gap-4">
         <span className="text-sm text-gray-600">{user.username}</span>
-        {user.mode === 'user' && (
+        {user.mode === 'user' && onVisitsClick && (
           <button
-            onClick={() => navigate('/chat')}
+            onClick={onVisitsClick}
             className="text-sm text-blue-600 hover:underline"
+            data-testid="visits-btn"
           >
             My visits &amp; complaints
           </button>
