@@ -8,7 +8,7 @@ State file for Claude Code. Read it at the start of every session and update it 
 |---|---|---|---|
 | 0 | Skeleton and test harness | done | 0.7 |
 | 1 | Data model | done | 1.3 |
-| 2 | Accounts and access | not started | - |
+| 2 | Accounts and access | done | 2.6 |
 | 3 | Admin catalog and slots | not started | - |
 | 4 | Visits and complaints | not started | - |
 | 5 | Chat shell with a stub | not started | - |
@@ -20,7 +20,7 @@ Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 2, step 2.1.
+Phase 3, step 3.1.
 
 ## Needs confirmation
 
@@ -45,6 +45,10 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [0.4] Added `pyyaml` as a dev dependency for the rule coverage tool.
 - [0.5] Used `pydantic-settings` for config (already a FastAPI transitive dependency).
 - [0.7] CI `actionlint` test replaced by a Python-based YAML parse test - `actionlint` is not installed locally; the test verifies the same constraints.
+- [2.1] Using sha256 for session token hashing - simple, fast, sufficient for opaque tokens.
+- [2.5] Rate limit counters use module-level singletons reset via conftest fixture between tests.
+- [2.6] Using Tailwind CSS v4 with @tailwindcss/vite plugin - simpler than shadcn for now; will add shadcn components as needed.
+- [2.6] Playwright e2e tests defined but run only via `make e2e` (need docker compose stack).
 
 ## Deviations from spec
 
@@ -60,3 +64,7 @@ Places where a spec file was changed because the code showed it was wrong or sil
 - mypy 2.4.x in strict mode for Python type checking
 - tsc with `strict: true` for TypeScript
 - prometheus-client 0.26.x for metrics
+- React Router v7 for frontend routing
+- TanStack Query v5 for data fetching
+- Tailwind CSS v4 for styling
+- Playwright for e2e tests
