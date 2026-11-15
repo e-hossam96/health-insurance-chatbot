@@ -583,6 +583,70 @@ async def close_complaint(
     return {"id": complaint.id, "status": complaint.status.value}
 
 
+# --- Admin lists (D4) ---
+
+
+@router.get("/visits")
+async def admin_list_visits(
+    admin: RequireAdmin,
+    db: Db,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    status: str | None = Query(default=None),
+) -> dict[str, object]:
+    base = select(Visit)
+    count_base = select(func.count()).select_from(Visit)
+    if status is not None:
+        base = base.where(Visit.status == status)
+        count_base = count_base.where(Visit.status == status)
+
+    total_result = await db.execute(count_base)
+    total: int = total_result.scalar_one()
+
+    result = await db.execute(
+        base.join(Slot, Visit.slot_id == Slot.id)
+        .order_by(Slot.start_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    visits = list(result.scalars())
+    items = [
+        {"id": v.id, "profile_id": v.profile_id, "slot_id": v.slot_id, "status": v.status.value}
+        for v in visits
+    ]
+    return {"items": items, "total": total}
+
+
+@router.get("/complaints")
+async def admin_list_complaints(
+    admin: RequireAdmin,
+    db: Db,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    status: str | None = Query(default=None),
+) -> dict[str, object]:
+    base = select(Complaint)
+    count_base = select(func.count()).select_from(Complaint)
+    if status is not None:
+        base = base.where(Complaint.status == status)
+        count_base = count_base.where(Complaint.status == status)
+
+    total_result = await db.execute(count_base)
+    total: int = total_result.scalar_one()
+
+    result = await db.execute(
+        base.order_by(Complaint.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    complaints = list(result.scalars())
+    items = [
+        {"id": c.id, "visit_id": c.visit_id, "description": c.description, "status": c.status.value}
+        for c in complaints
+    ]
+    return {"items": items, "total": total}
+
+
 # --- KB placeholder ---
 
 

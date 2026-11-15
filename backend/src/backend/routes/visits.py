@@ -12,11 +12,17 @@ from backend.deps import ClockDep, CurrentSession, Db, RequireUserMode
 from backend.models import (
     ChatMessage,
     ChatSession,
+    Clinic,
+    ClinicSpecialty,
     Complaint,
+    ComplaintReply,
+    Doctor,
+    Location,
     MessageRole,
     Profile,
     Slot,
     SlotStatus,
+    Specialty,
     Visit,
     VisitStatus,
 )
@@ -403,3 +409,106 @@ async def file_complaint(
             for m in messages
         ],
     )
+
+
+# --- Lists (D4) ---
+
+
+class VisitListItem(BaseModel):
+    id: int
+    slot_id: int
+    status: str
+    doctor_name: str
+    specialty: str
+    clinic: str
+    location: str
+    start_at: str
+
+
+@router.get("/visits")
+async def list_my_visits(
+    user: RequireUserMode,
+    session: CurrentSession,
+    db: Db,
+) -> list[VisitListItem]:
+    profile = await _get_profile_for_session(db, session.account_id)
+
+    # D4: doctor, clinic, specialty, location derived by joins
+    result = await db.execute(
+        select(
+            Visit.id,
+            Visit.slot_id,
+            Visit.status,
+            Doctor.name.label("doctor_name"),
+            Specialty.name.label("specialty"),
+            Clinic.name.label("clinic"),
+            Location.name.label("location"),
+            Slot.start_at,
+        )
+        .join(Slot, Visit.slot_id == Slot.id)
+        .join(Doctor, Slot.doctor_id == Doctor.id)
+        .join(ClinicSpecialty, Doctor.clinic_specialty_id == ClinicSpecialty.id)
+        .join(Clinic, ClinicSpecialty.clinic_id == Clinic.id)
+        .join(Location, Clinic.location_id == Location.id)
+        .join(Specialty, ClinicSpecialty.specialty_id == Specialty.id)
+        .where(Visit.profile_id == profile.id)
+        .order_by(Slot.start_at.desc())
+    )
+    return [
+        VisitListItem(
+            id=row.id,
+            slot_id=row.slot_id,
+            status=row.status.value,
+            doctor_name=row.doctor_name,
+            specialty=row.specialty,
+            clinic=row.clinic,
+            location=row.location,
+            start_at=row.start_at.isoformat(),
+        )
+        for row in result
+    ]
+
+
+class ReplyItem(BaseModel):
+    id: int
+    body: str
+
+
+class ComplaintListItem(BaseModel):
+    id: int
+    visit_id: int
+    description: str
+    status: str
+    replies: list[ReplyItem]
+
+
+@router.get("/complaints")
+async def list_my_complaints(
+    user: RequireUserMode,
+    session: CurrentSession,
+    db: Db,
+) -> list[ComplaintListItem]:
+    profile = await _get_profile_for_session(db, session.account_id)
+
+    result = await db.execute(
+        select(Complaint)
+        .join(Visit, Complaint.visit_id == Visit.id)
+        .where(Visit.profile_id == profile.id)
+        .order_by(Complaint.created_at.desc())
+    )
+    complaints = list(result.scalars())
+
+    items: list[ComplaintListItem] = []
+    for c in complaints:
+        replies_result = await db.execute(
+            select(ComplaintReply)
+            .where(ComplaintReply.complaint_id == c.id)
+            .order_by(ComplaintReply.created_at)
+        )
+        replies = [ReplyItem(id=r.id, body=r.body) for r in replies_result.scalars()]
+        items.append(ComplaintListItem(
+            id=c.id, visit_id=c.visit_id,
+            description=c.description, status=c.status.value,
+            replies=replies,
+        ))
+    return items
