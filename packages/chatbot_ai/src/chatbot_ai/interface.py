@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
-from typing import Any, Protocol, runtime_checkable
+from typing import Any
 
-# --- Turn request ---
+from chatbot_ai.tools.ports import ComplaintsPort, Ports, SchedulingPort
 
 
 @dataclass(frozen=True)
@@ -30,9 +30,6 @@ class TurnRequest:
     profile: ProfileInfo
     needs_label: bool
     session_id: int
-
-
-# --- Turn events ---
 
 
 @dataclass(frozen=True)
@@ -83,46 +80,19 @@ TurnEvent = Intent | Token | Cards | Done
 TurnRunner = Callable[["TurnRequest"], AsyncIterator[TurnEvent]]
 
 
-# --- Ports ---
-
-
-@runtime_checkable
-class SchedulingPort(Protocol):
-    async def list_locations(self) -> list[dict[str, Any]]: ...
-    async def list_specialties(self) -> list[dict[str, Any]]: ...
-    async def search_clinics(
-        self,
-        location_id: int | None = None,
-        specialty_id: int | None = None,
-    ) -> list[dict[str, Any]]: ...
-    async def search_doctors(
-        self,
-        clinic_id: int | None = None,
-        location_id: int | None = None,
-        specialty_id: int | None = None,
-    ) -> list[dict[str, Any]]: ...
-    async def get_availability(
-        self,
-        doctor_id: int,
-        from_date: str | None = None,
-        to_date: str | None = None,
-    ) -> dict[str, Any]: ...
-    async def my_visits(self, status: str | None = None) -> list[dict[str, Any]]: ...
-    async def recommend_doctors(
-        self,
-        specialty_id: int,
-        location_id: int | None = None,
-    ) -> dict[str, Any]: ...
-    async def propose_cancel(self, visit_id: int | None = None) -> dict[str, Any]: ...
-
-
-@runtime_checkable
-class ComplaintsPort(Protocol):
-    async def my_complaints(self) -> list[dict[str, Any]]: ...
-    async def eligible_visits(self) -> dict[str, Any]: ...
-
-
-@dataclass(frozen=True)
-class Ports:
-    scheduling: SchedulingPort
-    complaints: ComplaintsPort
+__all__ = [
+    "Cards",
+    "ComplaintsPort",
+    "Done",
+    "HistoryRow",
+    "Intent",
+    "Ports",
+    "ProfileInfo",
+    "SchedulingPort",
+    "Timings",
+    "Token",
+    "TurnEvent",
+    "TurnRequest",
+    "TurnRunner",
+    "Usage",
+]

@@ -12,7 +12,7 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 3 | Admin catalog and slots | done | 3.5 |
 | 4 | Visits and complaints | done | 4.6 |
 | 5 | Chat shell with a stub | done | 5.5 |
-| 6 | AI package | in progress | 6a |
+| 6 | AI package | in progress | 6b |
 | 7 | Observability | not started | - |
 | 8 | Hardening and demo | not started | - |
 
@@ -20,7 +20,7 @@ Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 6, step 6b (scheduling and complaints) on branch `phase-6`.
+Phase 6, step 6c (ingestion and KB admin) on branch `phase-6`.
 
 ## Needs confirmation
 
@@ -62,6 +62,12 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [5.3] Disconnect cancellation relies on Starlette: uvicorn 0.54 reports ASGI spec 2.3, so the streaming response listens for `http.disconnect` and cancels the generator, which cancels the turn. The route no longer swallows `CancelledError` and no longer polls `is_disconnected()`. If a uvicorn upgrade moves to spec 2.4 (disconnect seen only on the next write), the F16 test fails and the route needs its own disconnect watcher.
 - [5.3] The chat route streams with `fastapi.sse` (`EventSourceResponse`, `ServerSentEvent`; FastAPI 0.163). The endpoint body is the generator and the 200 headers go out before it runs, so everything that can fail with a status code (length cap, rate limits, profile, session create or validate, history load) moved into the `prepare_turn` dependency. FastAPI also adds a `: ping` keep-alive comment every 15 s, which the frontend parser ignores.
 - [5 conventions] Removed every docstring (41 files) and collapsed multi-line comment blocks to one line. `tests/test_conventions.py` guards it in `make check`: `ast` for docstrings and `tokenize` for runs of standalone comment lines in Python, and a string-aware scan for `/*` and runs of `//` lines in the frontend `.ts` and `.tsx`. It has its own detector tests, and failed on a deliberate docstring and block comment before they were reverted. `backend/alembic/` is excluded because Alembic generates those files (edit generated files minimally).
+- [6b] The Port Protocols moved to `chatbot_ai/tools/ports.py` (re-exported from `interface.py`) and return Pydantic models from `tools/models.py` (`NamedRef`, `ClinicInfo`, `DoctorInfo`, `DoctorCard`, `VisitCard`, `VisitInfo`, `ComplaintInfo`) instead of dicts. Ports return data only. Each tool in `tools/registry.py` turns that data into the JSON text the model reads and, for propose tools, the `Cards` payload. Port methods: `list_locations`, `list_specialties`, `search_clinics`, `search_doctors`, `available_slots`, `recommend_doctors`, `my_visits`, `scheduled_visits`, `my_complaints`, `eligible_visits`; none writes (D9).
+- [6b] Tool arguments are Pydantic models with `extra="forbid"`, so a model-supplied `profile_id` is rejected and reported back to the model before any port is called (B6). Ids are typed integers; ports raise `InvalidArgument` for unknown catalog ids, which the tool returns to the model as `{"error": ...}` (I5).
+- [6b] Card limits: `recommend_doctors` and `get_availability` show at most 3 cards; `get_availability` also lists up to 10 slot times as text. `recommend_doctors` gives one card per doctor (that doctor's earliest available future slot), ranked by profile location (or the given location), then earliest slot, then slot id (D5); the SQL port uses `DISTINCT ON`.
+- [6b] The tool loop runs up to `AI_MAX_TOOL_ROUNDS` rounds that offer tools, then one final request without tools, so the reply is always text. Tool calls returned in that final request are not executed. A call to a tool the current agent does not have returns an "is not available here" error and runs nothing (I4, I14). Cards from the last propose tool are emitted once, after the final reply's tokens (F12).
+- [6b] Tool results are stored as `tool` rows with the JSON the model saw, including the offered options, so the model can name them later (F9). The F12 backend test was corrected to check that no stored row holds the `cards` event payload, instead of checking that no row mentions a doctor's name.
+- [6b] The backend's ports are `backend.ai_ports` (`SqlSchedulingPort`, `SqlComplaintsPort`, `make_ports(db, profile_id, profile_location_id, clock)`), tested against real Postgres. The chat route still runs the stub until 6e.
 - [6a] `AISettings` (pydantic-settings) has `AI_<ROLE>_BASE_URL`, `_API_KEY`, `_MODEL` for chat, router, rewrite, embedding, rerank and judge (I11). Base URLs default to OpenAI's, keys fall back to `OPENAI_API_KEY`, and models have no default, so a role without `AI_<ROLE>_MODEL` raises `RoleNotConfigured` when first used. Global `AI_TIMEOUT_S` (60) and `AI_MAX_RETRIES` (2). `AI_<ROLE>_OUTPUT_TOKEN_PARAM` (`max_completion_tokens` default, or `max_tokens`) for the chat-completion roles is the one provider difference handled in `clients.py`.
 - [6a] Added `AI_ROUTER_HISTORY_ROWS` (default 6) so the I1 window size is config, not a literal.
 - [6a] The router sees only the conversation text in its window (user rows and final assistant rows); tool rows and tool-call-only rows are dropped, because the router sends no tools. The window is the last 6 rows cut to start at the first user row; with no user row the window is empty.

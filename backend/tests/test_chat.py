@@ -394,10 +394,11 @@ async def test_F12_cards_not_stored_in_messages(
             text("SELECT content, coalesce(tool_calls::text, '') FROM chat_message WHERE session_id = :s"),
             {"s": sid},
         ).all()
-    card = cards["items"][0]
+    card_payload = json.dumps(cards)
+    card_items = json.dumps(cards["items"])
     for content, tool_calls in stored:
-        assert card["doctor_name"] not in content and card["doctor_name"] not in tool_calls
-        assert "slot_id" not in content
+        assert card_payload not in content and card_items not in content
+        assert '"type": "doctors"' not in content and '"type": "doctors"' not in tool_calls
     transcript = (await user_client.get(f"/me/sessions/{sid}/messages")).json()
     assert [m["role"] for m in transcript] == ["user", "assistant"]
     assert all(set(m) == {"id", "session_id", "role", "content"} for m in transcript)

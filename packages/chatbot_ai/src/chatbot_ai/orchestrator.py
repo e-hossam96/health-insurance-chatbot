@@ -11,6 +11,7 @@ from chatbot_ai.agents.base import (
     Clock,
 )
 from chatbot_ai.agents.responder import ResponderAgent
+from chatbot_ai.agents.tool_loop import complaints_agent, scheduling_agent
 from chatbot_ai.clients import RoleClients
 from chatbot_ai.intents import AgentName, agent_for
 from chatbot_ai.interface import (
@@ -28,7 +29,11 @@ from chatbot_ai.settings import AISettings, Role
 
 
 def default_agents() -> dict[AgentName, Agent]:
-    return {AgentName.responder: ResponderAgent()}
+    return {
+        AgentName.scheduling: scheduling_agent(),
+        AgentName.complaints: complaints_agent(),
+        AgentName.responder: ResponderAgent(),
+    }
 
 
 def _sum_usage(*usages: Usage) -> Usage:
