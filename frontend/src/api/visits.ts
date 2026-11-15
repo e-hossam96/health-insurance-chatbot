@@ -24,6 +24,18 @@ export type ComplaintItem = {
   replies: ReplyItem[];
 };
 
+export type BookResponse = {
+  visit: { id: number; status: string };
+  messages: { role: string; content: string }[];
+};
+
+export function bookVisit(sessionId: number, slotId: number): Promise<BookResponse> {
+  return apiFetch('/me/visits', {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId, slot_id: slotId }),
+  });
+}
+
 export function getMyVisits(): Promise<VisitItem[]> {
   return apiFetch('/me/visits');
 }
