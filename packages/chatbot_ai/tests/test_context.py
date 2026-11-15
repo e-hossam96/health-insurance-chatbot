@@ -1,0 +1,155 @@
+"""Tests for the context builder (F4, F10)."""
+
+from __future__ import annotations
+
+from chatbot_ai.context import (
+    TOOL_RESULT_MAX_LEN,
+    TOOL_RESULT_PLACEHOLDER,
+    build_context,
+)
+from chatbot_ai.interface import HistoryRow
+
+
+def _user(content: str = "hi") -> HistoryRow:
+    return HistoryRow(role="user", content=content)
+
+
+def _assistant(content: str = "hello") -> HistoryRow:
+    return HistoryRow(role="assistant", content=content)
+
+
+def _tool_call_assistant(call_id: str = "c1") -> HistoryRow:
+    return HistoryRow(
+        role="assistant",
+        content="",
+        tool_calls=[{"id": call_id, "type": "function", "function": {"name": "test_fn", "arguments": "{}"}}],
+    )
+
+
+def _tool_result(call_id: str = "c1", content: str = '{"ok": true}') -> HistoryRow:
+    return HistoryRow(role="tool", content=content, tool_call_id=call_id, tool_name="test_fn")
+
+
+def test_F4_limit_to_40_rows() -> None:
+    """F4: at most 40 rows are returned."""
+    rows = [_user(f"msg {i}") if i % 2 == 0 else _assistant(f"reply {i}") for i in range(60)]
+    result = build_context(rows)
+    assert len(result) <= 40
+
+
+def test_F4_trim_to_user_start() -> None:
+    """F4: leading non-user rows are dropped."""
+    rows = [_assistant("orphan"), _user("hi"), _assistant("hello")]
+    result = build_context(rows)
+    assert result[0].role == "user"
+    assert len(result) == 2
+
+
+def test_F4_no_split_tool_call_result() -> None:
+    """F4: never split a tool call from its result.
+
+    If a naive trim would put the cut between an assistant(tool_calls)
+    and a tool result, the builder keeps the pair together.
+    """
+    # Build history: many old messages, then a tool-call/result pair,
+    # then a user message. The limit forces trimming.
+    old = [_user(f"old {i}") if i % 2 == 0 else _assistant(f"old {i}") for i in range(38)]
+    tool_pair = [_tool_call_assistant("tc1"), _tool_result("tc1")]
+    final = [_user("new"), _assistant("done")]
+    rows = old + tool_pair + final
+
+    result = build_context(rows, limit=40)
+    # If the tool pair is in the result, both parts must be present
+    has_tool_call = any(r.role == "assistant" and r.tool_calls for r in result)
+    has_tool_result = any(r.role == "tool" and r.tool_call_id == "tc1" for r in result)
+    if has_tool_call or has_tool_result:
+        assert has_tool_call and has_tool_result
+
+
+def test_F4_tool_result_not_orphaned() -> None:
+    """F4: a complete tool pair before a user row can be safely dropped.
+
+    When the tool_call and its result are both before the user row,
+    the pair is intact (not split) so trimming at the user row is valid.
+    """
+    rows = [
+        _tool_call_assistant("c1"),
+        _tool_result("c1"),
+        _user("question"),
+        _assistant("answer"),
+    ]
+    result = build_context(rows, limit=4)
+    # The complete pair before the user can be dropped
+    assert result[0].role == "user"
+    assert len(result) == 2
+
+
+def test_F10_truncate_old_tool_results() -> None:
+    """F10: old tool results are truncated."""
+    long_content = "x" * (TOOL_RESULT_MAX_LEN + 100)
+    rows = [
+        _user("q1"),
+        _tool_call_assistant("c1"),
+        _tool_result("c1", content=long_content),
+        _assistant("a1"),
+        _user("q2"),
+        _assistant("a2"),
+    ]
+    result = build_context(rows)
+    # The old tool result (before the last user row) should be truncated
+    tool_row = next(r for r in result if r.role == "tool")
+    assert len(tool_row.content) == TOOL_RESULT_MAX_LEN + len(TOOL_RESULT_PLACEHOLDER)
+    assert tool_row.content.endswith(TOOL_RESULT_PLACEHOLDER)
+
+
+def test_F10_recent_tool_result_not_truncated() -> None:
+    """F10: tool results in the current turn are not truncated."""
+    long_content = "x" * (TOOL_RESULT_MAX_LEN + 100)
+    rows = [
+        _user("q1"),
+        _tool_call_assistant("c1"),
+        _tool_result("c1", content=long_content),
+        _assistant("a1"),
+    ]
+    result = build_context(rows)
+    tool_row = next(r for r in result if r.role == "tool")
+    assert tool_row.content == long_content
+
+
+def test_F4_empty_history() -> None:
+    """F4: empty input returns empty output."""
+    assert build_context([]) == []
+
+
+def test_F4_all_user_rows() -> None:
+    """F4: a history of only user rows works."""
+    rows = [_user(f"msg {i}") for i in range(5)]
+    result = build_context(rows)
+    assert len(result) == 5
+    assert result[0].role == "user"
+
+
+def test_F4_under_limit_returned_as_is() -> None:
+    """F4: history under the limit is returned without truncation."""
+    rows = [_user("hi"), _assistant("hello")]
+    result = build_context(rows)
+    assert len(result) == 2
+
+
+def test_F4_trim_skips_past_tool_pair_to_next_user() -> None:
+    """F4: if the first candidate user row would split a pair,
+    the builder skips to the next safe user row."""
+    # Rows: assistant(tool_calls), tool_result, user, assistant
+    # Limit 3: take last 3 = [tool_result, user, assistant]
+    # Cutting at the user row (index 1) would orphan tool_result, so
+    # the builder should either keep all or skip past tool_result to user
+    rows = [
+        _tool_call_assistant("c1"),
+        _tool_result("c1"),
+        _user("q"),
+        _assistant("a"),
+    ]
+    result = build_context(rows, limit=3)
+    # The result should start at the user row and not include orphans
+    assert result[0].role == "user"
+    assert len(result) == 2
