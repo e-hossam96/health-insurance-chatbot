@@ -119,6 +119,7 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 Places where a spec file was changed because the code showed it was wrong or silent. Format: `- [phase.step] file, rule or section - what changed - why`.
 
 - [0.1] CLAUDE.md references `docs/spec/` but files were in `docs/specs/` - renamed directory to match.
+- [6 close-out] plan.md, phase 6 scope and tests/rule_scope.yaml - F7 moved from phase 6 to phase 7 only - phase 6 listed "F5 to F9", but F7 is the Langfuse session id, which step 7.4 builds and phase 7 already lists.
 - [6c] CLAUDE.md (Scaffolding: never edit dependency lists by hand) - the `[[tool.uv.index]]` block with `explicit = true` and the two `[tool.uv.sources]` lines for torch were written by hand, because `uv add --index` cannot mark an index explicit and a non-explicit index captures other packages (it broke the resolve). The dependency entries and `uv.lock` were still produced by `uv add`.
 
 ## Test and tool choices

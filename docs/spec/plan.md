@@ -84,7 +84,7 @@ Rules in scope: C8, F1 to F4, F10 to F13, F15 to F17.
 
 ## Phase 6 - AI package
 
-Rules in scope: B6, C7, D5, D9, F5 to F9, G1 to G11, I1 to I14 (I9 and I10 by call-count assertions or exemption).
+Rules in scope: B6, C7, D5, D9, F5, F6, F8, F9, G1 to G11, I1 to I14 (I9 and I10 by call-count assertions or exemption). F7 (Langfuse) is in phase 7, step 7.4.
 
 - **6.0 Test infrastructure.** A fake OpenAI-compatible server (chat completions with streaming, tool calls, JSON-schema outputs and usage; embeddings with deterministic hash vectors), fake ports, a Qdrant fixture, and a script that generates synthetic PDF and DOCX fixtures with tables. Tests: the server's own tests; the OpenAI SDK talks to it.
 - **6a Routing.** Settings and clients per role (I11), classifier (I1), responder, orchestration with `needs_label` (I2, I3, F6). Tests: scripted classifications map to the right agent; the router call is absent from `new_rows`; a classifier failure falls back to the responder with no `Intent` event and the label is set by the next successful turn; the 6-row window starts at a user row; the routing eval scaffold runs on a draft dataset.
