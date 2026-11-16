@@ -1,32 +1,88 @@
-# React + TypeScript + Vite
+# frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The React app: login, onboarding, the chat with action cards, and the admin panel. Built with Vite, TypeScript, React Router, TanStack Query and Tailwind. nginx serves it in Docker and proxies `/api` to the backend. Screens: [`docs/spec/wireframes.md`](../docs/spec/wireframes.md).
 
-Currently, two official plugins are available:
+## How the chat works
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```mermaid
+flowchart LR
+    page["ChatPage"]
+    stream["api/chat.ts<br/>streamChat()"]
+    backend(["backend<br/>POST /me/chat"])
+    text["MarkdownContent<br/>streamed answer"]
+    cards["ChatCards<br/>doctors, visits"]
+    write(["backend<br/>POST /me/visits ..."])
 
-## React Compiler
+    page -- "message" --> stream
+    stream -- "fetch + SSE parser" --> backend
+    backend -. "token events" .-> text
+    backend -. "cards event" .-> cards
+    cards -- "click Book / Cancel / File" --> write
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+    classDef ui fill:#2563eb,stroke:#93c5fd,color:#ffffff
+    classDef client fill:#7c3aed,stroke:#c4b5fd,color:#ffffff
+    classDef server fill:#0f766e,stroke:#5eead4,color:#ffffff
+    class page,text,cards ui
+    class stream client
+    class backend,write server
+    linkStyle default stroke:#64748b,stroke-width:1.5px
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+- The chat stream is a POST, so it is read with `fetch` and a small SSE parser (`createSseParser`), not `EventSource`.
+- Assistant text is rendered as Markdown without raw HTML.
+- Cards are the only way to write: each button calls a backend endpoint, and the reply rows it returns are added to the chat.
+- `GuardedRoute` sends each role to its home: admins to `/admin/kb`, users without a profile to `/onboarding`, everyone else to `/chat`.
+
+## Layout
+
+| Path | Contents |
+|---|---|
+| `src/api/` | typed fetch clients per area (`auth`, `chat`, `visits`, `admin`, `kb`) and `AuthContext` |
+| `src/pages/` | one component per screen |
+| `src/components/chat/` | sidebar, cards, Markdown renderer |
+| `e2e/` | Playwright specs against mocked APIs |
+| `e2e-stack/` | Playwright specs against the full Docker stack |
+| `nginx*.conf*` | dev and production nginx configs |
+
+## Sample
+
+This sample streams one turn with the typed client the chat page uses:
+
+```ts
+import { streamChat, type StreamEvent } from './api/chat';
+
+const controller = new AbortController();
+let answer = '';
+
+await streamChat('I need a dermatologist', null, (event: StreamEvent) => {
+  switch (event.event) {
+    case 'session':
+      console.log('session', event.session_id);
+      break;
+    case 'token':
+      answer += event.text;
+      break;
+    case 'cards':
+      console.log(event.cards.type, event.cards.items.length);
+      break;
+    case 'error':
+      console.error(event.code, event.message);
+      break;
+  }
+}, controller.signal);
+
+console.log(answer);
+```
+
+Call `controller.abort()` to stop a reply. The backend then cancels the model call and stores nothing.
+
+## Commands
+
+```bash
+npm ci
+npm run dev          # http://localhost:5173, proxies /api to http://localhost:8000
+npm run lint         # oxlint
+npm run typecheck    # tsc
+npm test             # Vitest
+npx playwright test e2e/chat.spec.ts e2e/kb.spec.ts
+```
