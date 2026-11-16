@@ -13,7 +13,7 @@ from openai.types.chat import (
 from openai.types.shared_params import ResponseFormatJSONSchema
 from qdrant_client import AsyncQdrantClient
 
-from chatbot_ai.settings import AISettings, Role, RoleConfig
+from chatbot_ai.settings import AISettings, ReasoningEffort, Role, RoleConfig
 
 
 @dataclass(frozen=True)
@@ -25,6 +25,11 @@ class RoleClient:
     def model(self) -> str:
         return self.config.model
 
+    @property
+    def _effort(self) -> ReasoningEffort | Omit:
+        effort = self.config.reasoning_effort
+        return omit if effort is None else effort
+
     async def complete(
         self,
         messages: Iterable[ChatCompletionMessageParam],
@@ -34,10 +39,12 @@ class RoleClient:
     ) -> ChatCompletion:
         if self.config.output_token_param == "max_tokens":
             return await self.client.chat.completions.create(
-                model=self.model, messages=messages, max_tokens=max_tokens, response_format=response_format, tools=tools
+                model=self.model, messages=messages, max_tokens=max_tokens, response_format=response_format, tools=tools,
+                reasoning_effort=self._effort,
             )
         return await self.client.chat.completions.create(
-            model=self.model, messages=messages, max_completion_tokens=max_tokens, response_format=response_format, tools=tools
+            model=self.model, messages=messages, max_completion_tokens=max_tokens, response_format=response_format, tools=tools,
+            reasoning_effort=self._effort,
         )
 
     async def stream(
@@ -54,6 +61,7 @@ class RoleClient:
                 tools=tools,
                 stream=True,
                 stream_options={"include_usage": True},
+                reasoning_effort=self._effort,
             )
         return await self.client.chat.completions.create(
             model=self.model,
@@ -62,6 +70,7 @@ class RoleClient:
             tools=tools,
             stream=True,
             stream_options={"include_usage": True},
+            reasoning_effort=self._effort,
         )
 
 

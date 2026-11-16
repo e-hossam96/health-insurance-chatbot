@@ -12,7 +12,7 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 3 | Admin catalog and slots | done | 3.5 |
 | 4 | Visits and complaints | done | 4.6 |
 | 5 | Chat shell with a stub | done | 5.5 |
-| 6 | AI package | blocked (Gate 1) | 6e |
+| 6 | AI package | done | 6e |
 | 7 | Observability | not started | - |
 | 8 | Hardening and demo | not started | - |
 
@@ -20,16 +20,17 @@ Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Gate 1: the 6e real-model smoke run needs the API key in `.env`, the model name per role (chat, router, rewrite, embedding; judge for evals) and the embedding dimensions. After it passes: mark 6e and phase 6 done, merge `phase-6` into `main`, then phase 7. Phase 6 close-out checks are already done: rule coverage OK, compose smoke passed, independent review fixed.
+Phase 7, step 7.1 (metrics) on branch `phase-7`.
 
 ## Needs confirmation
 
 Questions for the user that do not block the current step. Format: `- [phase.step] question (options, your recommendation)`.
 
+- [6e] The gpt-6 sol and astra models reject function tools in Chat Completions with any reasoning effort ("use /v1/responses or set reasoning_effort to 'none'", and they do not accept 'none'). The chat role therefore runs gpt-5.5 with reasoning effort none. Options: keep Chat Completions and gpt-5.5 (current, works), or move the tool loops to the Responses API, which unlocks gpt-6.1-sol and gpt-6-astra for chat but changes the ai.md decision and the provider-neutral API shape (I11). Recommendation: keep Chat Completions for v1; the eval run at 8.3 shows whether quality needs more.
 
 ## Gates
 
-- [ ] Gate 1 real model calls: API key, model names per role, embedding dimensions
+- [x] Gate 1 real model calls: API key, model names per role, embedding dimensions (2026-11-16)
 - [x] Gate 2 eval datasets and fixtures approved (2026-11-16, as drafted)
 - [ ] Gate 3 branding, instance size, domain, SSL
 - [ ] Gate 4 paid eval run approved
@@ -63,6 +64,10 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [6c] (user decision, 2026-11-16) torch and torchvision come from the CPU-only PyTorch index (`torch 2.15.0+cpu`), so no CUDA packages are installed and the backend image stays much smaller. The index is declared in the root `pyproject.toml` as `[[tool.uv.index]] pytorch-cpu` with `explicit = true`, and `[tool.uv.sources]` in `chatbot_ai` pins only those two packages to it; the dependency lines and the lockfile came from `uv add`.
 - [5.3] (user decision, 2026-11-16) When the first turn of a new chat stores nothing (stream error or client disconnect), the chat route deletes that `chat_session` row in its `finally`, inside a shielded cancel scope so it also runs on disconnect; a failed turn in an existing session keeps the session. The frontend then drops the session id and returns to /chat, so Retry or a resend starts a new session.
 - [5.3] (user decision, 2026-11-16) A chat message over 1000 characters returns 422 `validation_error`, not 429: waiting does not help, so it is validation, not a rate limit. api.md updated.
+- [Gate 1] (2026-11-16, user: "use your recommended models") Models in `.env`: chat `gpt-5.5` (reasoning effort none), router and rewrite `gpt-6-luna` (reasoning effort none), embedding `text-embedding-3-small` at 1536 dimensions, judge `gpt-6.1-sol` (reasoning effort low). Chosen from the key's model list and OpenAI's current models and pricing pages. gpt-6.1-sol was the first pick for chat but rejects tools in Chat Completions; gpt-6.1-terra was avoided because OpenAI's pages disagree on its API availability.
+- [Gate 1] Added `AI_<ROLE>_REASONING_EFFORT` (chat, router, rewrite, judge; omitted from requests when unset) and `AI_ROUTER_MAX_OUTPUT_TOKENS` (512) and `AI_REWRITE_MAX_OUTPUT_TOKENS` (1024). The first real run showed that reasoning tokens count against `max_completion_tokens`, so the old fixed caps of 20 and 200 failed every router and rewrite call; a failed router then silently sent every turn to the responder.
+- [Gate 1] `scripts/smoke_real_models.py` (`make smoke-models`, paid, never in `make check` or CI) runs the six starter-card routings, a knowledge turn on the DOCX fixture with real embeddings, and a booking turn with fake ports. Gate 1 result: routing 6/6; the knowledge turn retrieved the pre-authorization table and answered "3 working days"; the booking turn called list_specialties then recommend_doctors, showed 3 doctor cards in the D5 order and named each option with its time in UTC. The 6e real-model smoke run is done.
+- [Gate 1] Backend tests never read the real AI settings: an autouse fixture makes `load_ai_settings` return None, and tests inject fake-server settings.
 - [6 review] Independent review findings fixed: the C7 boundary (a slot at exactly now is not offered); D5 ties broken by slot id; G8 against real kb_document rows; G2 exact-limit upload and the nginx limit; G3 duplicate starts no job; G4 dense and BM25 vectors on every point and a matching content_hash; G5 one job at a time in a child process with 'processing' visible and the upload returning while the job is blocked; G9 points, then file, then row, and the row kept when the file cannot be removed; I4 and I14 shared blocks for every agent and the knowledge answer request; I6 reranker inputs, order and top K inside a real turn; I7 identical text in two documents stored twice and shown once; I8 the passing-score and no-score cases; I11 a wider model-name scan; I12 the killed child's pid and exit code; I13 the retrieval-mode and rerank-provider switches through full turns. Weak assertions were replaced. `KbJobRunner.completed` now holds `JobRecord`s with the child pid and exit code.
 - [6 review] ai.md: the router's 6-row window is counted over all stored rows, tool rows included; tool rows are then left out of the router request.
 - [6 review] The AP1 polling test fakes only `setInterval`/`clearInterval`; `shouldAdvanceTime` let real time trigger extra polls under load and made it flaky.

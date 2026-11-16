@@ -67,13 +67,13 @@ def summarize(outcomes: list[RoutingOutcome]) -> RoutingReport:
 
 
 async def run_routing(
-    items: list[RoutingItem], router: RoleClient, window_size: int, clock: Callable[[], float] = time.monotonic
+    items: list[RoutingItem], router: RoleClient, window_size: int, clock: Callable[[], float] = time.monotonic, max_tokens: int = 512
 ) -> RoutingReport:
     outcomes: list[RoutingOutcome] = []
     for item in items:
         history = [HistoryRow(role=turn.role, content=turn.content) for turn in item.history]
         started = clock()
-        classification = await classify(router, history, item.message, window_size)
+        classification = await classify(router, history, item.message, window_size, max_tokens)
         outcomes.append(
             RoutingOutcome(
                 id=item.id,

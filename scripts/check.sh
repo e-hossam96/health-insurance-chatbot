@@ -41,11 +41,14 @@ case "$cmd" in
   evals)
     echo "Not available before phase 6"
     ;;
+  smoke-models)
+    PYTHONPATH=. uv run python scripts/smoke_real_models.py
+    ;;
   smoke)
     bash scripts/smoke_compose.sh
     ;;
   *)
-    echo "Usage: $0 {check|lint|typecheck|test|test-backend|test-frontend|test-e2e-mocked|e2e|evals|smoke}"
+    echo "Usage: $0 {check|lint|typecheck|test|test-backend|test-frontend|test-e2e-mocked|e2e|evals|smoke|smoke-models}"
     exit 1
     ;;
 esac

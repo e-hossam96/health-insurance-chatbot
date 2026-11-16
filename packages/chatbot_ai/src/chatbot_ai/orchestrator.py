@@ -59,7 +59,7 @@ async def run_turn(
     try:
         started = clock()
         classification = await classify(
-            role_clients.get(Role.router), req.history, req.message, settings.ai_router_history_rows
+            role_clients.get(Role.router), req.history, req.message, settings.ai_router_history_rows, settings.ai_router_max_output_tokens
         )
         classified = clock()
         if req.needs_label and classification.intent is not None:

@@ -71,7 +71,9 @@ class KnowledgeAgent:
         request = context.request
         clock = context.clock
         started = clock()
-        rewrite = await rewrite_question(context.clients.get(Role.rewrite), request.history, request.message, settings.ai_query_count)
+        rewrite = await rewrite_question(
+            context.clients.get(Role.rewrite), request.history, request.message, settings.ai_query_count, settings.ai_rewrite_max_output_tokens
+        )
         rewritten = clock()
         excerpts, stages = await self._retrieve(context, rewrite.queries, rewrite.standalone)
         stages["rewrite"] = rewritten - started

@@ -76,3 +76,18 @@ async def test_I11_output_token_parameter_is_chosen_per_role(fake_openai: FakeOp
     assert chat_request["max_completion_tokens"] == 50 and "max_tokens" not in chat_request
     assert rewrite_request["model"] == "rewrite-model"
     assert rewrite_request["max_tokens"] == 60 and "max_completion_tokens" not in rewrite_request
+
+
+@pytest.mark.anyio()
+async def test_I11_reasoning_effort_is_sent_per_role_only_when_set(fake_openai: FakeOpenAI) -> None:
+    settings = settings_for(fake_openai.base_url, ai_router_reasoning_effort="none", ai_router_max_output_tokens=64)
+    clients = RoleClients(settings)
+    try:
+        fake_openai.queue(text_reply("a"), text_reply("b"))
+        await clients.get(Role.router).complete([{"role": "user", "content": "x"}], max_tokens=settings.ai_router_max_output_tokens)
+        await clients.get(Role.chat).complete([{"role": "user", "content": "x"}], max_tokens=50)
+    finally:
+        await clients.aclose()
+    router_request, chat_request = fake_openai.chat_requests
+    assert router_request["reasoning_effort"] == "none" and router_request["max_completion_tokens"] == 64
+    assert "reasoning_effort" not in chat_request

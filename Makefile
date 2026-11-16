@@ -1,4 +1,4 @@
-.PHONY: test check lint typecheck e2e evals smoke
+.PHONY: test check lint typecheck e2e evals smoke smoke-models
 
 test:
 	bash scripts/check.sh test
@@ -20,3 +20,6 @@ evals:
 
 smoke:
 	bash scripts/check.sh smoke
+
+smoke-models:
+	bash scripts/check.sh smoke-models

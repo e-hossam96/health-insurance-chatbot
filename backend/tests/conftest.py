@@ -42,3 +42,9 @@ def _migrate_fresh(db_engine):  # type: ignore[no-untyped-def]
         env={**os.environ, "DATABASE_URL": TEST_DB_URL},
         capture_output=True,
     )
+
+
+@pytest.fixture(autouse=True)
+def _no_real_ai_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    # tests never read the real key and models from .env; they inject fake-server settings
+    monkeypatch.setattr("backend.app.load_ai_settings", lambda: None)

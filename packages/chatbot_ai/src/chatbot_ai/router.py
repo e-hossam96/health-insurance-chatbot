@@ -15,7 +15,6 @@ from chatbot_ai.prompts import load_prompt
 
 logger = logging.getLogger(__name__)
 
-ROUTER_MAX_OUTPUT_TOKENS = 20
 
 INTENT_RESPONSE_FORMAT: ResponseFormatJSONSchema = {
     "type": "json_schema",
@@ -57,11 +56,13 @@ def router_messages(history: list[HistoryRow], message: str, window_size: int) -
     return messages
 
 
-async def classify(router: RoleClient, history: list[HistoryRow], message: str, window_size: int) -> Classification:
+async def classify(
+    router: RoleClient, history: list[HistoryRow], message: str, window_size: int, max_tokens: int = 512
+) -> Classification:
     try:
         completion = await router.complete(
             router_messages(history, message, window_size),
-            max_tokens=ROUTER_MAX_OUTPUT_TOKENS,
+            max_tokens=max_tokens,
             response_format=INTENT_RESPONSE_FORMAT,
         )
     except OpenAIError:

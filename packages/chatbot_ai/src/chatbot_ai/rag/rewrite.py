@@ -14,7 +14,6 @@ from chatbot_ai.prompts import load_prompt
 from chatbot_ai.router import router_window
 
 logger = logging.getLogger(__name__)
-REWRITE_MAX_OUTPUT_TOKENS = 200
 REWRITE_HISTORY_ROWS = 6
 
 
@@ -58,11 +57,13 @@ def rewrite_messages(history: list[HistoryRow], message: str, query_count: int) 
     ]
 
 
-async def rewrite_question(rewriter: RoleClient, history: list[HistoryRow], message: str, query_count: int) -> Rewrite:
+async def rewrite_question(
+    rewriter: RoleClient, history: list[HistoryRow], message: str, query_count: int, max_tokens: int = 1024
+) -> Rewrite:
     try:
         completion = await rewriter.complete(
             rewrite_messages(history, message, query_count),
-            max_tokens=REWRITE_MAX_OUTPUT_TOKENS,
+            max_tokens=max_tokens,
             response_format=rewrite_format(query_count),
         )
         content = completion.choices[0].message.content if completion.choices else None
