@@ -64,4 +64,12 @@ echo "Testing a streamed chat turn through nginx..."
 echo "Testing Prometheus targets and Grafana dashboards..."
 "$PYTHON" scripts/stack_observability_check.py
 
+if [ "${STACK_E2E:-0}" = "1" ]; then
+    echo "Seeding demo data and admin1 for the stack e2e tests..."
+    "${COMPOSE[@]}" exec -T backend sh -c 'python scripts/seed.py --database-url "$DATABASE_URL"'
+    "${COMPOSE[@]}" exec -T backend sh -c 'python scripts/create_admin.py --database-url "$DATABASE_URL" --username admin1 --password adminpass1 --name "Admin One" --location Cairo'         || echo "admin1 already exists"
+    echo "Running the Playwright stack e2e suite..."
+    (cd frontend && npx playwright test -c playwright.stack.config.ts)
+fi
+
 echo "All smoke tests passed."

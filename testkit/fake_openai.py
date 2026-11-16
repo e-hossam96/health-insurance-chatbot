@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
 from testkit.embeddings import DEFAULT_DIMENSIONS, hash_embedding
+from testkit.fake_brain import AUTO_TEXT, classify, scheduling_step
 from testkit.live_server import serve_in_thread
 
 JsonObject = dict[str, Any]  # Any: arbitrary JSON from the OpenAI wire format
@@ -128,18 +129,19 @@ def _error(status: int, message: str) -> JSONResponse:
     return JSONResponse(status_code=status, content={"error": {"message": message, "type": "fake_error", "code": None}})
 
 
-AUTO_TEXT = "Streaming check: one two three four five six."
-
-
 def auto_reply(body: ChatCompletionBody) -> ChatReply:
     response_format = body.response_format or {}
     if response_format.get("type") == "json_schema":
         schema_name = response_format["json_schema"].get("name")
         if schema_name == "intent":
-            return json_reply({"intent": "other"})
+            return json_reply({"intent": classify(body.messages)})
         last_user = next((str(m.get("content", "")) for m in reversed(body.messages) if m.get("role") == "user"), "")
         return json_reply({"standalone": last_user, "alternates": []})
-    return text_reply(AUTO_TEXT)
+    tool_names = {str(t["function"]["name"]) for t in body.tools or []}
+    text, call = scheduling_step(body.messages, tool_names) if tool_names or body.messages[-1].get("role") == "tool" else (AUTO_TEXT, None)
+    if call is not None:
+        return tool_reply(ToolCallSpec(call[0], call[1]))
+    return text_reply(text or AUTO_TEXT)
 
 
 @dataclass

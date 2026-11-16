@@ -36,7 +36,7 @@ case "$cmd" in
     bash "$0" test
     ;;
   e2e)
-    cd frontend && npx playwright test
+    STACK_E2E=1 bash scripts/smoke_compose.sh
     ;;
   evals)
     echo "Not available before phase 6"
