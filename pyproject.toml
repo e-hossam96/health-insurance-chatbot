@@ -36,3 +36,8 @@ consider_namespace_packages = true
 
 [tool.ruff]
 src = [".", "backend/src", "packages/chatbot_ai/src"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

@@ -12,8 +12,14 @@ dependencies = [
     "openai>=3.51.0",
     "pydantic-settings>=2.16.3",
     "qdrant-client>=1.20.0",
+    "torch>=2.15.0",
+    "torchvision>=0.29.2",
 ]
 
 [build-system]
 requires = ["uv_build>=0.13.8,<0.14.0"]
 build-backend = "uv_build"
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }

@@ -26,7 +26,6 @@ Waiting at Gate 2: approve the eval datasets (`chatbot_ai/evals/datasets/*.jsonl
 
 Questions for the user that do not block the current step. Format: `- [phase.step] question (options, your recommendation)`.
 
-- [6c] Docling pulls in torch, and on Linux the default torch wheel is the CUDA build, which makes the backend image several GB. Options: keep the default (current, works, large image), or switch torch to the CPU-only index with `uv add torch --index pytorch-cpu=https://download.pytorch.org/whl/cpu` (much smaller image; the demo runs on CPU anyway). Recommendation: CPU-only, decided together with the instance size at Gate 3.
 
 ## Gates
 
@@ -61,6 +60,7 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [5.3] Disconnect cancellation relies on Starlette: uvicorn 0.54 reports ASGI spec 2.3, so the streaming response listens for `http.disconnect` and cancels the generator, which cancels the turn. The route no longer swallows `CancelledError` and no longer polls `is_disconnected()`. If a uvicorn upgrade moves to spec 2.4 (disconnect seen only on the next write), the F16 test fails and the route needs its own disconnect watcher.
 - [5.3] The chat route streams with `fastapi.sse` (`EventSourceResponse`, `ServerSentEvent`; FastAPI 0.163). The endpoint body is the generator and the 200 headers go out before it runs, so everything that can fail with a status code (length cap, rate limits, profile, session create or validate, history load) moved into the `prepare_turn` dependency. FastAPI also adds a `: ping` keep-alive comment every 15 s, which the frontend parser ignores.
 - [5 conventions] Removed every docstring (41 files) and collapsed multi-line comment blocks to one line. `tests/test_conventions.py` guards it in `make check`: `ast` for docstrings and `tokenize` for runs of standalone comment lines in Python, and a string-aware scan for `/*` and runs of `//` lines in the frontend `.ts` and `.tsx`. It has its own detector tests, and failed on a deliberate docstring and block comment before they were reverted. `backend/alembic/` is excluded because Alembic generates those files (edit generated files minimally).
+- [6c] (user decision, 2026-11-16) torch and torchvision come from the CPU-only PyTorch index (`torch 2.15.0+cpu`), so no CUDA packages are installed and the backend image stays much smaller. The index is declared in the root `pyproject.toml` as `[[tool.uv.index]] pytorch-cpu` with `explicit = true`, and `[tool.uv.sources]` in `chatbot_ai` pins only those two packages to it; the dependency lines and the lockfile came from `uv add`.
 - [5.3] (user decision, 2026-11-16) When the first turn of a new chat stores nothing (stream error or client disconnect), the chat route deletes that `chat_session` row in its `finally`, inside a shielded cancel scope so it also runs on disconnect; a failed turn in an existing session keeps the session. The frontend then drops the session id and returns to /chat, so Retry or a resend starts a new session.
 - [5.3] (user decision, 2026-11-16) A chat message over 1000 characters returns 422 `validation_error`, not 429: waiting does not help, so it is validation, not a rate limit. api.md updated.
 - [6d] The knowledge agent runs rewrite, then embed (all queries in one call, dense plus BM25), one Qdrant search per query, RRF merge (k = 60) to `AI_FUSED_K`, dedupe by point id and then by `content_hash`, rerank to `AI_CONTEXT_K`, grounding, and answer (I6, I7). Each search filters on the ready document ids from a new `KnowledgePort.ready_document_ids()` (G8), because a document's points can exist while it is 'processing' or before a re-index has cleared them. `Ports` now has `scheduling`, `complaints` and `knowledge`.
@@ -117,6 +117,7 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 Places where a spec file was changed because the code showed it was wrong or silent. Format: `- [phase.step] file, rule or section - what changed - why`.
 
 - [0.1] CLAUDE.md references `docs/spec/` but files were in `docs/specs/` - renamed directory to match.
+- [6c] CLAUDE.md (Scaffolding: never edit dependency lists by hand) - the `[[tool.uv.index]]` block with `explicit = true` and the two `[tool.uv.sources]` lines for torch were written by hand, because `uv add --index` cannot mark an index explicit and a non-explicit index captures other packages (it broke the resolve). The dependency entries and `uv.lock` were still produced by `uv add`.
 
 ## Test and tool choices
 
