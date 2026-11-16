@@ -188,13 +188,14 @@ async def test_G5_I12_jobs_run_one_at_a_time_in_order(kb: KbHarness) -> None:
 
 @pytest.mark.anyio()
 async def test_I12_a_slow_parser_is_killed_at_the_timeout(_migrate_fresh: None, tmp_path: Path) -> None:
-    settings = settings_for("http://127.0.0.1:9/v1", ai_embedding_model="kb-route-tests", ingest_timeout_s=3)
+    # the timeout must outlast spawning the child, which imports the AI package before the parser starts
+    settings = settings_for("http://127.0.0.1:9/v1", ai_embedding_model="kb-route-tests", ingest_timeout_s=15)
     async with kb_harness(tmp_path / "kb", settings, hanging_ingest) as harness:
         document = await harness.upload("slow.pdf", PDF)
         await asyncio.wait_for(harness.runner.join(), timeout=60)
         listed = (await harness.listed())["slow.pdf"]
         assert listed["status"] == "failed"
-        assert listed["error_message"] == "Ingestion timed out after 3 s"
+        assert listed["error_message"] == "Ingestion timed out after 15 s"
         record = harness.runner.completed[0]
         child_pid = int((harness.storage / f"pid-{document['id']}.txt").read_text(encoding="utf-8"))
         assert record.child_pid == child_pid != os.getpid()
