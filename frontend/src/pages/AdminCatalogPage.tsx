@@ -84,7 +84,7 @@ function LocationsTab(): ReactNode {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold">Locations</h3>
-        <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm" onClick={() => setShowAdd(true)}>+ Add location</button>
+        <button className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm" onClick={() => setShowAdd(true)}>+ Add location</button>
       </div>
       <table className="w-full text-sm" data-testid="locations-table">
         <thead><tr className="border-b"><th className="text-left py-1">Name</th><th className="text-right py-1">Actions</th></tr></thead>
@@ -103,7 +103,7 @@ function LocationsTab(): ReactNode {
           {error && <p className="text-red-600 text-sm mb-2" data-testid="form-error">{error}</p>}
           <div className="flex gap-2 justify-end">
             <button type="button" className="px-3 py-1 border rounded text-sm" onClick={() => setShowAdd(false)}>Cancel</button>
-            <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">Add</button>
+            <button type="submit" className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm">Add</button>
           </div>
         </form>
       </Dialog>
@@ -150,7 +150,7 @@ function SpecialtiesTab(): ReactNode {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold">Specialties</h3>
-        <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm" onClick={() => setShowAdd(true)}>+ Add specialty</button>
+        <button className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm" onClick={() => setShowAdd(true)}>+ Add specialty</button>
       </div>
       <table className="w-full text-sm" data-testid="specialties-table">
         <thead><tr className="border-b"><th className="text-left py-1">Name</th><th className="text-right py-1">Actions</th></tr></thead>
@@ -169,7 +169,7 @@ function SpecialtiesTab(): ReactNode {
           {error && <p className="text-red-600 text-sm mb-2" data-testid="form-error">{error}</p>}
           <div className="flex gap-2 justify-end">
             <button type="button" className="px-3 py-1 border rounded text-sm" onClick={() => setShowAdd(false)}>Cancel</button>
-            <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">Add</button>
+            <button type="submit" className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm">Add</button>
           </div>
         </form>
       </Dialog>
@@ -222,7 +222,7 @@ function ClinicsTab(): ReactNode {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold">Clinics</h3>
-        <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm" onClick={() => setShowAdd(true)}>+ Add clinic</button>
+        <button className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm" onClick={() => setShowAdd(true)}>+ Add clinic</button>
       </div>
       <table className="w-full text-sm" data-testid="clinics-table">
         <thead><tr className="border-b"><th className="text-left py-1">Name</th><th className="text-left py-1">Location</th><th className="text-right py-1">Actions</th></tr></thead>
@@ -246,7 +246,7 @@ function ClinicsTab(): ReactNode {
           {error && <p className="text-red-600 text-sm mb-2" data-testid="form-error">{error}</p>}
           <div className="flex gap-2 justify-end">
             <button type="button" className="px-3 py-1 border rounded text-sm" onClick={() => setShowAdd(false)}>Cancel</button>
-            <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">Add</button>
+            <button type="submit" className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm">Add</button>
           </div>
         </form>
       </Dialog>
@@ -296,7 +296,7 @@ function DoctorsTab(): ReactNode {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold">Doctors</h3>
-        <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm" onClick={() => setShowAdd(true)}>+ Add doctor</button>
+        <button className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm" onClick={() => setShowAdd(true)}>+ Add doctor</button>
       </div>
       <table className="w-full text-sm" data-testid="doctors-table">
         <thead><tr className="border-b"><th className="text-left py-1">Name</th><th className="text-left py-1">Clinic-Specialty ID</th><th className="text-right py-1">Actions</th></tr></thead>
@@ -317,7 +317,7 @@ function DoctorsTab(): ReactNode {
           {error && <p className="text-red-600 text-sm mb-2" data-testid="form-error">{error}</p>}
           <div className="flex gap-2 justify-end">
             <button type="button" className="px-3 py-1 border rounded text-sm" onClick={() => setShowAdd(false)}>Cancel</button>
-            <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">Add</button>
+            <button type="submit" className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm">Add</button>
           </div>
         </form>
       </Dialog>
@@ -346,7 +346,7 @@ export function AdminCatalogPage(): ReactNode {
           {tabs.map((t) => (
             <button
               key={t.key}
-              className={`px-4 py-2 text-sm font-medium ${tab === t.key ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+              className={`px-4 py-2 text-sm font-medium ${tab === t.key ? 'border-b-2 border-brand-400 text-brand-700' : 'text-gray-500'}`}
               onClick={() => setTab(t.key)}
               data-testid={`tab-${t.key}`}
             >

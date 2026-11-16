@@ -11,11 +11,11 @@ function statusFor(state: CardSetState, id: number): CardStatus {
   return 'default';
 }
 
-const BUTTON = 'mt-2 text-xs text-white px-3 py-1 rounded disabled:opacity-50';
-const LINK_BUTTON = 'ml-1 text-xs text-blue-600 underline disabled:opacity-50';
+const BUTTON = 'mt-2 text-xs px-3 py-1 rounded disabled:opacity-50';
+const LINK_BUTTON = 'ml-1 text-xs text-brand-700 underline disabled:opacity-50';
 
 function Spinner(): ReactNode {
-  return <span className="inline-block h-3 w-3 mr-1 align-middle animate-spin rounded-full border-2 border-white border-t-transparent" />;
+  return <span className="inline-block h-3 w-3 mr-1 align-middle animate-spin rounded-full border-2 border-brand-900 border-t-transparent" />;
 }
 
 function Badge({ text, tone, testId }: { text: string; tone: 'green' | 'red'; testId: string }): ReactNode {
@@ -72,7 +72,7 @@ function DoctorCard({ item, status, disabled, onBook, onShowOther }: {
         <FailureLine text="Could not book. Try again." actionLabel="Retry" disabled={disabled} onAction={onBook} testId="card-error" />
       )}
       {(status === 'default' || status === 'busy') && (
-        <button type="button" onClick={onBook} disabled={disabled} className={`${BUTTON} bg-blue-600 hover:bg-blue-700`} data-testid="book-btn">
+        <button type="button" onClick={onBook} disabled={disabled} className={`${BUTTON} bg-brand-400 text-brand-900 hover:bg-brand-500`} data-testid="book-btn">
           {status === 'busy' && <Spinner />}
           {status === 'busy' ? 'Booking…' : 'Book'}
         </button>
@@ -101,7 +101,7 @@ function CancelCard({ item, status, disabled, onCancel }: {
         <FailureLine text="Could not cancel. Try again." actionLabel="Retry" disabled={disabled} onAction={onCancel} testId="card-error" />
       )}
       {(status === 'default' || status === 'busy') && (
-        <button type="button" onClick={onCancel} disabled={disabled} className={`${BUTTON} bg-red-600 hover:bg-red-700`} data-testid="cancel-confirm-btn">
+        <button type="button" onClick={onCancel} disabled={disabled} className={`${BUTTON} bg-red-600 text-white hover:bg-red-700`} data-testid="cancel-confirm-btn">
           {status === 'busy' && <Spinner />}
           {status === 'busy' ? 'Cancelling…' : 'Yes, cancel visit'}
         </button>
@@ -127,7 +127,7 @@ function ComplaintCard({ item, status, disabled, onFile }: {
       <div className="text-xs text-gray-500">{item.clinic}</div>
       {status === 'done' && <Badge text="Complaint filed" tone="green" testId="filed-badge" />}
       {status !== 'done' && !expanded && (
-        <button type="button" onClick={() => setExpanded(true)} disabled={disabled} className={`${BUTTON} bg-blue-600 hover:bg-blue-700`} data-testid="select-visit-btn">
+        <button type="button" onClick={() => setExpanded(true)} disabled={disabled} className={`${BUTTON} bg-brand-400 text-brand-900 hover:bg-brand-500`} data-testid="select-visit-btn">
           Select
         </button>
       )}
@@ -157,7 +157,7 @@ function ComplaintCard({ item, status, disabled, onFile }: {
               type="button"
               onClick={() => onFile(description)}
               disabled={!canSubmit}
-              className="text-xs bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50"
+              className="text-xs bg-brand-400 text-brand-900 px-3 py-1 rounded disabled:opacity-50"
               data-testid="submit-complaint-btn"
             >
               {status === 'busy' && <Spinner />}

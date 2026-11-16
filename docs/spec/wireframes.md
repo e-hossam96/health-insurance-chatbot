@@ -15,7 +15,7 @@ Companion files: `schema.dbml` (tables; its A-items are migration notes), `rules
 - Auth: server-side session in an HTTP-only cookie (B10, B11). Contracts in `api.md`.
 - Time: everything is UTC and the UI says so (C8). No time zone conversion anywhere.
 - Frontend stack: Vite, TypeScript, React Router, TanStack Query, Tailwind with shadcn/ui. The chat stream is read with fetch (it is a POST), not EventSource.
-- Language: English only. Assistant text renders as Markdown with raw HTML disabled (F17). Branding (name, logo, colors) comes later; "Health Assistant" is a placeholder.
+- Language: English only. Assistant text renders as Markdown with raw HTML disabled (F17). Branding: the product is "Health Insurance Chatbot" with a text logo (a chat-bubble mark); colors are the Midnight Sky palette (#001F3F, #002D55, #004B87, #6A9BD1, #F0F4F8) with #6A9BD1 as the accent and navy text on it.
 - The chatbot is the primary way to do everything (book, cancel, complain, ask). The drawer is a convenience.
 - Out of scope for v1: password reset, profile editing, user replies in complaints, deleting chats, Excel upload, notifications.
 
@@ -54,7 +54,7 @@ Guards (UX only; the backend checks the role on every call, B8):
 
 ```
 +-------------------------------------------------------------------------+
-| Health Assistant      Sara N.   [My visits & complaints] [Admin panel]  [Log out] |
+| Health Insurance Chatbot  Sara N.   [My visits & complaints] [Admin panel]  [Log out] |
 +-------------------------------------------------------------------------+
 ```
 
@@ -74,7 +74,7 @@ Guards (UX only; the backend checks the role on every call, B8):
 
 ```
 +------------------------------------------+
-|        Health Assistant                  |
+|        Health Insurance Chatbot          |
 |        Create your account               |
 |                                          |
 |  Username   [______________________]    |
@@ -95,7 +95,7 @@ Guards (UX only; the backend checks the role on every call, B8):
 
 ```
 +------------------------------------------+
-|        Health Assistant                  |
+|        Health Insurance Chatbot          |
 |        Log in                            |
 |                                          |
 |  Username   [______________________]    |

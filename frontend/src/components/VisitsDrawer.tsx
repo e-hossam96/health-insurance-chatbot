@@ -3,7 +3,7 @@ import { type VisitItem, type ComplaintItem, getMyVisits, getMyComplaints, cance
 
 function statusBadge(status: string): ReactNode {
   const colors: Record<string, string> = {
-    scheduled: 'bg-blue-100 text-blue-800',
+    scheduled: 'bg-brand-100 text-brand-800',
     completed: 'bg-green-100 text-green-800',
     cancelled: 'bg-gray-100 text-gray-600',
     open: 'bg-yellow-100 text-yellow-800',
@@ -54,14 +54,14 @@ export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => 
 
           <div className="flex gap-2 mb-4">
             <button
-              className={`px-3 py-1 text-sm rounded ${tab === 'visits' ? 'bg-blue-600 text-white' : 'border'}`}
+              className={`px-3 py-1 text-sm rounded ${tab === 'visits' ? 'bg-brand-400 text-brand-900' : 'border'}`}
               onClick={() => setTab('visits')}
               data-testid="drawer-tab-visits"
             >
               Visits
             </button>
             <button
-              className={`px-3 py-1 text-sm rounded ${tab === 'complaints' ? 'bg-blue-600 text-white' : 'border'}`}
+              className={`px-3 py-1 text-sm rounded ${tab === 'complaints' ? 'bg-brand-400 text-brand-900' : 'border'}`}
               onClick={() => setTab('complaints')}
               data-testid="drawer-tab-complaints"
             >

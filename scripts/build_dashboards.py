@@ -114,7 +114,7 @@ def render(dashboard: Dashboard) -> dict[str, object]:
         "editable": False,
         "time": {"from": "now-6h", "to": "now"},
         "refresh": "30s",
-        "tags": ["health-assistant"],
+        "tags": ["health-insurance-chatbot"],
         "panels": panels,
     }
 

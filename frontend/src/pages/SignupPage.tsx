@@ -1,3 +1,4 @@
+import { Logo } from '../components/Logo';
 import { type FormEvent, type ReactNode, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { signup } from '../api/auth';
@@ -43,9 +44,11 @@ export function SignupPage(): ReactNode {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    <div className="flex items-center justify-center min-h-screen bg-brand-50">
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded shadow-md w-full max-w-sm">
-        <h1 className="text-xl font-semibold mb-1 text-center">Health Assistant</h1>
+        <h1 className="text-xl mb-2 flex justify-center">
+          <Logo size={32} />
+        </h1>
         <h2 className="text-lg text-gray-600 mb-6 text-center">Create your account</h2>
         {error && <p className="text-red-600 text-sm mb-4" role="alert">{error}</p>}
         <label className="block text-sm font-medium mb-1">Username</label>
@@ -74,12 +77,12 @@ export function SignupPage(): ReactNode {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white rounded py-2 hover:bg-blue-700 disabled:opacity-50"
+          className="w-full bg-brand-400 text-brand-900 rounded py-2 hover:bg-brand-500 disabled:opacity-50"
         >
           Sign up
         </button>
         <p className="text-sm text-center mt-4 text-gray-600">
-          Already have an account? <Link to="/login" className="text-blue-600 hover:underline">Log in</Link>
+          Already have an account? <Link to="/login" className="text-brand-700 hover:underline">Log in</Link>
         </p>
       </form>
     </div>

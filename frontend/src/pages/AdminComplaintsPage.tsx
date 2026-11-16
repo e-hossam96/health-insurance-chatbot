@@ -91,7 +91,7 @@ export function AdminComplaintsPage(): ReactNode {
                 <td className="py-1 text-right space-x-2">
                   {c.status === 'open' && (
                     <>
-                      <button className="text-blue-600 text-sm" onClick={() => setReplyTarget(c.id)} data-testid="reply-btn">Reply</button>
+                      <button className="text-brand-700 text-sm" onClick={() => setReplyTarget(c.id)} data-testid="reply-btn">Reply</button>
                       <button className="text-red-600 text-sm" onClick={() => void handleClose(c.id)} data-testid="close-btn">Close</button>
                     </>
                   )}
@@ -113,7 +113,7 @@ export function AdminComplaintsPage(): ReactNode {
                 <textarea className="border rounded w-full p-2 mb-2" rows={3} value={replyBody} onChange={(e) => setReplyBody(e.target.value)} data-testid="reply-body" required />
                 <div className="flex gap-2 justify-end">
                   <button type="button" className="px-3 py-1 border rounded text-sm" onClick={() => setReplyTarget(null)}>Cancel</button>
-                  <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">Send</button>
+                  <button type="submit" className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm">Send</button>
                 </div>
               </form>
             </div>

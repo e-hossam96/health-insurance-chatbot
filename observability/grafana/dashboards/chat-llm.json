@@ -10,7 +10,7 @@
   },
   "refresh": "30s",
   "tags": [
-    "health-assistant"
+    "health-insurance-chatbot"
   ],
   "panels": [
     {

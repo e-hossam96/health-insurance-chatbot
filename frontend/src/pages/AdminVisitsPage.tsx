@@ -64,7 +64,7 @@ export function AdminVisitsPage(): ReactNode {
                 <td className="py-1">{v.id}</td>
                 <td className="py-1">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    v.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                    v.status === 'scheduled' ? 'bg-brand-100 text-brand-800' :
                     v.status === 'completed' ? 'bg-green-100 text-green-800' :
                     'bg-gray-100 text-gray-600'
                   }`} data-testid="visit-status-badge">

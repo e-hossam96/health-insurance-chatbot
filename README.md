@@ -1,6 +1,6 @@
-# Health Assistant
+# Health Insurance Chatbot
 
-A demo AI chatbot for a health insurer. Members book and cancel clinic visits, file and follow complaints, ask about clinics and doctors, and ask policy questions answered from an uploaded knowledge base. Admins manage the catalog, slots, visits, complaints and the knowledge base. "Health Assistant" is a placeholder name.
+A demo AI chatbot for a health insurer. Members book and cancel clinic visits, file and follow complaints, ask about clinics and doctors, and ask policy questions answered from an uploaded knowledge base. Admins manage the catalog, slots, visits, complaints and the knowledge base. Brand colors are the Midnight Sky palette with #6A9BD1 as the accent.
 
 Version 0.1.0. The design lives in `docs/spec/` (start with `plan.md` and `rules.md`); the build log and decisions are in `docs/progress.md`.
 

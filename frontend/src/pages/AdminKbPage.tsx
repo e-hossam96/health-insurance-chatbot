@@ -23,7 +23,7 @@ const STATUS_LABELS: Record<KbStatus, string> = {
 
 const STATUS_STYLES: Record<KbStatus, string> = {
   uploaded: 'bg-gray-100 text-gray-700',
-  processing: 'bg-blue-100 text-blue-700',
+  processing: 'bg-brand-100 text-brand-700',
   ready: 'bg-green-100 text-green-700',
   failed: 'bg-red-100 text-red-700',
 };
@@ -124,11 +124,11 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
-          className={`border-2 border-dashed rounded-lg p-6 text-center text-sm ${dragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
+          className={`border-2 border-dashed rounded-lg p-6 text-center text-sm ${dragging ? 'border-brand-400 bg-brand-50' : 'border-gray-300'}`}
           data-testid="kb-dropzone"
         >
           Drag files here or{' '}
-          <button type="button" onClick={() => inputRef.current?.click()} className="text-blue-600 underline">
+          <button type="button" onClick={() => inputRef.current?.click()} className="text-brand-700 underline">
             Browse
           </button>
           <span className="ml-2 text-gray-500" data-testid="kb-limit">
@@ -225,12 +225,12 @@ function KbRow({ doc, expanded, confirming, onToggleError, onReindex, onAskDelet
         <td>{formatUtcDay(doc.created_at)}</td>
         <td className="space-x-2 whitespace-nowrap">
           {doc.status === 'ready' && (
-            <button type="button" onClick={onReindex} className="text-blue-600 underline" data-testid="kb-reindex">
+            <button type="button" onClick={onReindex} className="text-brand-700 underline" data-testid="kb-reindex">
               Re-index
             </button>
           )}
           {doc.status === 'failed' && (
-            <button type="button" onClick={onReindex} className="text-blue-600 underline" data-testid="kb-retry">
+            <button type="button" onClick={onReindex} className="text-brand-700 underline" data-testid="kb-retry">
               Retry
             </button>
           )}

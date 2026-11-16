@@ -126,7 +126,7 @@ export function AdminSlotsPage(): ReactNode {
             <button className="border rounded px-2 py-1 text-sm" onClick={nextMonth}>&gt;</button>
           </div>
 
-          <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm" onClick={() => setShowAdd(true)} disabled={doctorId === ''}>Add slot</button>
+          <button className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm" onClick={() => setShowAdd(true)} disabled={doctorId === ''}>Add slot</button>
           <button className="bg-green-600 text-white px-3 py-1 rounded text-sm" onClick={() => void handleAutofill()} disabled={doctorId === ''} data-testid="autofill-btn">Auto-fill to end of month</button>
         </div>
 
@@ -181,7 +181,7 @@ export function AdminSlotsPage(): ReactNode {
                 {addError && <p className="text-red-600 text-sm mb-2" data-testid="slot-form-error">{addError}</p>}
                 <div className="flex gap-2 justify-end">
                   <button type="button" className="px-3 py-1 border rounded text-sm" onClick={() => setShowAdd(false)}>Cancel</button>
-                  <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">Add</button>
+                  <button type="submit" className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm">Add</button>
                 </div>
               </form>
             </div>

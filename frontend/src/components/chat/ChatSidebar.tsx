@@ -25,7 +25,7 @@ export function ChatSidebar({
       <button
         type="button"
         onClick={onNewChat}
-        className="m-2 p-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+        className="m-2 p-2 text-sm bg-brand-400 text-brand-900 rounded hover:bg-brand-500"
         data-testid="new-chat-btn"
       >
         + New chat
@@ -37,7 +37,7 @@ export function ChatSidebar({
             key={s.id}
             onClick={() => onSelect(s.id)}
             className={`w-full text-left p-3 border-b border-gray-200 hover:bg-gray-100 ${
-              s.id === activeSessionId ? 'bg-blue-50' : ''
+              s.id === activeSessionId ? 'bg-brand-50' : ''
             }`}
             data-testid="session-item"
           >

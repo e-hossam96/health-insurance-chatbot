@@ -70,7 +70,7 @@ export function OnboardingPage(): ReactNode {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white rounded py-2 hover:bg-blue-700 disabled:opacity-50"
+          className="w-full bg-brand-400 text-brand-900 rounded py-2 hover:bg-brand-500 disabled:opacity-50"
         >
           Continue
         </button>

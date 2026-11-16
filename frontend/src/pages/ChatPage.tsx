@@ -278,7 +278,7 @@ export function ChatPage(): ReactNode {
                 <div key={item.key} className={`flex ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div
                     className={`max-w-xl px-4 py-2 rounded-lg ${
-                      item.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'
+                      item.role === 'user' ? 'bg-brand-400 text-brand-900' : 'bg-white border border-brand-100 text-brand-900'
                     }`}
                     data-testid={`msg-${item.role}`}
                   >
@@ -303,7 +303,7 @@ export function ChatPage(): ReactNode {
 
             {isStreaming && (
               <div className="flex justify-start">
-                <div className="max-w-xl px-4 py-2 rounded-lg bg-gray-100 text-gray-900" data-testid="msg-streaming">
+                <div className="max-w-xl px-4 py-2 rounded-lg bg-white border border-brand-100 text-brand-900" data-testid="msg-streaming">
                   {streamingText === '' ? (
                     <span className="text-gray-400" data-testid="typing-indicator">…</span>
                   ) : (
@@ -350,7 +350,7 @@ export function ChatPage(): ReactNode {
                 onChange={e => setInput(e.target.value)}
                 placeholder="Type your message..."
                 maxLength={1000}
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 disabled:bg-gray-100"
+                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-brand-400 disabled:bg-gray-100"
                 disabled={isStreaming}
                 data-testid="chat-input"
               />
@@ -372,7 +372,7 @@ export function ChatPage(): ReactNode {
                   key="send"
                   type="submit"
                   disabled={input.trim() === ''}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-brand-400 text-brand-900 rounded-lg hover:bg-brand-500 disabled:opacity-50"
                   data-testid="send-btn"
                 >
                   Send
