@@ -46,25 +46,53 @@ Version **0.1.0**. The design lives in [`docs/spec/`](docs/spec/) and the build 
 
 ## Architecture
 
-```
-            browser
-               │  HTTP(S)
-               ▼
-   ┌───────────────────────┐
-   │ frontend (nginx)      │  serves the React app, proxies /api → backend
-   └──────────┬────────────┘
-              │
-   ┌──────────▼────────────┐        ┌──────────────┐
-   │ backend (FastAPI)     │───────▶│ postgres     │  users, catalog, slots,
-   │  ├ auth, routes, SSE  │        └──────────────┘  visits, complaints, chats
-   │  ├ KB ingestion job   │        ┌──────────────┐
-   │  └ chatbot_ai package │───────▶│ qdrant       │  KB chunks (dense + BM25)
-   └──────────┬────────────┘        └──────────────┘
-              │ OpenAI API shape     ┌──────────────┐
-              └─────────────────────▶│ model APIs   │  chat, router, rewrite,
-                                     └──────────────┘  embedding, judge
-   prometheus ◀── /metrics (backend), postgres-exporter
-   grafana    ◀── prometheus
+```mermaid
+flowchart TB
+    browser(["Browser"])
+
+    subgraph compose["Docker Compose"]
+        frontend["<b>frontend</b> (nginx)<br/>serves the React app<br/>proxies /api to the backend"]
+
+        subgraph backend["backend (FastAPI)"]
+            routes["auth, routes, SSE"]
+            ingestion["KB ingestion job"]
+            chatbot_ai["chatbot_ai package"]
+        end
+
+        postgres[("<b>postgres</b><br/>users, catalog, slots,<br/>visits, complaints, chats")]
+        qdrant[("<b>qdrant</b><br/>KB chunks<br/>dense + BM25")]
+        exporter["postgres-exporter"]
+        prometheus["prometheus"]
+        grafana["grafana"]
+    end
+
+    models["<b>model APIs</b><br/>chat, router, rewrite,<br/>embedding, judge"]
+
+    browser -- "HTTP(S)" --> frontend
+    frontend --> backend
+    backend --> postgres
+    chatbot_ai --> qdrant
+    chatbot_ai -- "OpenAI API shape" --> models
+    exporter -.-> postgres
+    prometheus -. "/metrics" .-> backend
+    prometheus -.-> exporter
+    grafana -.-> prometheus
+
+    classDef client fill:#475569,stroke:#94a3b8,color:#ffffff
+    classDef app fill:#2563eb,stroke:#93c5fd,color:#ffffff
+    classDef store fill:#0f766e,stroke:#5eead4,color:#ffffff
+    classDef observe fill:#7c3aed,stroke:#c4b5fd,color:#ffffff
+    classDef external fill:#b45309,stroke:#fcd34d,color:#ffffff
+
+    class browser client
+    class frontend,routes,ingestion,chatbot_ai app
+    class postgres,qdrant store
+    class exporter,prometheus,grafana observe
+    class models external
+
+    style compose fill:transparent,stroke:#64748b,stroke-width:1px,stroke-dasharray:5 4,color:#64748b
+    style backend fill:transparent,stroke:#3b82f6,stroke-width:1.5px,color:#3b82f6
+    linkStyle default stroke:#64748b,stroke-width:1.5px
 ```
 
 - **One agent per turn.** A small router model classifies each turn and hands it to one agent: scheduling, complaints, knowledge or a plain responder. Routing is invisible to the conversation history.

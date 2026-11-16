@@ -45,15 +45,34 @@ IngestResult: `chunk_count`, `table_chunks`, `timings` (parse, chunk, embed, ups
 
 Router plus specialists, with handoff (I1 to I4).
 
-```
- user message
-      |
- [classify]  router model, structured output, one enum of intent codes
-      |
-      +-- visit.book | visit.check | visit.cancel | qa.db --> scheduling   (tool loop)
-      +-- complaint.file | complaint.check ----------------> complaints   (tool loop)
-      +-- qa.kb -------------------------------------------> knowledge    (fixed RAG pipeline)
-      +-- other -------------------------------------------> responder    (no tools)
+```mermaid
+flowchart TD
+    message(["user message"])
+    classify{{"<b>classify</b><br/>router model, structured output,<br/>one enum of intent codes"}}
+    scheduling["<b>scheduling</b><br/>tool loop"]
+    complaints["<b>complaints</b><br/>tool loop"]
+    knowledge["<b>knowledge</b><br/>fixed RAG pipeline"]
+    responder["<b>responder</b><br/>no tools"]
+
+    message --> classify
+    classify -- "visit.book<br/>visit.check<br/>visit.cancel<br/>qa.db" --> scheduling
+    classify -- "complaint.file<br/>complaint.check" --> complaints
+    classify -- "qa.kb" --> knowledge
+    classify -- "other" --> responder
+
+    classDef input fill:#475569,stroke:#94a3b8,color:#ffffff
+    classDef router fill:#7c3aed,stroke:#c4b5fd,color:#ffffff
+    classDef toolAgent fill:#2563eb,stroke:#93c5fd,color:#ffffff
+    classDef ragAgent fill:#0f766e,stroke:#5eead4,color:#ffffff
+    classDef plainAgent fill:#b45309,stroke:#fcd34d,color:#ffffff
+
+    class message input
+    class classify router
+    class scheduling,complaints toolAgent
+    class knowledge ragAgent
+    class responder plainAgent
+
+    linkStyle default stroke:#64748b,stroke-width:1.5px
 ```
 
 - The classifier sees the last 6 history rows (trimmed to start at a user row, I1). The 6 are counted over all stored rows, tool rows included; tool rows and tool-call-only assistant rows are then left out of the router request, which carries only the conversation text, and its prompt says a short follow-up ("yes, the second one") continues the current task. Its result picks the agent every turn (I1). When `needs_label` is true the same result is also stored as the sidebar label (F6).
