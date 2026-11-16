@@ -15,7 +15,7 @@ Companion to `schema.dbml`, `wireframes.md`, `api.md` and `ai.md`. Each rule has
 - **B7.** complaint_reply.admin_account_id and kb_document.uploaded_by must reference role = 'admin' (not expressible as an FK).
 - **B8.** Route guards in React are UX only. The backend checks the role on every endpoint. Prefixes: /admin/... and /me/...
 - **B9.** No password reset flow. Reset in the DB.
-- **B10.** Auth = opaque session token in an HTTP-only, Secure, SameSite=Lax cookie. Only its hash is stored (auth_session). Logout deletes the row. Expired rows are purged on login or startup. State-changing routes accept JSON only.
+- **B10.** Auth = opaque session token in an HTTP-only, Secure, SameSite=Lax cookie. Only its hash is stored (auth_session). Logout deletes the row. Expired rows are purged on login or startup. State-changing routes accept JSON only. One exception: the KB upload (POST /admin/kb-documents, admin only) takes the raw file body so its size limit is checked while streaming (G2).
 - **B11.** /admin/* requires role = 'admin' AND active_mode = 'admin'. /me/* requires active_mode = 'user'. Only admins may set active_mode to 'admin' (POST /auth/mode).
 - **B12.** Passwords are hashed with argon2, minimum length 8. Session lifetime 7 days (expires_at = created_at + 7 days).
 - **B13.** Admins are created with a create_admin script (hashes the password, inserts the account with role = 'admin' and its profile).

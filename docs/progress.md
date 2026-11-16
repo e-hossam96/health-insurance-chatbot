@@ -26,14 +26,13 @@ Waiting at Gate 4 (approve the paid eval run for 8.3) and Gate 3 (branding, inst
 
 Questions for the user that do not block the current step. Format: `- [phase.step] question (options, your recommendation)`.
 
-- [8.2] B10 says state-changing routes accept JSON only. The KB upload (POST /admin/kb-documents) takes the raw file body so the size limit can be enforced while streaming (G2); a file upload cannot be JSON, and multipart would not be either. Options: add this one exception to B10 in rules.md (recommended; it is admin-only and SameSite=Lax already blocks cross-site posts), or change the upload to base64 JSON (larger bodies, no streaming check). Current code keeps the exception.
 
 ## Gates
 
 - [x] Gate 1 real model calls: API key, model names per role, embedding dimensions (2026-11-16)
 - [x] Gate 2 eval datasets and fixtures approved (2026-11-16, as drafted)
 - [ ] Gate 3 branding, instance size, domain, SSL
-- [ ] Gate 4 paid eval run approved
+- [x] Gate 4 paid eval run approved (2026-11-16, full ablation without the reranker runs)
 
 ## Decisions log
 
@@ -64,6 +63,7 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [6c] (user decision, 2026-11-16) torch and torchvision come from the CPU-only PyTorch index (`torch 2.15.0+cpu`), so no CUDA packages are installed and the backend image stays much smaller. The index is declared in the root `pyproject.toml` as `[[tool.uv.index]] pytorch-cpu` with `explicit = true`, and `[tool.uv.sources]` in `chatbot_ai` pins only those two packages to it; the dependency lines and the lockfile came from `uv add`.
 - [5.3] (user decision, 2026-11-16) When the first turn of a new chat stores nothing (stream error or client disconnect), the chat route deletes that `chat_session` row in its `finally`, inside a shielded cancel scope so it also runs on disconnect; a failed turn in an existing session keeps the session. The frontend then drops the session id and returns to /chat, so Retry or a resend starts a new session.
 - [5.3] (user decision, 2026-11-16) A chat message over 1000 characters returns 422 `validation_error`, not 429: waiting does not help, so it is validation, not a rate limit. api.md updated.
+- [8.2] (user decision, 2026-11-16) rules.md B10 now names the one exception to JSON-only writes: the raw-body KB upload.
 - [8.4, docs] README (what is inside, run with Docker, admin and seed commands, KB upload, SSH tunnel for Grafana and Prometheus, Langfuse, develop and test commands) and `docs/demo.md` (a ten-minute demo script). `make evals` now prints how to run the paid suites instead of running them. Branding and deployment wait for Gate 3.
 - [8.3, groundwork] All five eval suites exist (`chatbot_ai/evals/suites.py`): ingest (parse and chunk checks on the fixtures, no model calls), routing, retrieval (hit@5/@10, recall@5/@10 and MRR after the first query, RRF fusion, dedupe and rerank, plus per-stage latency; a chunk is relevant when it is from the expected document and holds an expected phrase), answers (the knowledge agent answers, the JUDGE role grades faithfulness, required facts and refusals with a strict JSON schema; `must_include` is also checked by substring) and tools (scenarios run through the real orchestrator; a turn passes when every expected tool is called with the argument subset, the expected card type appears and no foreign tool was called). Each run ingests both fixtures into its own Qdrant collection (new optional `AI_QDRANT_COLLECTION`) and drops it afterwards. The in-memory catalog ports moved from `testkit` into `chatbot_ai.evals.catalog_ports` so the runner needs no Postgres (ai.md); `testkit.fake_ports` re-exports them. Every suite is tested end to end on the fake server. The paid ablation run (8.3 proper) waits for Gate 4.
 - [8.2] Bug fixed: only the auth routes rejected non-JSON bodies; other write routes relied on FastAPI's body parsing, which accepted a `text/plain` body (an admin DELETE did). `backend.json_only` now rejects any POST, PUT, PATCH or DELETE with a body that is not `application/json` (422 `validation_error`), except the raw KB upload. Proven by switching it off and watching the test fail.
