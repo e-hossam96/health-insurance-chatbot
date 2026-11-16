@@ -17,6 +17,7 @@ from backend.app import create_app
 from backend.config import Settings
 from chatbot_ai.interface import Done, HistoryRow, Token, TurnEvent, TurnRequest
 from testkit.live_server import serve_in_thread
+from testkit.metrics import metric_value
 
 TEST_DB_URL = os.environ.get(
     "DATABASE_URL",
@@ -113,6 +114,7 @@ def test_F16_disconnect_cancels_turn_and_stores_nothing(
 
     create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "TestCity")
     cookie = _signed_in_cookie(live_server)
+    cancelled_before = metric_value(httpx.get(f"{live_server}/metrics").text, "chat_turns_total", {"outcome": "cancelled"})
 
     events: list[str] = []
     with httpx.Client(base_url=live_server) as client, client.stream(
@@ -132,3 +134,9 @@ def test_F16_disconnect_cancels_turn_and_stores_nothing(
     assert not hanging_turn.finished.is_set()
     assert _chat_message_count(db_engine) == 0
     assert _wait_until(lambda: _session_count(db_engine) == 0, CANCEL_DEADLINE), "the empty session was not removed"
+
+    def cancelled_counted() -> bool:
+        exposition = httpx.get(f"{live_server}/metrics").text
+        return metric_value(exposition, "chat_turns_total", {"outcome": "cancelled"}) == cancelled_before + 1
+
+    assert _wait_until(cancelled_counted, CANCEL_DEADLINE), "H3: the disconnected turn was not counted as cancelled"

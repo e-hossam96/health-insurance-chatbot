@@ -30,6 +30,7 @@ from testkit.kb_ingest import (
     quick_ingest,
     scanned_ingest,
 )
+from testkit.metrics import metric_value
 
 TEST_DB_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot")
 LIMIT = 4096
@@ -403,3 +404,19 @@ async def test_G5_I12_upload_returns_at_once_and_jobs_run_one_at_a_time_in_a_chi
         assert os.getpid() not in pids
         assert {r.child_pid for r in harness.runner.completed} == pids
         assert not (harness.storage / RUNNING_MARKER).exists()
+
+
+@pytest.mark.anyio()
+async def test_H3_the_ingestion_gauge_moves_and_outcomes_are_counted(_migrate_fresh: None, tmp_path: Path, ai_settings: AISettings) -> None:
+    async with kb_harness(tmp_path / "kb", ai_settings, blocking_ingest) as harness:
+        before = (await harness.admin.get("/metrics")).text
+        document = await harness.upload("gauge.txt", b"gauge document")
+        await _wait_until((harness.storage / f"pid-{document['id']}.txt").exists)
+        during = (await harness.admin.get("/metrics")).text
+        assert metric_value(during, "kb_documents_processing") == metric_value(before, "kb_documents_processing") + 1
+        (harness.storage / f"release-{document['id']}").touch()
+        await harness.runner.join()
+        after = (await harness.admin.get("/metrics")).text
+        assert metric_value(after, "kb_documents_processing") == metric_value(before, "kb_documents_processing")
+        assert metric_value(after, "kb_ingest_total", {"outcome": "ok"}) == metric_value(before, "kb_ingest_total", {"outcome": "ok"}) + 1
+        assert metric_value(after, "kb_ingest_duration_seconds_count") == metric_value(before, "kb_ingest_duration_seconds_count") + 1

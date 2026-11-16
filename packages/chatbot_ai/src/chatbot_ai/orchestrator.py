@@ -94,6 +94,7 @@ async def run_turn(
                 tool_calls=result.tool_calls,
             ),
             usage=_sum_usage(classification.usage, result.usage),
+            agent=agent_name.value,
         )
     finally:
         if own_clients:

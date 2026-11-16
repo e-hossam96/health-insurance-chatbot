@@ -73,6 +73,7 @@ class Done:
     new_rows: list[HistoryRow]
     timings: Timings = field(default_factory=Timings)
     usage: Usage = field(default_factory=Usage)
+    agent: str = ""
 
 
 TurnEvent = Intent | Token | Cards | Done

@@ -20,6 +20,7 @@ from backend.deps import (
     Db,
     SettingsDep,
 )
+from backend.metrics import record_rate_limit, signups_total
 from backend.models import Account, AccountRole, Profile
 from backend.rate_limit import login_fail_limiter, signup_limiter
 
@@ -102,6 +103,7 @@ async def signup(
     ip = _client_ip(request)
     retry = signup_limiter.check(ip, clock=clock)
     if retry is not None:
+        record_rate_limit("signup")
         raise _rate_limited(retry)
 
     existing = await db.execute(
@@ -126,6 +128,7 @@ async def signup(
     await db.commit()
 
     signup_limiter.record(ip, clock=clock)
+    signups_total.inc()
     _set_cookie(response, token, settings.session_lifetime_days * 86400)
     return {"message": "Account created."}
 
@@ -145,6 +148,7 @@ async def login(
     login_key = f"{ip}:{body.username.lower()}"
     retry = login_fail_limiter.check(login_key, clock=clock)
     if retry is not None:
+        record_rate_limit("login")
         raise _rate_limited(retry)
 
     await purge_expired(db, clock=clock)

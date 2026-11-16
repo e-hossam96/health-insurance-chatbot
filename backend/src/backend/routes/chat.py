@@ -21,6 +21,13 @@ from backend.deps import (
     RequireUserMode,
     SettingsDep,
 )
+from backend.metrics import (
+    TurnOutcome,
+    chat_chunk_gap_seconds,
+    record_completed_turn,
+    record_rate_limit,
+    record_turn_outcome,
+)
 from backend.models import (
     AccountRole,
     ChatMessage,
@@ -80,6 +87,7 @@ async def prepare_turn(
     settings: SettingsDep,
 ) -> PreparedTurn:
     if len(body.message) > settings.rate_limit_message_max_chars:
+        record_rate_limit("message_length")
         raise _error(
             "validation_error",
             f"Message exceeds {settings.rate_limit_message_max_chars} characters.",
@@ -97,6 +105,7 @@ async def prepare_turn(
 
     retry = chat_minute_limiter.check(user_key, clock=clock)
     if retry is not None:
+        record_rate_limit("chat_minute")
         raise HTTPException(
             status_code=429,
             detail={"error": {"code": "rate_limited", "message": "Too many messages."}},
@@ -104,6 +113,7 @@ async def prepare_turn(
         )
 
     if user.role != AccountRole.admin and chat_daily_limiter.check(user_key, clock=clock):
+        record_rate_limit("chat_daily")
         raise HTTPException(
             status_code=429,
             detail={"error": {"code": "rate_limited", "message": "Daily message limit reached."}},
@@ -191,29 +201,58 @@ async def chat(
 
     intent_code: str | None = None
     stored = False
+    outcome: TurnOutcome = "cancelled"
+    last_token_at: float | None = None
     try:
         async for event in run_turn_for(turn.request):
             if isinstance(event, Intent):
                 intent_code = event.code
                 yield ServerSentEvent(event="intent", data={"intent": event.code})
             elif isinstance(event, Token):
+                if last_token_at is not None:
+                    chat_chunk_gap_seconds.observe(max(0.0, event.elapsed - last_token_at))
+                last_token_at = event.elapsed
                 yield ServerSentEvent(event="token", data={"text": event.text})
             elif isinstance(event, Cards):
                 yield ServerSentEvent(event="cards", data={"type": event.type, "items": event.items})
             elif isinstance(event, Done):
                 await _store_turn(db, turn.session_id, event, clock, intent_code, turn.needs_label)
                 stored = True
+                outcome = "ok"
+                _record_done(event)
                 yield ServerSentEvent(event="done", data={})
     except Exception:
+        outcome = "error"
         logger.exception("chat turn failed for session %s", turn.session_id)
         await db.rollback()
         yield ServerSentEvent(
             event="error", data={"code": "turn_error", "message": "Something went wrong."}
         )
     finally:
+        record_turn_outcome(outcome)
         if turn.created_session and not stored:
             with anyio.CancelScope(shield=True):
                 await _drop_empty_session(db, turn.session_id)
+
+
+def _record_done(done: Done) -> None:
+    timings = done.timings
+    record_completed_turn(
+        agent=done.agent,
+        ttft=timings.ttft,
+        generate=timings.generate,
+        total=timings.total,
+        stages={
+            "classify": timings.classify,
+            "rewrite": timings.rewrite,
+            "embed": timings.embed,
+            "search": timings.search,
+            "rerank": timings.rerank,
+            "generate": timings.generate,
+        },
+        prompt_tokens=done.usage.prompt_tokens,
+        completion_tokens=done.usage.completion_tokens,
+    )
 
 
 async def _drop_empty_session(db: AsyncSession, session_id: int) -> None:

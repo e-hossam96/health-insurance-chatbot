@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import multiprocessing
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from multiprocessing.connection import Connection
@@ -11,6 +12,11 @@ from pathlib import Path
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from backend.metrics import (
+    kb_documents_processing,
+    kb_ingest_duration_seconds,
+    kb_ingest_total,
+)
 from backend.models import KbDocument, KbDocumentStatus, KbFileType
 from chatbot_ai.ingest import IngestResult, delete_document_async
 from chatbot_ai.ingest.parse import FileType
@@ -172,6 +178,8 @@ class KbJobRunner:
             document.status = KbDocumentStatus.processing
             document.error_message = None
             await db.commit()
+        kb_documents_processing.inc()
+        started = time.monotonic()
 
         settings = self._ai_settings
         if settings is None:
@@ -183,6 +191,9 @@ class KbJobRunner:
             record = JobRecord(document_id, run.outcome, run.pid, run.exitcode)
         self.completed.append(record)
         outcome = record.outcome
+        kb_documents_processing.dec()
+        kb_ingest_duration_seconds.observe(time.monotonic() - started)
+        kb_ingest_total.labels(outcome="ok" if isinstance(outcome, JobSucceeded) else "failed").inc()
 
         if isinstance(outcome, JobSucceeded):
             still_there = await self._set_status(document_id, KbDocumentStatus.ready, None)

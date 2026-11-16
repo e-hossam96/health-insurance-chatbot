@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select, update
 
 from backend.deps import ClockDep, CurrentSession, Db, RequireUserMode
+from backend.metrics import card_action
 from backend.models import (
     ChatMessage,
     ChatSession,
@@ -126,6 +128,7 @@ async def _write_booking_messages(
 
 @router.post("/visits", status_code=201)
 async def book_visit(
+    _: Annotated[None, Depends(card_action("book"))],
     body: BookRequest,
     user: RequireUserMode,
     session: CurrentSession,
@@ -237,6 +240,7 @@ async def _write_cancel_messages(
 
 @router.post("/visits/{visit_id}/cancel")
 async def cancel_visit(
+    _: Annotated[None, Depends(card_action("cancel"))],
     visit_id: int,
     body: CancelRequest,
     user: RequireUserMode,
@@ -356,6 +360,7 @@ async def _write_complaint_messages(
 
 @router.post("/complaints", status_code=201)
 async def file_complaint(
+    _: Annotated[None, Depends(card_action("complaint"))],
     body: FileComplaintRequest,
     user: RequireUserMode,
     session: CurrentSession,

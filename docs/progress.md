@@ -13,20 +13,19 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 4 | Visits and complaints | done | 4.6 |
 | 5 | Chat shell with a stub | done | 5.5 |
 | 6 | AI package | done | 6e |
-| 7 | Observability | not started | - |
+| 7 | Observability | in progress | 7.1 |
 | 8 | Hardening and demo | not started | - |
 
 Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 7, step 7.1 (metrics) on branch `phase-7`.
+Phase 7, step 7.2 (exposure) on branch `phase-7`.
 
 ## Needs confirmation
 
 Questions for the user that do not block the current step. Format: `- [phase.step] question (options, your recommendation)`.
 
-- [6e] The gpt-6 sol and astra models reject function tools in Chat Completions with any reasoning effort ("use /v1/responses or set reasoning_effort to 'none'", and they do not accept 'none'). The chat role therefore runs gpt-5.5 with reasoning effort none. Options: keep Chat Completions and gpt-5.5 (current, works), or move the tool loops to the Responses API, which unlocks gpt-6.1-sol and gpt-6-astra for chat but changes the ai.md decision and the provider-neutral API shape (I11). Recommendation: keep Chat Completions for v1; the eval run at 8.3 shows whether quality needs more.
 
 ## Gates
 
@@ -64,6 +63,9 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [6c] (user decision, 2026-11-16) torch and torchvision come from the CPU-only PyTorch index (`torch 2.15.0+cpu`), so no CUDA packages are installed and the backend image stays much smaller. The index is declared in the root `pyproject.toml` as `[[tool.uv.index]] pytorch-cpu` with `explicit = true`, and `[tool.uv.sources]` in `chatbot_ai` pins only those two packages to it; the dependency lines and the lockfile came from `uv add`.
 - [5.3] (user decision, 2026-11-16) When the first turn of a new chat stores nothing (stream error or client disconnect), the chat route deletes that `chat_session` row in its `finally`, inside a shielded cancel scope so it also runs on disconnect; a failed turn in an existing session keeps the session. The frontend then drops the session id and returns to /chat, so Retry or a resend starts a new session.
 - [5.3] (user decision, 2026-11-16) A chat message over 1000 characters returns 422 `validation_error`, not 429: waiting does not help, so it is validation, not a rate limit. api.md updated.
+- [7.1] Metrics (all in `backend.metrics`, H2): `chat_turns_total{outcome=ok|error|cancelled}` recorded in the chat route's `finally` (a turn that neither stored nor failed was cancelled); `chat_turns_by_agent_total{agent}` (the package now puts the answering agent's name in `Done.agent`); histograms `chat_ttft_seconds`, `chat_llm_duration_seconds`, `chat_turn_duration_seconds`, `chat_chunk_gap_seconds` (gap between consecutive token `elapsed` values) and `chat_stage_duration_seconds{stage}` (stages with a zero time are skipped); `chat_tokens_total{kind=prompt|completion}`; `kb_ingest_total{outcome=ok|failed}`, `kb_ingest_duration_seconds` and the `kb_documents_processing` gauge (moved by the job runner); `rate_limit_rejections_total{limit=chat_minute|chat_daily|message_length|signup|login}`; `signups_total`; `card_actions_total{action=book|cancel|complaint, outcome=ok|conflict|rejected|error}` from a `yield` dependency on the three card endpoints. Model names are not a label because one turn spans several roles.
+- [7.1] Bug fixed: the HTTP metrics labelled routes from included routers with the raw path (ids included), because FastAPI 0.163 wraps included routers so the old route scan found no template. The middleware now reads `scope["route"].path_format` after routing, and unmatched URLs get the fixed label `unmatched` instead of their path (H4).
+- [6e] (user decision, 2026-11-16) Keep the Chat Completions API (ai.md); the chat role stays on gpt-5.5, because the gpt-6 sol and astra models reject function tools in Chat Completions.
 - [Gate 1] (2026-11-16, user: "use your recommended models") Models in `.env`: chat `gpt-5.5` (reasoning effort none), router and rewrite `gpt-6-luna` (reasoning effort none), embedding `text-embedding-3-small` at 1536 dimensions, judge `gpt-6.1-sol` (reasoning effort low). Chosen from the key's model list and OpenAI's current models and pricing pages. gpt-6.1-sol was the first pick for chat but rejects tools in Chat Completions; gpt-6.1-terra was avoided because OpenAI's pages disagree on its API availability.
 - [Gate 1] Added `AI_<ROLE>_REASONING_EFFORT` (chat, router, rewrite, judge; omitted from requests when unset) and `AI_ROUTER_MAX_OUTPUT_TOKENS` (512) and `AI_REWRITE_MAX_OUTPUT_TOKENS` (1024). The first real run showed that reasoning tokens count against `max_completion_tokens`, so the old fixed caps of 20 and 200 failed every router and rewrite call; a failed router then silently sent every turn to the responder.
 - [Gate 1] `scripts/smoke_real_models.py` (`make smoke-models`, paid, never in `make check` or CI) runs the six starter-card routings, a knowledge turn on the DOCX fixture with real embeddings, and a booking turn with fake ports. Gate 1 result: routing 6/6; the knowledge turn retrieved the pre-authorization table and answered "3 working days"; the booking turn called list_specialties then recommend_doctors, showed 3 doctor cards in the D5 order and named each option with its time in UTC. The 6e real-model smoke run is done.
