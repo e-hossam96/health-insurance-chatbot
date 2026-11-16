@@ -14,13 +14,13 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 5 | Chat shell with a stub | done | 5.5 |
 | 6 | AI package | done | 6e |
 | 7 | Observability | done | 7.4 |
-| 8 | Hardening and demo | blocked (Gates 3 and 4) | 8.4 |
+| 8 | Hardening and demo | in progress | 8.4 |
 
 Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Waiting at Gate 4 (approve the paid eval run for 8.3) and Gate 3 (branding, instance size, domain, SSL for 8.4). Then 8.5 final check and the phase 8 close-out.
+Step 8.5 (final check: fresh clone, full rule coverage), then the phase 8 independent review and the merge into `main`.
 
 ## Needs confirmation
 
@@ -32,7 +32,7 @@ Questions for the user that do not block the current step. Format: `- [phase.ste
 
 - [x] Gate 1 real model calls: API key, model names per role, embedding dimensions (2026-11-16)
 - [x] Gate 2 eval datasets and fixtures approved (2026-11-16, as drafted)
-- [ ] Gate 3 branding, instance size, domain, SSL
+- [x] Gate 3 branding, instance size, domain, SSL (2026-11-16)
 - [x] Gate 4 paid eval run approved (2026-11-16, full ablation without the reranker runs)
 
 ## Decisions log
@@ -65,6 +65,8 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [5.3] (user decision, 2026-11-16) When the first turn of a new chat stores nothing (stream error or client disconnect), the chat route deletes that `chat_session` row in its `finally`, inside a shielded cancel scope so it also runs on disconnect; a failed turn in an existing session keeps the session. The frontend then drops the session id and returns to /chat, so Retry or a resend starts a new session.
 - [5.3] (user decision, 2026-11-16) A chat message over 1000 characters returns 422 `validation_error`, not 429: waiting does not help, so it is validation, not a rate limit. api.md updated.
 - [8.2] (user decision, 2026-11-16) rules.md B10 now names the one exception to JSON-only writes: the raw-body KB upload.
+- [8.4] (Gate 3) Deployment: `docker-compose.prod.yml` publishes 80 and 443, mounts `frontend/nginx.prod.conf.template` (rendered by the nginx image with `DOMAIN`), keeps Postgres and Qdrant unpublished, adds `restart: unless-stopped`, and runs certbot (v3.0.1) renewing every 12 h while nginx reloads every 6 h. The HTTPS server sets TLS 1.2/1.3, HSTS, nosniff, a referrer policy and frame denial, keeps /api/metrics blocked and streams SSE unbuffered; port 80 serves only the ACME challenge and redirects. `scripts/issue_certificate.sh` bootstraps the first certificate with a temporary self-signed one. `docs/deployment.md` covers the VM (recommended 4 vCPU, 8 GB, 50 GB SSD), DNS, firewall, `.env`, the certificate, the first admin, dashboards over SSH, updates and backups. `DOMAIN` and `LETSENCRYPT_EMAIL` are in the local `.env` only. The smoke test now validates the production template with `nginx -t`.
+- [8.4] Bug fixed (F15): nginx used `$proxy_add_x_forwarded_for`, which keeps a client-sent `X-Forwarded-For` first; the backend takes the first entry as the client IP, so a client could pick a new rate-limit bucket per request. Both nginx configs now overwrite the header with `$remote_addr`; a config test and a live smoke check (11 failed logins with changing spoofed headers end in 429) cover it. Images are pinned: `nginx:1.27-alpine` and `ghcr.io/astral-sh/uv:0.13.8`; a test fails on any unpinned or `latest` image.
 - [8.3] (Gate 4) Paid ablation run done and written up in `docs/evals/v0.1.0.md`: ingest pass, routing 25/26, retrieval hit@5 1.0 in all four configurations (dense/1, sparse/1, hybrid/1, hybrid/3; the reranker runs are skipped), answers faithful 1.0 with one mislabelled item, tools 7/7. The fixture KB is too small to separate the configurations; the report recommends harder fixtures before tuning.
 - [8.4] (Gate 3, user, 2026-11-16) Branding: product name "Health Insurance Chatbot"; Midnight Sky palette as Tailwind theme tokens `brand-50` #F0F4F8, `brand-400` #6A9BD1 (the accent), `brand-700` #004B87, `brand-800` #002D55, `brand-900` #001F3F, plus two tints (`brand-100` #DCE7F4 for badges and borders, `brand-500` #5689C2 for hover). Primary buttons, user bubbles and the logo mark use #6A9BD1 with navy #001F3F text (white on #6A9BD1 is about 2.8:1, below the 4.5:1 needed for text; navy is about 6.5:1). The header is navy with the logo in light tones. The text logo (`components/Logo.tsx`) is a rounded #6A9BD1 square with a navy chat bubble and a light cross, next to "Health Insurance" with "Chatbot" in the accent; the same mark is the favicon. The name is also in the page title, the assistant persona prompt, the Grafana folder and the specs. Tests: the logo renders the name, and `tests/test_branding.py` checks the title, the palette tokens, that no old blue classes or placeholder name remain, and that the accent never carries white text.
 - [8.4, docs] README (what is inside, run with Docker, admin and seed commands, KB upload, SSH tunnel for Grafana and Prometheus, Langfuse, develop and test commands) and `docs/demo.md` (a ten-minute demo script). `make evals` now prints how to run the paid suites instead of running them. Branding and deployment wait for Gate 3.

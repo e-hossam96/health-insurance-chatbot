@@ -66,6 +66,10 @@ Run the API locally with `uv run alembic -c backend/alembic.ini upgrade head` an
 
 CI (`.github/workflows/ci.yml`) runs `make check` and the stack smoke and e2e tests on pushes to `main`. It never runs the evals.
 
+## Deploy
+
+`docs/deployment.md` covers the VM, DNS, HTTPS with Let's Encrypt (`docker-compose.prod.yml`, `scripts/issue_certificate.sh`), the first admin, and backups.
+
 ## Demo
 
 `docs/demo.md` walks through a ten-minute demo.
