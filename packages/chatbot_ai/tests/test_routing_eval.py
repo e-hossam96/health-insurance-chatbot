@@ -81,10 +81,10 @@ def test_routing_eval_runs_on_the_draft_dataset_and_writes_reports(fake_openai: 
     assert next(tmp_path.glob("routing-*.md")).read_text(encoding="utf-8").startswith("# routing eval")
 
 
-def test_cli_rejects_unknown_settings_and_unbuilt_suites(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_rejects_unknown_settings_and_unsupported_flags(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(EvalUsageError):
         parse_overrides(["no-equals-sign"])
     assert main(["routing", "--set", "ai_not_a_setting=1"], out_dir=tmp_path) == 2
     assert "unknown setting" in capsys.readouterr().err
-    assert main(["retrieval", "--set", "ai_embedding_dimensions=8", "--set", "qdrant_url=http://q"], out_dir=tmp_path) == 2
-    assert "not implemented yet" in capsys.readouterr().err
+    assert main(["routing", "--langfuse", "--set", "ai_embedding_dimensions=8", "--set", "qdrant_url=http://q"], out_dir=tmp_path) == 2
+    assert "--langfuse" in capsys.readouterr().err

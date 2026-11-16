@@ -23,6 +23,8 @@ EmbedKind = Literal["query", "document"]
 
 
 def collection_name(settings: AISettings) -> str:
+    if settings.ai_qdrant_collection:
+        return settings.ai_qdrant_collection
     model = settings.ai_embedding_model or "unset"
     slug = re.sub(r"[^a-z0-9]+", "_", model.lower()).strip("_")
     return f"kb_{slug}_{settings.ai_embedding_dimensions}"

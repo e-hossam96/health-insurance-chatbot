@@ -7,16 +7,25 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
+from pydantic import BaseModel
+
 from chatbot_ai.clients import RoleClients
 from chatbot_ai.evals.report import write_report
 from chatbot_ai.evals.routing import load_routing, run_routing
+from chatbot_ai.evals.schemas import AnswerItem, RetrievalItem, ToolScenario, load_jsonl
+from chatbot_ai.evals.suites import (
+    run_answers_suite,
+    run_ingest_suite,
+    run_retrieval_suite,
+    run_tools_suite,
+)
 from chatbot_ai.settings import AISettings, Role
 
 EVALS_DIR = Path(__file__).resolve().parent
 DATASETS_DIR = EVALS_DIR / "datasets"
 REPORTS_DIR = EVALS_DIR / "reports"
 SUITES = ("ingest", "routing", "retrieval", "answers", "tools")
-IMPLEMENTED = ("routing",)
+IMPLEMENTED = SUITES
 SMOKE_ITEMS = 5
 
 
@@ -44,14 +53,23 @@ def build_settings(overrides: dict[str, str]) -> AISettings:
 async def run_suite(suite: str, settings: AISettings, smoke: bool, out_dir: Path, now: datetime) -> list[Path]:
     if suite not in IMPLEMENTED:
         raise EvalUsageError(f"the {suite} suite is not implemented yet")
-    clients = RoleClients(settings)
-    try:
-        items = load_routing(DATASETS_DIR / "routing.jsonl")
-        if smoke:
-            items = items[:SMOKE_ITEMS]
-        report = await run_routing(items, clients.get(Role.router), settings.ai_router_history_rows)
-    finally:
-        await clients.aclose()
+    limit = SMOKE_ITEMS if smoke else None
+    report: BaseModel
+    if suite == "ingest":
+        report = run_ingest_suite(settings)
+    elif suite == "routing":
+        clients = RoleClients(settings)
+        try:
+            items = load_routing(DATASETS_DIR / "routing.jsonl")[:limit]
+            report = await run_routing(items, clients.get(Role.router), settings.ai_router_history_rows, max_tokens=settings.ai_router_max_output_tokens)
+        finally:
+            await clients.aclose()
+    elif suite == "retrieval":
+        report = await run_retrieval_suite(settings, load_jsonl(DATASETS_DIR / "retrieval.jsonl", RetrievalItem)[:limit])
+    elif suite == "answers":
+        report = await run_answers_suite(settings, load_jsonl(DATASETS_DIR / "answers.jsonl", AnswerItem)[:limit])
+    else:
+        report = await run_tools_suite(settings, load_jsonl(DATASETS_DIR / "tools.jsonl", ToolScenario)[:limit])
     return list(write_report(suite, report, settings, now, out_dir))
 
 

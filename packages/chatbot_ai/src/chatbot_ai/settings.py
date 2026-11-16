@@ -99,6 +99,7 @@ class AISettings(BaseSettings):
     ingest_timeout_s: float = Field(default=600.0, gt=0)
 
     qdrant_url: str
+    ai_qdrant_collection: str | None = None
 
     langfuse_public_key: str | None = None
     langfuse_secret_key: SecretStr | None = None
