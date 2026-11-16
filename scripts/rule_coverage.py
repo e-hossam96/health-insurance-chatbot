@@ -107,6 +107,7 @@ def main() -> int:
             root / "packages" / "chatbot_ai" / "tests",
             root / "frontend" / "src",
             root / "frontend" / "e2e",
+            root / "frontend" / "e2e-stack",
         ],
     )
     if errors:
