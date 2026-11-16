@@ -39,7 +39,8 @@ case "$cmd" in
     STACK_E2E=1 bash scripts/smoke_compose.sh
     ;;
   evals)
-    echo "Not available before phase 6"
+    echo "The evals call real models and cost money. Run a suite explicitly:"
+    echo "  uv run python -m chatbot_ai.evals <ingest|routing|retrieval|answers|tools|all> [--smoke] [--set KEY=VALUE]"
     ;;
   smoke-models)
     PYTHONPATH=. uv run python scripts/smoke_real_models.py

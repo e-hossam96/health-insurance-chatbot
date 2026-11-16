@@ -16,10 +16,11 @@ def _run_check(cmd: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_evals_prints_not_available() -> None:
+def test_evals_prints_how_to_run_the_paid_suites() -> None:
     result = _run_check("evals")
     assert result.returncode == 0
-    assert "Not available before phase 6" in result.stdout
+    assert "cost money" in result.stdout
+    assert "python -m chatbot_ai.evals" in result.stdout
 
 
 def test_unknown_command_fails() -> None:

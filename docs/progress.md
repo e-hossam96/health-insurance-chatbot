@@ -14,13 +14,13 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 5 | Chat shell with a stub | done | 5.5 |
 | 6 | AI package | done | 6e |
 | 7 | Observability | done | 7.4 |
-| 8 | Hardening and demo | in progress | 8.2 |
+| 8 | Hardening and demo | blocked (Gates 3 and 4) | 8.4 |
 
 Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 8, step 8.3 (evals) waits for Gate 4 (paid eval run); continuing with 8.4 (docs and demo) meanwhile.
+Waiting at Gate 4 (approve the paid eval run for 8.3) and Gate 3 (branding, instance size, domain, SSL for 8.4). Then 8.5 final check and the phase 8 close-out.
 
 ## Needs confirmation
 
@@ -64,6 +64,7 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [6c] (user decision, 2026-11-16) torch and torchvision come from the CPU-only PyTorch index (`torch 2.15.0+cpu`), so no CUDA packages are installed and the backend image stays much smaller. The index is declared in the root `pyproject.toml` as `[[tool.uv.index]] pytorch-cpu` with `explicit = true`, and `[tool.uv.sources]` in `chatbot_ai` pins only those two packages to it; the dependency lines and the lockfile came from `uv add`.
 - [5.3] (user decision, 2026-11-16) When the first turn of a new chat stores nothing (stream error or client disconnect), the chat route deletes that `chat_session` row in its `finally`, inside a shielded cancel scope so it also runs on disconnect; a failed turn in an existing session keeps the session. The frontend then drops the session id and returns to /chat, so Retry or a resend starts a new session.
 - [5.3] (user decision, 2026-11-16) A chat message over 1000 characters returns 422 `validation_error`, not 429: waiting does not help, so it is validation, not a rate limit. api.md updated.
+- [8.4, docs] README (what is inside, run with Docker, admin and seed commands, KB upload, SSH tunnel for Grafana and Prometheus, Langfuse, develop and test commands) and `docs/demo.md` (a ten-minute demo script). `make evals` now prints how to run the paid suites instead of running them. Branding and deployment wait for Gate 3.
 - [8.3, groundwork] All five eval suites exist (`chatbot_ai/evals/suites.py`): ingest (parse and chunk checks on the fixtures, no model calls), routing, retrieval (hit@5/@10, recall@5/@10 and MRR after the first query, RRF fusion, dedupe and rerank, plus per-stage latency; a chunk is relevant when it is from the expected document and holds an expected phrase), answers (the knowledge agent answers, the JUDGE role grades faithfulness, required facts and refusals with a strict JSON schema; `must_include` is also checked by substring) and tools (scenarios run through the real orchestrator; a turn passes when every expected tool is called with the argument subset, the expected card type appears and no foreign tool was called). Each run ingests both fixtures into its own Qdrant collection (new optional `AI_QDRANT_COLLECTION`) and drops it afterwards. The in-memory catalog ports moved from `testkit` into `chatbot_ai.evals.catalog_ports` so the runner needs no Postgres (ai.md); `testkit.fake_ports` re-exports them. Every suite is tested end to end on the fake server. The paid ablation run (8.3 proper) waits for Gate 4.
 - [8.2] Bug fixed: only the auth routes rejected non-JSON bodies; other write routes relied on FastAPI's body parsing, which accepted a `text/plain` body (an admin DELETE did). `backend.json_only` now rejects any POST, PUT, PATCH or DELETE with a body that is not `application/json` (422 `validation_error`), except the raw KB upload. Proven by switching it off and watching the test fail.
 - [8.2] Security tests (`backend/tests/test_security.py`): every route is under /admin or /me or on an explicit public allowlist (B8), /auth/me and /auth/mode still need a login, every write route rejects text/plain and form bodies, a text/plain booking changes nothing, 404s for other users' resources do not echo the id, and an unhandled exception returns a bare 500 without the message or a traceback. The existing B8 role matrix (every /admin and /me route for anonymous, user, admin in user mode and admin in admin mode), the B10 cookie flag test and the F17 Markdown tests stay; a new F17 test shows a user's complaint text renders as text in the admin page.
