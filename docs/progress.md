@@ -13,14 +13,14 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 4 | Visits and complaints | done | 4.6 |
 | 5 | Chat shell with a stub | done | 5.5 |
 | 6 | AI package | done | 6e |
-| 7 | Observability | in progress | 7.1 |
+| 7 | Observability | in progress | 7.2 |
 | 8 | Hardening and demo | not started | - |
 
 Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 7, step 7.2 (exposure) on branch `phase-7`.
+Phase 7, step 7.3 (Prometheus and Grafana) on branch `phase-7`.
 
 ## Needs confirmation
 
@@ -63,6 +63,9 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [6c] (user decision, 2026-11-16) torch and torchvision come from the CPU-only PyTorch index (`torch 2.15.0+cpu`), so no CUDA packages are installed and the backend image stays much smaller. The index is declared in the root `pyproject.toml` as `[[tool.uv.index]] pytorch-cpu` with `explicit = true`, and `[tool.uv.sources]` in `chatbot_ai` pins only those two packages to it; the dependency lines and the lockfile came from `uv add`.
 - [5.3] (user decision, 2026-11-16) When the first turn of a new chat stores nothing (stream error or client disconnect), the chat route deletes that `chat_session` row in its `finally`, inside a shielded cancel scope so it also runs on disconnect; a failed turn in an existing session keeps the session. The frontend then drops the session id and returns to /chat, so Retry or a resend starts a new session.
 - [5.3] (user decision, 2026-11-16) A chat message over 1000 characters returns 422 `validation_error`, not 429: waiting does not help, so it is validation, not a rate limit. api.md updated.
+- [7.2] nginx answers `/api/metrics` (prefix) with 404; Prometheus will scrape `backend:8000/metrics` on the Docker network. The backend's port 8000 is no longer published on the host, since that made /metrics public; the stack is reached through nginx on port 80.
+- [7.2] Bug fixed: the compose stack never ran migrations, so a fresh `docker compose up` had no tables (the smoke test only checked /health). The backend container now runs `alembic upgrade head` before uvicorn (one worker, H5), and the image carries `backend/alembic` and `scripts/` (create_admin, seed), copied after the heavy layers so script edits keep the cached dependencies and models.
+- [7.2] Stack test without real models: `docker-compose.stack-test.yml` adds a `fakeai` service (the backend image running `python -m testkit.fake_openai --auto --token-delay 0.3`, testkit mounted read-only) and points every AI role at it. The fake server's `--auto` mode answers the router with `other`, the rewrite with the question, and chat with a fixed sentence streamed word by word. `scripts/smoke_compose.sh` now uses the override and checks: /api/health, the index page, /api/metrics blocked (404), the internal scrape, then signs up through nginx and confirms a chat turn's tokens arrive spread over time (`scripts/stack_stream_check.py`, stdlib only so the CI smoke job needs no project environment). Result: 8 tokens between 0.51 s and 2.61 s.
 - [7.1] Metrics (all in `backend.metrics`, H2): `chat_turns_total{outcome=ok|error|cancelled}` recorded in the chat route's `finally` (a turn that neither stored nor failed was cancelled); `chat_turns_by_agent_total{agent}` (the package now puts the answering agent's name in `Done.agent`); histograms `chat_ttft_seconds`, `chat_llm_duration_seconds`, `chat_turn_duration_seconds`, `chat_chunk_gap_seconds` (gap between consecutive token `elapsed` values) and `chat_stage_duration_seconds{stage}` (stages with a zero time are skipped); `chat_tokens_total{kind=prompt|completion}`; `kb_ingest_total{outcome=ok|failed}`, `kb_ingest_duration_seconds` and the `kb_documents_processing` gauge (moved by the job runner); `rate_limit_rejections_total{limit=chat_minute|chat_daily|message_length|signup|login}`; `signups_total`; `card_actions_total{action=book|cancel|complaint, outcome=ok|conflict|rejected|error}` from a `yield` dependency on the three card endpoints. Model names are not a label because one turn spans several roles.
 - [7.1] Bug fixed: the HTTP metrics labelled routes from included routers with the raw path (ids included), because FastAPI 0.163 wraps included routers so the old route scan found no template. The middleware now reads `scope["route"].path_format` after routing, and unmatched URLs get the fixed label `unmatched` instead of their path (H4).
 - [6e] (user decision, 2026-11-16) Keep the Chat Completions API (ai.md); the chat role stays on gpt-5.5, because the gpt-6 sol and astra models reject function tools in Chat Completions.

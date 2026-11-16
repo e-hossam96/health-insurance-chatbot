@@ -28,11 +28,10 @@ services:
       retries: 10
 
   backend:
+    image: health-insurance-chatbot-backend:local
     build:
       context: .
       dockerfile: backend/Dockerfile
-    ports:
-      - "8000:8000"
     env_file:
       - path: .env
         required: false

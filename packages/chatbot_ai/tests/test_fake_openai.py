@@ -215,3 +215,19 @@ def test_hash_embedding_is_unit_length_and_stable() -> None:
     assert first == hash_embedding("Outpatient co-pay is 50 EGP", 64)
     assert sum(v * v for v in first) == pytest.approx(1.0)
     assert hash_embedding("", 8) == [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+
+@pytest.mark.anyio()
+async def test_auto_mode_answers_router_rewrite_and_chat_without_a_script(fake_openai: FakeOpenAI, openai_client: AsyncOpenAI) -> None:
+    fake_openai.auto = True
+    try:
+        router = await openai_client.chat.completions.create(
+            model="router",
+            messages=USER_MESSAGE,
+            response_format={"type": "json_schema", "json_schema": {"name": "intent", "schema": INTENT_SCHEMA, "strict": True}},
+        )
+        assert json.loads(router.choices[0].message.content or "") == {"intent": "other"}
+        chat = await openai_client.chat.completions.create(model="chat", messages=USER_MESSAGE)
+        assert chat.choices[0].message.content == "Streaming check: one two three four five six."
+    finally:
+        fake_openai.auto = False

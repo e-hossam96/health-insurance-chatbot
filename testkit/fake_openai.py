@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import argparse
+import asyncio
 import base64
 import json
 import struct
@@ -126,9 +128,25 @@ def _error(status: int, message: str) -> JSONResponse:
     return JSONResponse(status_code=status, content={"error": {"message": message, "type": "fake_error", "code": None}})
 
 
+AUTO_TEXT = "Streaming check: one two three four five six."
+
+
+def auto_reply(body: ChatCompletionBody) -> ChatReply:
+    response_format = body.response_format or {}
+    if response_format.get("type") == "json_schema":
+        schema_name = response_format["json_schema"].get("name")
+        if schema_name == "intent":
+            return json_reply({"intent": "other"})
+        last_user = next((str(m.get("content", "")) for m in reversed(body.messages) if m.get("role") == "user"), "")
+        return json_reply({"standalone": last_user, "alternates": []})
+    return text_reply(AUTO_TEXT)
+
+
 @dataclass
 class FakeOpenAI:
     embedding_dimensions: int = DEFAULT_DIMENSIONS
+    auto: bool = False
+    token_delay_s: float = 0.0
     requests: list[RecordedRequest] = field(default_factory=list)
     _default_queue: deque[ChatReply] = field(default_factory=deque)
     _model_queues: dict[str, deque[ChatReply]] = field(default_factory=dict)
@@ -240,6 +258,8 @@ class FakeOpenAI:
         async def chat_completions(body: ChatCompletionBody) -> JSONResponse | StreamingResponse:
             self._record("/v1/chat/completions", body)
             reply = self._next_reply(body.model)
+            if reply is None and self.auto:
+                reply = auto_reply(body)
             if reply is None:
                 return _error(500, f"no scripted reply left for model {body.model!r}")
             if reply.error_status is not None:
@@ -256,6 +276,8 @@ class FakeOpenAI:
                 async def body_iterator() -> AsyncIterator[str]:
                     for piece in stream:
                         yield piece
+                        if self.token_delay_s > 0:
+                            await asyncio.sleep(self.token_delay_s)
 
                 return StreamingResponse(body_iterator(), media_type="text/event-stream")
             message: JsonObject = {"role": "assistant", "content": content}
@@ -298,3 +320,21 @@ def run_fake_openai(embedding_dimensions: int = DEFAULT_DIMENSIONS) -> Iterator[
     with serve_in_thread(fake.build_app()) as url:
         fake.base_url = f"{url}/v1"
         yield fake
+
+
+def main() -> None:
+    import uvicorn
+
+    parser = argparse.ArgumentParser(description="Fake OpenAI-compatible server for stack tests")
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=9000)
+    parser.add_argument("--auto", action="store_true", help="answer every request with a default reply")
+    parser.add_argument("--token-delay", type=float, default=0.0, help="seconds between streamed pieces")
+    parser.add_argument("--embedding-dimensions", type=int, default=DEFAULT_DIMENSIONS)
+    args = parser.parse_args()
+    fake = FakeOpenAI(embedding_dimensions=args.embedding_dimensions, auto=args.auto, token_delay_s=args.token_delay)
+    uvicorn.run(fake.build_app(), host=args.host, port=args.port, log_level="warning")
+
+
+if __name__ == "__main__":
+    main()
