@@ -6,16 +6,17 @@ import uuid
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Query, Request, Response
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from backend.deps import Db, RequireAdmin, SettingsDep
+from backend.errors import api_error, not_found
 from backend.kb_jobs import KbJobRunner
 from backend.models import Account, KbDocument, KbDocumentStatus, KbFileType
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/admin/kb-documents", tags=["kb"])
+router = APIRouter(prefix="/kb-documents", tags=["kb"])
 
 CHUNK_BYTES = 64 * 1024
 ALLOWED_TYPES = {"pdf": KbFileType.pdf, "txt": KbFileType.txt, "docx": KbFileType.docx}
@@ -36,10 +37,6 @@ class KbDocumentList(BaseModel):
     items: list[KbDocumentOut]
     total: int
     max_upload_bytes: int
-
-
-def _error(code: str, message: str, status: int) -> HTTPException:
-    return HTTPException(status_code=status, detail={"error": {"code": code, "message": message}})
 
 
 def _out(document: KbDocument, username: str) -> KbDocumentOut:
@@ -73,7 +70,7 @@ async def _document_out(db: Db, document_id: int) -> KbDocumentOut:
         )
     ).one_or_none()
     if row is None:
-        raise _error("not_found", "Document not found.", 404)
+        raise not_found("Document not found.")
     return _out(row[0], row[1])
 
 
@@ -112,10 +109,10 @@ async def upload_document(
     extension = clean_name.rsplit(".", 1)[-1].lower() if "." in clean_name else ""
     file_type = ALLOWED_TYPES.get(extension)
     if file_type is None:
-        raise _error("unsupported_type", "Only pdf, txt and docx files are supported.", 415)
+        raise api_error("unsupported_type", "Only pdf, txt and docx files are supported.", 415)
 
     limit = settings.kb_max_upload_bytes
-    too_large = _error("file_too_large", f"The file is larger than {_size_label(limit)}.", 413)
+    too_large = api_error("file_too_large", f"The file is larger than {_size_label(limit)}.", 413)
     declared = request.headers.get("content-length")
     if declared is not None and declared.isdigit() and int(declared) > limit:
         raise too_large
@@ -139,13 +136,13 @@ async def upload_document(
         raise
     if size == 0:
         partial_path.unlink(missing_ok=True)
-        raise _error("validation_error", "The file is empty.", 422)
+        raise api_error("validation_error", "The file is empty.", 422)
 
     content_hash = digest.hexdigest()
     duplicate = (await db.execute(select(KbDocument.id).where(KbDocument.content_hash == content_hash))).scalar_one_or_none()
     if duplicate is not None:
         partial_path.unlink(missing_ok=True)
-        raise _error("duplicate_document", "This file was already uploaded.", 409)
+        raise api_error("duplicate_document", "This file was already uploaded.", 409)
 
     partial_path.replace(final_path)
     document = KbDocument(
@@ -171,7 +168,7 @@ async def upload_document(
 async def reindex_document(document_id: int, request: Request, db: Db, admin: RequireAdmin) -> KbDocumentOut:
     document = await db.get(KbDocument, document_id)
     if document is None:
-        raise _error("not_found", "Document not found.", 404)
+        raise not_found("Document not found.")
     if document.status in (KbDocumentStatus.ready, KbDocumentStatus.failed):
         document.status = KbDocumentStatus.uploaded
         document.error_message = None
@@ -184,14 +181,14 @@ async def reindex_document(document_id: int, request: Request, db: Db, admin: Re
 async def delete_kb_document(document_id: int, request: Request, db: Db, admin: RequireAdmin) -> Response:
     document = await db.get(KbDocument, document_id)
     if document is None:
-        raise _error("not_found", "Document not found.", 404)
+        raise not_found("Document not found.")
     runner = _runner(request)
     if runner.ai_settings is not None:
         try:
             await runner.delete_points(document_id, runner.ai_settings)
         except Exception as error:
             logger.warning("deleting the points of document %s failed", document_id, exc_info=True)
-            raise _error("kb_index_unavailable", "The search index is unavailable. The document was kept.", 503) from error
+            raise api_error("kb_index_unavailable", "The search index is unavailable. The document was kept.", 503) from error
     Path(document.storage_path).unlink(missing_ok=True)
     await db.delete(document)
     await db.commit()

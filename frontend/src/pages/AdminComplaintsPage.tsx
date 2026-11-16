@@ -1,4 +1,6 @@
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from 'react';
+import { Dialog } from '../components/Dialog';
+import { errorMessage } from '../api/client';
 import { Header } from '../components/Header';
 import { type AdminComplaint, getAdminComplaints, replyToComplaint, closeComplaint } from '../api/admin';
 
@@ -31,8 +33,7 @@ export function AdminComplaintsPage(): ReactNode {
       setReplyBody('');
       load();
     } catch (err: unknown) {
-      const apiErr = err as { error?: { message?: string } };
-      alert(apiErr.error?.message ?? 'Failed');
+      alert(errorMessage(err, 'Failed'));
     }
   }
 
@@ -42,8 +43,7 @@ export function AdminComplaintsPage(): ReactNode {
       await closeComplaint(id);
       load();
     } catch (err: unknown) {
-      const apiErr = err as { error?: { message?: string } };
-      alert(apiErr.error?.message ?? 'Failed');
+      alert(errorMessage(err, 'Failed'));
     }
   }
 
@@ -105,20 +105,15 @@ export function AdminComplaintsPage(): ReactNode {
           <button className="border rounded px-3 py-1 text-sm" disabled={offset + limit >= total} onClick={() => setOffset((o) => o + limit)}>Next</button>
         </div>
 
-        {replyTarget !== null && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setReplyTarget(null)}>
-            <div className="bg-white rounded-lg shadow-lg p-6 min-w-80" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold mb-4">Reply to Complaint #{replyTarget}</h3>
-              <form onSubmit={(e) => void handleReply(e)}>
-                <textarea className="border rounded w-full p-2 mb-2" rows={3} value={replyBody} onChange={(e) => setReplyBody(e.target.value)} data-testid="reply-body" required />
-                <div className="flex gap-2 justify-end">
-                  <button type="button" className="px-3 py-1 border rounded text-sm" onClick={() => setReplyTarget(null)}>Cancel</button>
-                  <button type="submit" className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm">Send</button>
-                </div>
-              </form>
+        <Dialog open={replyTarget !== null} title={`Reply to Complaint #${replyTarget ?? ''}`} onClose={() => setReplyTarget(null)}>
+          <form onSubmit={(e) => void handleReply(e)}>
+            <textarea className="border rounded w-full p-2 mb-2" rows={3} value={replyBody} onChange={(e) => setReplyBody(e.target.value)} data-testid="reply-body" required />
+            <div className="flex gap-2 justify-end">
+              <button type="button" className="px-3 py-1 border rounded text-sm" onClick={() => setReplyTarget(null)}>Cancel</button>
+              <button type="submit" className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm">Send</button>
             </div>
-          </div>
-        )}
+          </form>
+        </Dialog>
       </div>
     </div>
   );

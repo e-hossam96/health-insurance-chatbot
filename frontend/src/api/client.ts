@@ -19,3 +19,8 @@ export async function apiFetch<T>(
   }
   return res.json() as Promise<T>;
 }
+
+export function errorMessage(err: unknown, fallback: string): string {
+  const apiErr = err as { error?: { message?: string } };
+  return apiErr.error?.message ?? fallback;
+}

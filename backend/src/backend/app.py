@@ -14,13 +14,7 @@ from backend.database import create_engine
 from backend.json_only import json_only_middleware
 from backend.kb_jobs import IngestFunction, KbJobRunner
 from backend.metrics import prometheus_middleware
-from backend.routes.admin import router as admin_router
-from backend.routes.auth import router as auth_router
-from backend.routes.chat import router as chat_router
-from backend.routes.kb import router as kb_router
-from backend.routes.locations import router as locations_router
-from backend.routes.me import router as me_router
-from backend.routes.visits import router as visits_router
+from backend.routes import admin, auth, chat, complaints, locations, me, visits
 from chatbot_ai.clients import RoleClients
 from chatbot_ai.ingest import ensure_collection_once, ingest
 from chatbot_ai.settings import AISettings
@@ -78,13 +72,8 @@ def create_app(
 
     application.middleware("http")(json_only_middleware)
     application.middleware("http")(prometheus_middleware)
-    application.include_router(auth_router)
-    application.include_router(admin_router)
-    application.include_router(locations_router)
-    application.include_router(me_router)
-    application.include_router(chat_router)
-    application.include_router(visits_router)
-    application.include_router(kb_router)
+    for module in (auth, admin, locations, me, chat, visits, complaints):
+        application.include_router(module.router)
 
     @application.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:

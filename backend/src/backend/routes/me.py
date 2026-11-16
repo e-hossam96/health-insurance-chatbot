@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import distinct_on
 
 from backend.deps import CurrentSession, Db, RequireUserMode
+from backend.errors import api_error, not_found
 from backend.models import ChatMessage, ChatSession, Location, MessageRole, Profile
+from backend.ownership import find_owned_chat_session, find_profile
+
+SUBTITLE_MAX_CHARS = 40
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -22,98 +27,12 @@ class ProfileOut(BaseModel):
     location_name: str
 
 
-@router.post("/profile", status_code=201)
-async def create_profile(
-    body: ProfileCreate,
-    user: RequireUserMode,
-    session: CurrentSession,
-    db: Db,
-) -> ProfileOut:
-    existing = await db.execute(
-        select(Profile).where(Profile.account_id == session.account_id)
-    )
-    if existing.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=409,
-            detail={"error": {"code": "profile_exists", "message": "Profile already exists."}},
-        )
-
-    loc_result = await db.execute(
-        select(Location).where(Location.id == body.location_id)
-    )
-    location = loc_result.scalar_one_or_none()
-    if location is None:
-        raise HTTPException(
-            status_code=404,
-            detail={"error": {"code": "not_found", "message": "Location not found."}},
-        )
-
-    profile = Profile(
-        account_id=session.account_id,
-        name=body.name,
-        location_id=body.location_id,
-    )
-    db.add(profile)
-    await db.flush()
-    await db.commit()
-
-    return ProfileOut(
-        id=profile.id,
-        name=profile.name,
-        location_id=location.id,
-        location_name=location.name,
-    )
-
-
 class SessionOut(BaseModel):
     id: int
     intent: str | None
     created_at: str
     last_message_at: str
     first_user_message: str | None
-
-
-@router.get("/sessions")
-async def list_sessions(
-    user: RequireUserMode,
-    session: CurrentSession,
-    db: Db,
-) -> list[SessionOut]:
-    profile_result = await db.execute(
-        select(Profile).where(Profile.account_id == session.account_id)
-    )
-    profile = profile_result.scalar_one_or_none()
-    if profile is None:
-        return []
-
-    result = await db.execute(
-        select(ChatSession)
-        .where(ChatSession.profile_id == profile.id)
-        .order_by(ChatSession.last_message_at.desc())
-    )
-    sessions = list(result.scalars())
-
-    items: list[SessionOut] = []
-    for cs in sessions:
-        # Get first user message for subtitle
-        first_msg_result = await db.execute(
-            select(ChatMessage.content)
-            .where(
-                ChatMessage.session_id == cs.id,
-                ChatMessage.role == MessageRole.user,
-            )
-            .order_by(ChatMessage.id)
-            .limit(1)
-        )
-        first_msg = first_msg_result.scalar_one_or_none()
-        items.append(SessionOut(
-            id=cs.id,
-            intent=cs.intent,
-            created_at=cs.created_at.isoformat(),
-            last_message_at=cs.last_message_at.isoformat(),
-            first_user_message=first_msg[:40] if first_msg else None,
-        ))
-    return items
 
 
 class MessageOut(BaseModel):
@@ -123,6 +42,72 @@ class MessageOut(BaseModel):
     content: str
 
 
+def _is_transcript_row(message: ChatMessage) -> bool:
+    # F11: user rows and final assistant rows; tool calls and tool results stay hidden
+    if message.role == MessageRole.user:
+        return True
+    return message.role == MessageRole.assistant and bool(message.content) and not message.tool_calls
+
+
+@router.post("/profile", status_code=201)
+async def create_profile(
+    body: ProfileCreate,
+    user: RequireUserMode,
+    session: CurrentSession,
+    db: Db,
+) -> ProfileOut:
+    if await find_profile(db, session.account_id) is not None:
+        raise api_error("profile_exists", "Profile already exists.", 409)
+
+    location = await db.get(Location, body.location_id)
+    if location is None:
+        raise not_found("Location not found.")
+
+    profile = Profile(account_id=session.account_id, name=body.name, location_id=body.location_id)
+    db.add(profile)
+    await db.flush()
+    await db.commit()
+    return ProfileOut(id=profile.id, name=profile.name, location_id=location.id, location_name=location.name)
+
+
+@router.get("/sessions")
+async def list_sessions(
+    user: RequireUserMode,
+    session: CurrentSession,
+    db: Db,
+) -> list[SessionOut]:
+    profile = await find_profile(db, session.account_id)
+    if profile is None:
+        return []
+
+    sessions = list(
+        (
+            await db.execute(
+                select(ChatSession)
+                .where(ChatSession.profile_id == profile.id)
+                .order_by(ChatSession.last_message_at.desc())
+            )
+        ).scalars()
+    )
+    first_user_messages = await db.execute(
+        select(ChatMessage.session_id, ChatMessage.content)
+        .where(ChatMessage.session_id.in_([cs.id for cs in sessions]), ChatMessage.role == MessageRole.user)
+        .order_by(ChatMessage.session_id, ChatMessage.id)
+        .ext(distinct_on(ChatMessage.session_id))
+    )
+    subtitles = {session_id: content[:SUBTITLE_MAX_CHARS] for session_id, content in first_user_messages.all()}
+    return [
+        SessionOut(
+            id=cs.id,
+            intent=cs.intent,
+            created_at=cs.created_at.isoformat(),
+            last_message_at=cs.last_message_at.isoformat(),
+            first_user_message=subtitles.get(cs.id) or None,
+        )
+        for cs in sessions
+    ]
+
+
 @router.get("/sessions/{chat_session_id}/messages")
 async def list_messages(
     chat_session_id: int,
@@ -130,44 +115,15 @@ async def list_messages(
     session: CurrentSession,
     db: Db,
 ) -> list[MessageOut]:
-    profile_result = await db.execute(
-        select(Profile).where(Profile.account_id == session.account_id)
-    )
-    profile = profile_result.scalar_one_or_none()
-    if profile is None:
-        raise HTTPException(
-            status_code=404,
-            detail={"error": {"code": "not_found", "message": "Session not found."}},
-        )
-
-    cs_result = await db.execute(
-        select(ChatSession).where(
-            ChatSession.id == chat_session_id,
-            ChatSession.profile_id == profile.id,
-        )
-    )
-    if cs_result.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=404,
-            detail={"error": {"code": "not_found", "message": "Session not found."}},
-        )
+    profile = await find_profile(db, session.account_id)
+    if profile is None or await find_owned_chat_session(db, chat_session_id, profile.id) is None:
+        raise not_found("Session not found.")
 
     result = await db.execute(
-        select(ChatMessage)
-        .where(ChatMessage.session_id == chat_session_id)
-        .order_by(ChatMessage.id)
+        select(ChatMessage).where(ChatMessage.session_id == chat_session_id).order_by(ChatMessage.id)
     )
-    messages = list(result.scalars())
-
-    # F11: user rows + final assistant rows (non-empty content, no tool_calls)
-    filtered: list[MessageOut] = []
-    for m in messages:
-        if m.role == MessageRole.user:
-            filtered.append(MessageOut(
-                id=m.id, session_id=m.session_id, role="user", content=m.content,
-            ))
-        elif m.role == MessageRole.assistant and m.content and not m.tool_calls:
-            filtered.append(MessageOut(
-                id=m.id, session_id=m.session_id, role="assistant", content=m.content,
-            ))
-    return filtered
+    return [
+        MessageOut(id=m.id, session_id=m.session_id, role=m.role.value, content=m.content)
+        for m in result.scalars()
+        if _is_transcript_row(m)
+    ]

@@ -22,6 +22,7 @@ from backend.models import (
     Visit,
     VisitStatus,
 )
+from backend.queries import join_doctor_catalog
 from chatbot_ai.tools.models import (
     ClinicInfo,
     ComplaintInfo,
@@ -45,13 +46,10 @@ def _day_start(day: date) -> datetime:
 
 
 def _slot_card_query() -> Select[int, str, str, str, str, datetime]:
-    return (
-        select(Slot.id, Doctor.name, Specialty.name, Clinic.name, Location.name, Slot.start_at)
-        .join(Doctor, Doctor.id == Slot.doctor_id)
-        .join(ClinicSpecialty, ClinicSpecialty.id == Doctor.clinic_specialty_id)
-        .join(Clinic, Clinic.id == ClinicSpecialty.clinic_id)
-        .join(Specialty, Specialty.id == ClinicSpecialty.specialty_id)
-        .join(Location, Location.id == Clinic.location_id)
+    return join_doctor_catalog(
+        select(Slot.id, Doctor.name, Specialty.name, Clinic.name, Location.name, Slot.start_at).join(
+            Doctor, Doctor.id == Slot.doctor_id
+        )
     )
 
 
@@ -124,12 +122,8 @@ class SqlSchedulingPort:
         await self._require(Clinic, clinic_id, "clinic_id")
         await self._require(Location, location_id, "location_id")
         await self._require(Specialty, specialty_id, "specialty_id")
-        query = (
+        query = join_doctor_catalog(
             select(Doctor.id, Doctor.name, Specialty.id, Specialty.name, Clinic.id, Clinic.name, Location.name)
-            .join(ClinicSpecialty, ClinicSpecialty.id == Doctor.clinic_specialty_id)
-            .join(Clinic, Clinic.id == ClinicSpecialty.clinic_id)
-            .join(Specialty, Specialty.id == ClinicSpecialty.specialty_id)
-            .join(Location, Location.id == Clinic.location_id)
         )
         if clinic_id is not None:
             query = query.where(Clinic.id == clinic_id)

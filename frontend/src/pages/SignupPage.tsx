@@ -1,4 +1,5 @@
 import { Logo } from '../components/Logo';
+import { errorMessage } from '../api/client';
 import { type FormEvent, type ReactNode, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { signup } from '../api/auth';
@@ -36,8 +37,7 @@ export function SignupPage(): ReactNode {
       await refresh();
       navigate('/onboarding');
     } catch (err: unknown) {
-      const apiErr = err as { error?: { message?: string } };
-      setError(apiErr.error?.message ?? 'Something went wrong.');
+      setError(errorMessage(err, 'Something went wrong.'));
     } finally {
       setLoading(false);
     }

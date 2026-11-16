@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Annotated, Any, cast
 
 import anyio
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel
 from sqlalchemy import delete, select
@@ -21,6 +21,7 @@ from backend.deps import (
     RequireUserMode,
     SettingsDep,
 )
+from backend.errors import api_error, rate_limited
 from backend.metrics import (
     TurnOutcome,
     chat_chunk_gap_seconds,
@@ -29,13 +30,14 @@ from backend.metrics import (
     record_turn_outcome,
 )
 from backend.models import (
+    Account,
     AccountRole,
     ChatMessage,
     ChatSession,
     Location,
     MessageRole,
-    Profile,
 )
+from backend.ownership import require_owned_chat_session, require_profile
 from backend.rate_limit import chat_daily_limiter, chat_minute_limiter
 from chatbot_ai import run_turn
 from chatbot_ai.clients import RoleClients
@@ -55,13 +57,6 @@ from chatbot_ai.settings import AISettings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/me", tags=["chat"])
-
-
-def _error(code: str, message: str, status: int) -> HTTPException:
-    return HTTPException(
-        status_code=status,
-        detail={"error": {"code": code, "message": message}},
-    )
 
 
 class ChatRequest(BaseModel):
@@ -88,59 +83,17 @@ async def prepare_turn(
 ) -> PreparedTurn:
     if len(body.message) > settings.rate_limit_message_max_chars:
         record_rate_limit("message_length")
-        raise _error(
+        raise api_error(
             "validation_error",
             f"Message exceeds {settings.rate_limit_message_max_chars} characters.",
             422,
         )
 
-    profile_result = await db.execute(
-        select(Profile).where(Profile.account_id == session.account_id)
-    )
-    profile = profile_result.scalar_one_or_none()
-    if profile is None:
-        raise _error("no_profile", "Create a profile first.", 400)
-
-    user_key = str(profile.id)
-
-    retry = chat_minute_limiter.check(user_key, clock=clock)
-    if retry is not None:
-        record_rate_limit("chat_minute")
-        raise HTTPException(
-            status_code=429,
-            detail={"error": {"code": "rate_limited", "message": "Too many messages."}},
-            headers={"Retry-After": str(retry)},
-        )
-
-    if user.role != AccountRole.admin and chat_daily_limiter.check(user_key, clock=clock):
-        record_rate_limit("chat_daily")
-        raise HTTPException(
-            status_code=429,
-            detail={"error": {"code": "rate_limited", "message": "Daily message limit reached."}},
-        )
-
-    # F15: counted when the turn starts, so cancelled and failed turns count too
-    chat_minute_limiter.record(user_key, clock=clock)
-    if user.role != AccountRole.admin:
-        chat_daily_limiter.record(user_key, clock=clock)
-
-    chat_session: ChatSession
-    if body.session_id is None:
-        chat_session = ChatSession(profile_id=profile.id)
-        db.add(chat_session)
-        await db.flush()
-        needs_label = True
-    else:
-        cs_result = await db.execute(
-            select(ChatSession).where(ChatSession.id == body.session_id)
-        )
-        found = cs_result.scalar_one_or_none()
-        if found is None or found.profile_id != profile.id:
-            raise _error("not_found", "Session not found.", 404)
-        chat_session = found
-        needs_label = chat_session.intent is None
-
+    profile = await require_profile(db, session.account_id)
+    _enforce_chat_limits(user, str(profile.id), clock)
+    chat_session = await _open_chat_session(db, body.session_id, profile.id)
     session_id = chat_session.id
+    needs_label = chat_session.intent is None
     await db.commit()
 
     history_rows = await _load_history(db, session_id)
@@ -162,6 +115,31 @@ async def prepare_turn(
             session_id=session_id,
         ),
     )
+
+
+def _enforce_chat_limits(user: Account, user_key: str, clock: Clock) -> None:
+    has_daily_limit = user.role != AccountRole.admin
+    retry = chat_minute_limiter.check(user_key, clock=clock)
+    if retry is not None:
+        record_rate_limit("chat_minute")
+        raise rate_limited("Too many messages.", retry)
+    if has_daily_limit and chat_daily_limiter.check(user_key, clock=clock):
+        record_rate_limit("chat_daily")
+        raise rate_limited("Daily message limit reached.")
+
+    # F15: counted when the turn starts, so cancelled and failed turns count too
+    chat_minute_limiter.record(user_key, clock=clock)
+    if has_daily_limit:
+        chat_daily_limiter.record(user_key, clock=clock)
+
+
+async def _open_chat_session(db: AsyncSession, session_id: int | None, profile_id: int) -> ChatSession:
+    if session_id is not None:
+        return await require_owned_chat_session(db, session_id, profile_id)
+    chat_session = ChatSession(profile_id=profile_id)
+    db.add(chat_session)
+    await db.flush()
+    return chat_session
 
 
 class AINotConfigured(RuntimeError):
@@ -299,10 +277,7 @@ async def _store_turn(
         )
         db.add(msg)
 
-    cs_result = await db.execute(
-        select(ChatSession).where(ChatSession.id == session_id)
-    )
-    cs = cs_result.scalar_one()
+    cs = (await db.execute(select(ChatSession).where(ChatSession.id == session_id))).scalar_one()
     cs.last_message_at = clock.now()
 
     if needs_label and intent_code:

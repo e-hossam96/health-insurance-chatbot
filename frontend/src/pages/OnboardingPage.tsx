@@ -1,4 +1,5 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
+import { errorMessage } from '../api/client';
 import { useNavigate } from 'react-router';
 import { createProfile, getLocations, type LocationItem } from '../api/auth';
 import { useAuth } from '../api/AuthContext';
@@ -35,8 +36,7 @@ export function OnboardingPage(): ReactNode {
       await refresh();
       navigate('/chat');
     } catch (err: unknown) {
-      const apiErr = err as { error?: { message?: string } };
-      setError(apiErr.error?.message ?? 'Something went wrong.');
+      setError(errorMessage(err, 'Something went wrong.'));
     } finally {
       setLoading(false);
     }

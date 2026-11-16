@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
@@ -20,8 +20,10 @@ from backend.deps import (
     Db,
     SettingsDep,
 )
+from backend.errors import api_error, forbidden, rate_limited
 from backend.metrics import record_rate_limit, signups_total
-from backend.models import Account, AccountRole, Profile
+from backend.models import Account, AccountRole
+from backend.ownership import find_profile
 from backend.rate_limit import login_fail_limiter, signup_limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -60,25 +62,10 @@ def _set_cookie(response: Response, token: str, max_age: int) -> None:
     )
 
 
-def _error(code: str, message: str, status: int = 400) -> HTTPException:
-    return HTTPException(
-        status_code=status,
-        detail={"error": {"code": code, "message": message}},
-    )
-
-
-def _rate_limited(retry_after: int) -> HTTPException:
-    return HTTPException(
-        status_code=429,
-        detail={"error": {"code": "rate_limited", "message": "Too many requests."}},
-        headers={"Retry-After": str(retry_after)},
-    )
-
-
 def _require_json(request: Request) -> None:
     ct = request.headers.get("content-type", "")
     if "application/json" not in ct:
-        raise _error("validation_error", "Content-Type must be application/json.", 422)
+        raise api_error("validation_error", "Content-Type must be application/json.", 422)
 
 
 def _client_ip(request: Request) -> str:
@@ -104,14 +91,14 @@ async def signup(
     retry = signup_limiter.check(ip, clock=clock)
     if retry is not None:
         record_rate_limit("signup")
-        raise _rate_limited(retry)
+        raise rate_limited("Too many requests.", retry)
 
     existing = await db.execute(
         select(Account).where(func.lower(Account.username) == body.username.lower())
     )
     if existing.scalar_one_or_none() is not None:
         signup_limiter.record(ip, clock=clock)
-        raise _error("username_taken", "Username is already taken.", 409)
+        raise api_error("username_taken", "Username is already taken.", 409)
 
     password_hash = hash_password(body.password)
     account = Account(
@@ -149,7 +136,7 @@ async def login(
     retry = login_fail_limiter.check(login_key, clock=clock)
     if retry is not None:
         record_rate_limit("login")
-        raise _rate_limited(retry)
+        raise rate_limited("Too many requests.", retry)
 
     await purge_expired(db, clock=clock)
 
@@ -159,7 +146,7 @@ async def login(
     account = result.scalar_one_or_none()
     if account is None or not verify_password(account.password_hash, body.password):
         login_fail_limiter.record(login_key, clock=clock)
-        raise _error("invalid_credentials", "Invalid username or password.", 401)
+        raise api_error("invalid_credentials", "Invalid username or password.", 401)
 
     token = await create_session(
         db, account, settings.session_lifetime_days, clock=clock
@@ -193,10 +180,7 @@ async def me(
     account: CurrentAccount,
     db: Db,
 ) -> MeResponse:
-    result = await db.execute(
-        select(Profile).where(Profile.account_id == account.id)
-    )
-    has_profile = result.scalar_one_or_none() is not None
+    has_profile = await find_profile(db, account.id) is not None
 
     return MeResponse(
         username=account.username,
@@ -217,11 +201,11 @@ async def set_mode(
     _require_json(request)
 
     if body.mode not in ("admin", "user"):
-        raise _error("validation_error", "Mode must be 'admin' or 'user'.", 422)
+        raise api_error("validation_error", "Mode must be 'admin' or 'user'.", 422)
 
     mode = AccountRole(body.mode)
     if mode == AccountRole.admin and account.role != AccountRole.admin:
-        raise _error("forbidden", "Only admins can set admin mode.", 403)
+        raise forbidden("Only admins can set admin mode.")
 
     await set_active_mode(db, session, mode)
     await db.commit()

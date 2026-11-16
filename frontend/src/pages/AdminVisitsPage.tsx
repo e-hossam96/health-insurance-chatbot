@@ -1,4 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { errorMessage } from '../api/client';
 import { Header } from '../components/Header';
 import { type AdminVisit, getAdminVisits, completeVisit } from '../api/admin';
 
@@ -26,8 +27,7 @@ export function AdminVisitsPage(): ReactNode {
       await completeVisit(visitId);
       load();
     } catch (err: unknown) {
-      const apiErr = err as { error?: { message?: string } };
-      alert(apiErr.error?.message ?? 'Failed');
+      alert(errorMessage(err, 'Failed'));
     }
   }
 

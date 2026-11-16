@@ -1,4 +1,6 @@
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from 'react';
+import { Dialog } from '../components/Dialog';
+import { errorMessage } from '../api/client';
 import { Header } from '../components/Header';
 import * as api from '../api/admin';
 
@@ -72,8 +74,7 @@ export function AdminSlotsPage(): ReactNode {
       setShowAdd(false);
       loadSlots();
     } catch (err: unknown) {
-      const apiErr = err as { error?: { message?: string } };
-      setAddError(apiErr.error?.message ?? 'Failed to create slot');
+      setAddError(errorMessage(err, 'Failed to create slot'));
     }
   }
 
@@ -82,8 +83,7 @@ export function AdminSlotsPage(): ReactNode {
       await api.deleteSlot(slotId);
       loadSlots();
     } catch (err: unknown) {
-      const apiErr = err as { error?: { message?: string } };
-      alert(apiErr.error?.message ?? 'Cannot remove slot');
+      alert(errorMessage(err, 'Cannot remove slot'));
     }
   }
 
@@ -169,24 +169,19 @@ export function AdminSlotsPage(): ReactNode {
           </div>
         )}
 
-        {showAdd && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowAdd(false)}>
-            <div className="bg-white rounded-lg shadow-lg p-6 min-w-80" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold mb-4">Add Slot</h3>
-              <form onSubmit={(e) => void handleAddSlot(e)}>
-                <input type="date" className="border rounded w-full p-2 mb-2" value={addDate} onChange={(e) => setAddDate(e.target.value)} data-testid="slot-date-input" required />
-                <select className="border rounded w-full p-2 mb-2" value={addHour} onChange={(e) => setAddHour(Number(e.target.value))} data-testid="slot-hour-select">
-                  {HOURS.map((h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}
-                </select>
-                {addError && <p className="text-red-600 text-sm mb-2" data-testid="slot-form-error">{addError}</p>}
-                <div className="flex gap-2 justify-end">
-                  <button type="button" className="px-3 py-1 border rounded text-sm" onClick={() => setShowAdd(false)}>Cancel</button>
-                  <button type="submit" className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm">Add</button>
-                </div>
-              </form>
+        <Dialog open={showAdd} title="Add Slot" onClose={() => setShowAdd(false)}>
+          <form onSubmit={(e) => void handleAddSlot(e)}>
+            <input type="date" className="border rounded w-full p-2 mb-2" value={addDate} onChange={(e) => setAddDate(e.target.value)} data-testid="slot-date-input" required />
+            <select className="border rounded w-full p-2 mb-2" value={addHour} onChange={(e) => setAddHour(Number(e.target.value))} data-testid="slot-hour-select">
+              {HOURS.map((h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}
+            </select>
+            {addError && <p className="text-red-600 text-sm mb-2" data-testid="slot-form-error">{addError}</p>}
+            <div className="flex gap-2 justify-end">
+              <button type="button" className="px-3 py-1 border rounded text-sm" onClick={() => setShowAdd(false)}>Cancel</button>
+              <button type="submit" className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm">Add</button>
             </div>
-          </div>
-        )}
+          </form>
+        </Dialog>
       </div>
     </div>
   );
