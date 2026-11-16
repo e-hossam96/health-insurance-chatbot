@@ -8,6 +8,7 @@ from chatbot_ai.clients import RoleClients
 from chatbot_ai.intents import AgentName
 from chatbot_ai.interface import Cards, HistoryRow, Ports, Token, TurnRequest, Usage
 from chatbot_ai.settings import AISettings
+from chatbot_ai.tracing import TurnTracer
 
 Clock = Callable[[], float]
 
@@ -19,6 +20,7 @@ class AgentContext:
     settings: AISettings
     clients: RoleClients
     clock: Clock
+    tracer: TurnTracer
 
 
 @dataclass(frozen=True)

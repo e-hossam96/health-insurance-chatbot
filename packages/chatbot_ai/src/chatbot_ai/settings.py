@@ -100,6 +100,10 @@ class AISettings(BaseSettings):
 
     qdrant_url: str
 
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: SecretStr | None = None
+    langfuse_host: str | None = None
+
     def role(self, role: Role) -> RoleConfig:
         prefix = f"ai_{role.value}_"
         model: str | None = getattr(self, f"{prefix}model")

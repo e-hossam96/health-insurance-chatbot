@@ -52,16 +52,20 @@ class KnowledgeAgent:
             return [], stages
 
         started = clock()
-        dense = await embed_dense(context.clients.get(Role.embedding), queries, "query", settings)
-        sparse = embed_sparse(queries, "query")
+        embedder = context.clients.get(Role.embedding)
+        with context.tracer.stage("embed", "embedding", model=embedder.model):
+            dense = await embed_dense(embedder, queries, "query", settings)
+            sparse = embed_sparse(queries, "query")
         embedded = clock()
-        ranked_lists = [
-            await search_one(qdrant, collection, d, s, settings.ai_retrieval_mode, settings.ai_prefetch_k, ready)
-            for d, s in zip(dense, sparse, strict=True)
-        ]
-        candidates = dedupe(rrf_merge(ranked_lists, settings.ai_fused_k))
+        with context.tracer.stage("search", "retriever"):
+            ranked_lists = [
+                await search_one(qdrant, collection, d, s, settings.ai_retrieval_mode, settings.ai_prefetch_k, ready)
+                for d, s in zip(dense, sparse, strict=True)
+            ]
+            candidates = dedupe(rrf_merge(ranked_lists, settings.ai_fused_k))
         searched = clock()
-        reranked = await self._reranker_factory(settings).rerank(standalone, [c.content for c in candidates], settings.ai_context_k)
+        with context.tracer.stage("rerank"):
+            reranked = await self._reranker_factory(settings).rerank(standalone, [c.content for c in candidates], settings.ai_context_k)
         excerpts = [replace(candidates[r.index], rerank_score=r.score) for r in reranked]
         stages.update(embed=embedded - started, search=searched - embedded, rerank=clock() - searched)
         return excerpts, stages
@@ -71,9 +75,11 @@ class KnowledgeAgent:
         request = context.request
         clock = context.clock
         started = clock()
-        rewrite = await rewrite_question(
-            context.clients.get(Role.rewrite), request.history, request.message, settings.ai_query_count, settings.ai_rewrite_max_output_tokens
-        )
+        rewriter = context.clients.get(Role.rewrite)
+        with context.tracer.stage("rewrite", "generation", model=rewriter.model):
+            rewrite = await rewrite_question(
+                rewriter, request.history, request.message, settings.ai_query_count, settings.ai_rewrite_max_output_tokens
+            )
         rewritten = clock()
         excerpts, stages = await self._retrieve(context, rewrite.queries, rewrite.standalone)
         stages["rewrite"] = rewritten - started
@@ -111,13 +117,15 @@ class KnowledgeAgent:
             *to_openai_messages(request.history),
             {"role": "user", "content": request.message},
         ]
-        stream = await context.clients.get(Role.chat).stream(messages, max_tokens=settings.ai_chat_max_output_tokens)
+        chat = context.clients.get(Role.chat)
         reply: StreamedReply | None = None
-        async for item in stream_reply(stream, clock, generation_started):
-            if isinstance(item, Token):
-                yield item
-            else:
-                reply = item
+        with context.tracer.stage("generate", "generation", model=chat.model):
+            stream = await chat.stream(messages, max_tokens=settings.ai_chat_max_output_tokens)
+            async for item in stream_reply(stream, clock, generation_started):
+                if isinstance(item, Token):
+                    yield item
+                else:
+                    reply = item
         if reply is None:
             raise RuntimeError("the chat stream ended without a reply")
         finished = clock()

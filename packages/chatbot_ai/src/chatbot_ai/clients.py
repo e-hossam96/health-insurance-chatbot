@@ -14,6 +14,7 @@ from openai.types.shared_params import ResponseFormatJSONSchema
 from qdrant_client import AsyncQdrantClient
 
 from chatbot_ai.settings import AISettings, ReasoningEffort, Role, RoleConfig
+from chatbot_ai.tracing import TurnTracer, make_tracer
 
 
 @dataclass(frozen=True)
@@ -91,6 +92,15 @@ class RoleClients:
     settings: AISettings
     _clients: dict[Role, RoleClient] = field(default_factory=dict)
     _qdrant: AsyncQdrantClient | None = None
+    _tracer: TurnTracer | None = None
+
+    def tracer(self) -> TurnTracer:
+        if self._tracer is None:
+            secret = self.settings.langfuse_secret_key
+            self._tracer = make_tracer(
+                self.settings.langfuse_public_key, secret.get_secret_value() if secret else None, self.settings.langfuse_host
+            )
+        return self._tracer
 
     def qdrant(self) -> AsyncQdrantClient:
         if self._qdrant is None:
@@ -109,3 +119,5 @@ class RoleClients:
         if self._qdrant is not None:
             await self._qdrant.close()
             self._qdrant = None
+        if self._tracer is not None:
+            self._tracer.flush()

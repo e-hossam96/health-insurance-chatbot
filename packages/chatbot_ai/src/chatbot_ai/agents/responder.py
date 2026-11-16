@@ -28,13 +28,14 @@ class ResponderAgent:
     async def run(self, context: AgentContext) -> AsyncIterator[AgentEvent]:
         chat = context.clients.get(Role.chat)
         started = context.clock()
-        stream = await chat.stream(agent_messages(context, self.name), max_tokens=context.settings.ai_chat_max_output_tokens)
         reply: StreamedReply | None = None
-        async for item in stream_reply(stream, context.clock, started):
-            if isinstance(item, Token):
-                yield item
-            else:
-                reply = item
+        with context.tracer.stage("generate", "generation", model=chat.model):
+            stream = await chat.stream(agent_messages(context, self.name), max_tokens=context.settings.ai_chat_max_output_tokens)
+            async for item in stream_reply(stream, context.clock, started):
+                if isinstance(item, Token):
+                    yield item
+                else:
+                    reply = item
         finished = context.clock()
         if reply is None:
             raise RuntimeError("the chat stream ended without a reply")

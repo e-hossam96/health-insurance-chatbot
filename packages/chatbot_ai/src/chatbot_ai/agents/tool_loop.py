@@ -54,15 +54,16 @@ class ToolLoopAgent:
 
         for round_index in range(settings.ai_max_tool_rounds + 1):
             tools_offered = round_index < settings.ai_max_tool_rounds
-            stream = await chat.stream(
-                messages, max_tokens=settings.ai_chat_max_output_tokens, tools=definitions if tools_offered else omit
-            )
             reply: StreamedReply | None = None
-            async for item in stream_reply(stream, context.clock, started):
-                if isinstance(item, Token):
-                    yield item
-                else:
-                    reply = item
+            with context.tracer.stage("generate", "generation", model=chat.model):
+                stream = await chat.stream(
+                    messages, max_tokens=settings.ai_chat_max_output_tokens, tools=definitions if tools_offered else omit
+                )
+                async for item in stream_reply(stream, context.clock, started):
+                    if isinstance(item, Token):
+                        yield item
+                    else:
+                        reply = item
             if reply is None:
                 raise RuntimeError("the chat stream ended without a reply")
             usages.append(reply.usage)
@@ -79,7 +80,8 @@ class ToolLoopAgent:
             messages.append({"role": "assistant", "content": reply.text or None, "tool_calls": call_params})
             for call in reply.tool_calls:
                 tool_started = context.clock()
-                outcome = await self._run_tool(call, context.ports)
+                with context.tracer.stage(call.name, "tool"):
+                    outcome = await self._run_tool(call, context.ports)
                 tool_timings.append((call.name, context.clock() - tool_started))
                 rows.append(HistoryRow(role="tool", content=outcome.content, tool_call_id=call.id, tool_name=call.name))
                 messages.append({"role": "tool", "tool_call_id": call.id, "content": outcome.content})

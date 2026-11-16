@@ -56,46 +56,49 @@ async def run_turn(
     own_clients = clients is None
     role_clients = clients if clients is not None else RoleClients(settings)
     registry = agents if agents is not None else default_agents()
+    tracer = role_clients.tracer()
     try:
-        started = clock()
-        classification = await classify(
-            role_clients.get(Role.router), req.history, req.message, settings.ai_router_history_rows, settings.ai_router_max_output_tokens
-        )
-        classified = clock()
-        if req.needs_label and classification.intent is not None:
-            yield Intent(code=classification.intent.value)
+        with tracer.turn(req.session_id):
+            started = clock()
+            with tracer.stage("classify", "generation", model=role_clients.get(Role.router).model):
+                classification = await classify(
+                    role_clients.get(Role.router), req.history, req.message, settings.ai_router_history_rows, settings.ai_router_max_output_tokens
+                )
+            classified = clock()
+            if req.needs_label and classification.intent is not None:
+                yield Intent(code=classification.intent.value)
 
-        agent_name = agent_for(classification.intent)
-        agent = registry.get(agent_name)
-        if agent is None:
-            raise AgentNotAvailable(f"no {agent_name.value} agent is registered")
+            agent_name = agent_for(classification.intent)
+            agent = registry.get(agent_name)
+            if agent is None:
+                raise AgentNotAvailable(f"no {agent_name.value} agent is registered")
 
-        context = AgentContext(request=req, ports=ports, settings=settings, clients=role_clients, clock=clock)
-        result: AgentResult | None = None
-        async for event in agent.run(context):
-            if isinstance(event, AgentResult):
-                result = event
-            else:
-                yield event
-        if result is None:
-            raise RuntimeError(f"{agent_name.value} agent finished without a result")
+            context = AgentContext(request=req, ports=ports, settings=settings, clients=role_clients, clock=clock, tracer=tracer)
+            result: AgentResult | None = None
+            async for event in agent.run(context):
+                if isinstance(event, AgentResult):
+                    result = event
+                else:
+                    yield event
+            if result is None:
+                raise RuntimeError(f"{agent_name.value} agent finished without a result")
 
-        yield Done(
-            new_rows=[HistoryRow(role="user", content=req.message), *result.rows],
-            timings=Timings(
-                classify=classified - started,
-                rewrite=result.stages.get("rewrite", 0.0),
-                embed=result.stages.get("embed", 0.0),
-                search=result.stages.get("search", 0.0),
-                rerank=result.stages.get("rerank", 0.0),
-                ttft=result.ttft,
-                generate=result.generate,
-                total=clock() - started,
-                tool_calls=result.tool_calls,
-            ),
-            usage=_sum_usage(classification.usage, result.usage),
-            agent=agent_name.value,
-        )
+            yield Done(
+                new_rows=[HistoryRow(role="user", content=req.message), *result.rows],
+                timings=Timings(
+                    classify=classified - started,
+                    rewrite=result.stages.get("rewrite", 0.0),
+                    embed=result.stages.get("embed", 0.0),
+                    search=result.stages.get("search", 0.0),
+                    rerank=result.stages.get("rerank", 0.0),
+                    ttft=result.ttft,
+                    generate=result.generate,
+                    total=clock() - started,
+                    tool_calls=result.tool_calls,
+                ),
+                usage=_sum_usage(classification.usage, result.usage),
+                agent=agent_name.value,
+            )
     finally:
         if own_clients:
             await role_clients.aclose()
