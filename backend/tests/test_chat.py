@@ -317,8 +317,9 @@ async def test_F15_message_too_long(
 
     clock.advance(11)
     over = await user_client.post("/me/chat", json={"message": "x" * 1001})
-    assert over.status_code == 429
-    assert over.json()["detail"]["error"]["code"] == "rate_limited"
+    assert over.status_code == 422
+    assert over.json()["detail"]["error"] == {"code": "validation_error", "message": "Message exceeds 1000 characters."}
+    assert "Retry-After" not in over.headers
 
 
 @pytest.mark.anyio()

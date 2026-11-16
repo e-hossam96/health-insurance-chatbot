@@ -72,9 +72,9 @@ async def prepare_turn(
 ) -> PreparedTurn:
     if len(body.message) > settings.rate_limit_message_max_chars:
         raise _error(
-            "rate_limited",
+            "validation_error",
             f"Message exceeds {settings.rate_limit_message_max_chars} characters.",
-            429,
+            422,
         )
 
     profile_result = await db.execute(

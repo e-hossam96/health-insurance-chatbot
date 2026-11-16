@@ -22,7 +22,7 @@ Per-screen endpoint paths are in the `Calls:` lines of `wireframes.md` (sections
 | 409 | conflict | slot_taken, username_taken, duplicate_document, has_history, visit_not_cancellable, visit_not_completed, complaint_exists, complaint_closed |
 | 413 | file too large | file_too_large |
 | 415 | unsupported file type | unsupported_type |
-| 422 | validation | validation_error |
+| 422 | validation, including a chat message over the F15 length cap | validation_error |
 | 429 | rate limit (F15), with Retry-After | rate_limited |
 | 503 | a dependency is down; nothing was changed | kb_index_unavailable |
 
