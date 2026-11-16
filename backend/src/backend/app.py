@@ -18,6 +18,7 @@ from backend.routes.kb import router as kb_router
 from backend.routes.locations import router as locations_router
 from backend.routes.me import router as me_router
 from backend.routes.visits import router as visits_router
+from chatbot_ai.clients import RoleClients
 from chatbot_ai.ingest import ensure_collection_once, ingest
 from chatbot_ai.settings import AISettings
 
@@ -45,6 +46,7 @@ def create_app(
 
     engine, session_factory = create_engine(settings)
     kb_runner = KbJobRunner(session_factory, ai_settings, ingest_function)
+    role_clients = RoleClients(ai_settings) if ai_settings is not None else None
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
@@ -59,6 +61,8 @@ def create_app(
         await kb_runner.start()
         yield
         await kb_runner.stop()
+        if role_clients is not None:
+            await role_clients.aclose()
         await engine.dispose()
 
     application = FastAPI(title="Health Insurance Chatbot", lifespan=lifespan)
@@ -67,6 +71,7 @@ def create_app(
     application.state.engine = engine
     application.state.kb_runner = kb_runner
     application.state.ai_settings = ai_settings
+    application.state.role_clients = role_clients
 
     application.middleware("http")(prometheus_middleware)
     application.include_router(auth_router)

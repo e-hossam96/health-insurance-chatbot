@@ -9,8 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.auth import Clock, get_session, wall_clock
 from backend.config import Settings
 from backend.models import Account, AccountRole, AuthSession
-from chatbot_ai.interface import TurnRunner
-from chatbot_ai.stub import run_stub_turn
 
 
 async def get_db(request: Request) -> AsyncGenerator[AsyncSession]:
@@ -28,15 +26,9 @@ async def get_clock(request: Request) -> Clock:
     return clock
 
 
-async def get_turn_runner(request: Request) -> TurnRunner:
-    runner: TurnRunner = getattr(request.app.state, "turn_runner", run_stub_turn)
-    return runner
-
-
 Db = Annotated[AsyncSession, Depends(get_db)]
 SettingsDep = Annotated[Settings, Depends(get_settings_dep)]
 ClockDep = Annotated[Clock, Depends(get_clock)]
-TurnRunnerDep = Annotated[TurnRunner, Depends(get_turn_runner)]
 
 
 async def get_current_session(

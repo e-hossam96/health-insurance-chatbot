@@ -14,6 +14,7 @@ from sqlalchemy.engine import Engine
 from backend.app import create_app
 from backend.config import Settings
 from chatbot_ai.interface import Done, HistoryRow, Token, TurnEvent, TurnRequest
+from chatbot_ai.stub import run_stub_turn
 
 TEST_DB_URL = os.environ.get(
     "DATABASE_URL",
@@ -45,6 +46,7 @@ def app(_migrate_fresh: None, clock: FakeClock) -> object:
     settings = Settings(database_url=TEST_DB_URL)  # type: ignore[call-arg]
     application = create_app(settings)
     application.state.clock = clock  # type: ignore[union-attr]
+    application.state.turn_runner = run_stub_turn  # type: ignore[union-attr]
     return application
 
 

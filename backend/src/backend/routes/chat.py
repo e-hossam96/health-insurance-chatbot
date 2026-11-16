@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, AsyncIterator
 from dataclasses import dataclass
 from typing import Annotated, Any, cast
 
 import anyio
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.ai_ports import make_ports
 from backend.auth import Clock
 from backend.deps import (
     ClockDep,
@@ -19,16 +20,18 @@ from backend.deps import (
     Db,
     RequireUserMode,
     SettingsDep,
-    TurnRunnerDep,
 )
 from backend.models import (
     AccountRole,
     ChatMessage,
     ChatSession,
+    Location,
     MessageRole,
     Profile,
 )
 from backend.rate_limit import chat_daily_limiter, chat_minute_limiter
+from chatbot_ai import run_turn
+from chatbot_ai.clients import RoleClients
 from chatbot_ai.context import build_context, cap_stored_tool_result
 from chatbot_ai.interface import (
     Cards,
@@ -37,8 +40,11 @@ from chatbot_ai.interface import (
     Intent,
     ProfileInfo,
     Token,
+    TurnEvent,
     TurnRequest,
+    TurnRunner,
 )
+from chatbot_ai.settings import AISettings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/me", tags=["chat"])
@@ -59,6 +65,7 @@ class ChatRequest(BaseModel):
 @dataclass(frozen=True)
 class PreparedTurn:
     session_id: int
+    profile_id: int
     needs_label: bool
     created_session: bool
     request: TurnRequest
@@ -127,8 +134,10 @@ async def prepare_turn(
     await db.commit()
 
     history_rows = await _load_history(db, session_id)
+    location_name = (await db.execute(select(Location.name).where(Location.id == profile.location_id))).scalar_one()
     return PreparedTurn(
         session_id=session_id,
+        profile_id=profile.id,
         needs_label=needs_label,
         created_session=body.session_id is None,
         request=TurnRequest(
@@ -136,7 +145,7 @@ async def prepare_turn(
             message=body.message,
             profile=ProfileInfo(
                 display_name=profile.name,
-                location_name="",
+                location_name=location_name,
                 location_id=profile.location_id,
             ),
             needs_label=needs_label,
@@ -145,19 +154,45 @@ async def prepare_turn(
     )
 
 
+class AINotConfigured(RuntimeError):
+    pass
+
+
+async def _unconfigured_turn(request: TurnRequest) -> AsyncIterator[TurnEvent]:
+    raise AINotConfigured("AI settings are missing; set the model roles in the environment")
+    yield  # pragma: no cover
+
+
+def _turn_runner(http_request: Request, db: AsyncSession, clock: Clock, turn: PreparedTurn) -> TurnRunner:
+    override: TurnRunner | None = getattr(http_request.app.state, "turn_runner", None)
+    if override is not None:
+        return override
+    ai_settings: AISettings | None = http_request.app.state.ai_settings
+    clients: RoleClients | None = http_request.app.state.role_clients
+    if ai_settings is None or clients is None:
+        return _unconfigured_turn
+    ports = make_ports(db, turn.profile_id, turn.request.profile.location_id, clock)
+
+    def runner(request: TurnRequest) -> AsyncIterator[TurnEvent]:
+        return run_turn(request, ports, ai_settings, clients)
+
+    return runner
+
+
 @router.post("/chat", response_class=EventSourceResponse)
 async def chat(
+    http_request: Request,
     turn: Annotated[PreparedTurn, Depends(prepare_turn)],
     db: Db,
     clock: ClockDep,
-    run_turn: TurnRunnerDep,
 ) -> AsyncIterable[ServerSentEvent]:
+    run_turn_for = _turn_runner(http_request, db, clock, turn)
     yield ServerSentEvent(event="session", data={"session_id": turn.session_id})
 
     intent_code: str | None = None
     stored = False
     try:
-        async for event in run_turn(turn.request):
+        async for event in run_turn_for(turn.request):
             if isinstance(event, Intent):
                 intent_code = event.code
                 yield ServerSentEvent(event="intent", data={"intent": event.code})

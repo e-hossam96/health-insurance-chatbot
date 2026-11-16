@@ -12,7 +12,7 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 3 | Admin catalog and slots | done | 3.5 |
 | 4 | Visits and complaints | done | 4.6 |
 | 5 | Chat shell with a stub | done | 5.5 |
-| 6 | AI package | blocked (Gate 2) | 6d |
+| 6 | AI package | in progress | 6e |
 | 7 | Observability | not started | - |
 | 8 | Hardening and demo | not started | - |
 
@@ -20,7 +20,7 @@ Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Waiting at Gate 2: approve the eval datasets (`chatbot_ai/evals/datasets/*.jsonl`) and the synthetic KB fixtures (`chatbot_ai/evals/kb_fixtures/`). After that: step 6e (integration) on branch `phase-6`; its real-model smoke run waits for Gate 1.
+Phase 6 close-out: rule coverage for phase 6, `docker compose up` smoke test, independent review, then Gate 1 for the 6e real-model smoke run (API key, model names per role, embedding dimensions).
 
 ## Needs confirmation
 
@@ -63,6 +63,8 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [6c] (user decision, 2026-11-16) torch and torchvision come from the CPU-only PyTorch index (`torch 2.15.0+cpu`), so no CUDA packages are installed and the backend image stays much smaller. The index is declared in the root `pyproject.toml` as `[[tool.uv.index]] pytorch-cpu` with `explicit = true`, and `[tool.uv.sources]` in `chatbot_ai` pins only those two packages to it; the dependency lines and the lockfile came from `uv add`.
 - [5.3] (user decision, 2026-11-16) When the first turn of a new chat stores nothing (stream error or client disconnect), the chat route deletes that `chat_session` row in its `finally`, inside a shielded cancel scope so it also runs on disconnect; a failed turn in an existing session keeps the session. The frontend then drops the session id and returns to /chat, so Retry or a resend starts a new session.
 - [5.3] (user decision, 2026-11-16) A chat message over 1000 characters returns 422 `validation_error`, not 429: waiting does not help, so it is validation, not a rate limit. api.md updated.
+- [6e] The chat route runs the real `run_turn` with the SQL ports (bound to the acting profile and the injected clock), the app-wide `RoleClients` (closed at shutdown) and `AISettings`. `TurnRequest.profile.location_name` is now the profile's location name. `app.state.turn_runner` still overrides the runner, which the phase-5 chat tests use to keep running the stub; without AI settings a turn fails with the `error` event (and the empty new session is removed).
+- [6e] The walkthrough test (`backend/tests/test_walkthrough.py`) runs on the fake server with real Postgres and Qdrant: a booking turn with two tool rounds and doctor cards carrying the seeded slot ids, the card click (POST /me/visits), then a knowledge question answered from a ready KB document with the synthetic `search_kb` rows. It checks the SSE events, the stored rows, the label, the history the agent receives (I4), and the F11 transcript.
 - [6d] The knowledge agent runs rewrite, then embed (all queries in one call, dense plus BM25), one Qdrant search per query, RRF merge (k = 60) to `AI_FUSED_K`, dedupe by point id and then by `content_hash`, rerank to `AI_CONTEXT_K`, grounding, and answer (I6, I7). Each search filters on the ready document ids from a new `KnowledgePort.ready_document_ids()` (G8), because a document's points can exist while it is 'processing' or before a re-index has cleared them. `Ports` now has `scheduling`, `complaints` and `knowledge`.
 - [6d] `AI_RETRIEVAL_MODE` dense or sparse queries a single named vector; hybrid sends both prefetches and fuses server-side with RRF (I13). With `AI_QUERY_COUNT=1` the rewrite schema has no `alternates`. A rewrite failure searches with the raw message.
 - [6d] Grounding (I8): no ready documents, no collection, no candidates, or a best rerank score below `AI_RERANK_MIN_SCORE` gives "I couldn't find that in the documents." with no chat call. With the passthrough reranker the scores are None, so the threshold never applies, as ai.md says.
