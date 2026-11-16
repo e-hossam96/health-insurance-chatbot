@@ -2,6 +2,11 @@
 set -euo pipefail
 
 COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.stack-test.yml)
+PYTHON="$(command -v python3 || command -v python)"
+export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-smoke-$(date +%s)}"
+
+echo "Validating the Prometheus config with promtool..."
+MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W 2>/dev/null || pwd)/observability:/config:ro" --entrypoint promtool prom/prometheus:v3.0.1 check config /config/prometheus.yml
 
 cleanup() {
     echo "Tearing down..."
@@ -47,6 +52,9 @@ echo "Seeding a location and an admin..."
 "${COMPOSE[@]}" exec -T backend sh -c 'python scripts/create_admin.py --database-url "$DATABASE_URL" --username "smoke-admin-$(date +%s)" --password adminpass1 --name "Admin One" --location Cairo'
 
 echo "Testing a streamed chat turn through nginx..."
-"$(command -v python3 || command -v python)" scripts/stack_stream_check.py
+"$PYTHON" scripts/stack_stream_check.py
+
+echo "Testing Prometheus targets and Grafana dashboards..."
+"$PYTHON" scripts/stack_observability_check.py
 
 echo "All smoke tests passed."
