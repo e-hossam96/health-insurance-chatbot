@@ -39,6 +39,13 @@ if [ "$status" != "404" ]; then
     echo "FAIL: /api/metrics returned $status through nginx, expected 404"
     exit 1
 fi
+for variant in "/api/metrics/" "/api/metrics?format=text"; do
+    status=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost${variant}")
+    if [ "$status" != "404" ]; then
+        echo "FAIL: ${variant} returned $status through nginx, expected 404"
+        exit 1
+    fi
+done
 echo "OK: /api/metrics is blocked through nginx"
 
 echo "Testing the internal scrape of /metrics..."

@@ -86,10 +86,6 @@ def create_app(
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    @application.get("/items/{item_id}")
-    async def get_item(item_id: int) -> dict[str, int]:
-        return {"item_id": item_id}
-
     return application
 
 

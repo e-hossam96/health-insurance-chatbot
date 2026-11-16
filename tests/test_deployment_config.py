@@ -13,8 +13,11 @@ SERVICES: dict[str, dict[str, object]] = COMPOSE["services"]
 def test_H5_the_backend_runs_one_uvicorn_worker() -> None:
     dockerfile = (ROOT / "backend" / "Dockerfile").read_text(encoding="utf-8")
     command = next(line for line in dockerfile.splitlines() if line.startswith("CMD"))
-    assert "uvicorn" in command and "--workers 1" in command
+    assert "uvicorn" in command and re.search(r"--workers\s+1(?!\d)", command)
     assert "command" not in SERVICES["backend"], "compose must not override the single-worker command"
+    backend_env = SERVICES["backend"].get("environment", {})
+    assert isinstance(backend_env, dict) and "PROMETHEUS_MULTIPROC_DIR" not in backend_env
+    assert "PROMETHEUS_MULTIPROC_DIR" not in dockerfile, "prometheus_client stays in its default single-process mode"
 
 
 def test_H6_nginx_hides_metrics_and_proxies_the_api() -> None:

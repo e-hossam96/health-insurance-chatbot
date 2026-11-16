@@ -7,10 +7,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY pyproject.toml uv.lock ./
 COPY backend/pyproject.toml backend/pyproject.toml
 COPY packages/chatbot_ai/pyproject.toml packages/chatbot_ai/pyproject.toml
-COPY backend/src backend/src
-COPY packages/chatbot_ai/src packages/chatbot_ai/src
-
-RUN uv sync --frozen --no-dev --package backend
+RUN uv sync --frozen --no-dev --package backend --no-install-workspace
 
 ENV PATH="/app/.venv/bin:$PATH" \
     HF_HOME=/app/models/hf \
@@ -19,6 +16,10 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 RUN docling-tools models download layout tableformer \
     && python -c "from fastembed import SparseTextEmbedding; SparseTextEmbedding('Qdrant/bm25')"
+
+COPY backend/src backend/src
+COPY packages/chatbot_ai/src packages/chatbot_ai/src
+RUN uv sync --frozen --no-dev --package backend
 
 COPY backend/alembic backend/alembic
 COPY backend/alembic.ini backend/alembic.ini

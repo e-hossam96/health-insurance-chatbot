@@ -6,13 +6,16 @@ import os
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+from pathlib import Path
 
 PROMETHEUS = "http://127.0.0.1:9090"
 GRAFANA = "http://127.0.0.1:3000"
 EXPECTED_JOBS = {"backend", "qdrant", "postgres"}
 EXPECTED_DASHBOARDS = {"api-health", "chat-llm", "kb-ingestion", "demo-overview"}
 TARGET_DEADLINE_S = 120.0
+DASHBOARDS = Path(__file__).resolve().parent.parent / "observability" / "grafana" / "dashboards"
 
 
 def _get(url: str, headers: dict[str, str] | None = None) -> object:
@@ -52,15 +55,39 @@ def main() -> int:
         raise SystemExit(f"FAIL: Grafana dashboards {sorted(uids)}, expected {sorted(EXPECTED_DASHBOARDS)}")
     print(f"OK: Grafana lists the dashboards {sorted(EXPECTED_DASHBOARDS)}")
 
-    try:
-        _get(f"{GRAFANA}/api/search?type=dash-db")
-    except urllib.error.HTTPError as error:
-        if error.code != 401:
-            raise
-        print("OK: Grafana refuses anonymous access")
-    else:
-        raise SystemExit("FAIL: Grafana answered without a login")
+    default_login = base64.b64encode(b"admin:admin").decode()
+    for label, headers in (("anonymous access", {}), ("the default admin:admin login", {"Authorization": f"Basic {default_login}"})):
+        try:
+            _get(f"{GRAFANA}/api/search?type=dash-db", headers)
+        except urllib.error.HTTPError as error:
+            if error.code != 401:
+                raise
+            print(f"OK: Grafana refuses {label}")
+        else:
+            raise SystemExit(f"FAIL: Grafana accepted {label}")
+
+    give_up = time.monotonic() + TARGET_DEADLINE_S
+    while not all(_has_series(name) for name in ("chat_turns_total", "signups_total")):
+        if time.monotonic() > give_up:
+            raise SystemExit("FAIL: Prometheus has no chat_turns_total or signups_total series from the backend")
+        time.sleep(3)
+    print("OK: Prometheus ingested the backend's chat and sign-up series")
+
+    for path in sorted(DASHBOARDS.glob("*.json")):
+        for panel in json.loads(path.read_text(encoding="utf-8"))["panels"]:
+            for target in panel["targets"]:
+                result = _get(f"{PROMETHEUS}/api/v1/query?" + urllib.parse.urlencode({"query": target["expr"]}))
+                assert isinstance(result, dict)
+                if result.get("status") != "success":
+                    raise SystemExit(f"FAIL: {path.name} panel {panel['title']!r} query failed: {result}")
+    print("OK: every dashboard query runs on Prometheus")
     return 0
+
+
+def _has_series(name: str) -> bool:
+    result = _get(f"{PROMETHEUS}/api/v1/query?" + urllib.parse.urlencode({"query": name}))
+    assert isinstance(result, dict)
+    return bool(result["data"]["result"])
 
 
 if __name__ == "__main__":

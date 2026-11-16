@@ -50,6 +50,7 @@ def test_H1_prometheus_scrapes_backend_qdrant_and_postgres_every_15_s() -> None:
     jobs = {job["job_name"]: job["static_configs"][0]["targets"] for job in config["scrape_configs"]}
     assert jobs == {"backend": ["backend:8000"], "qdrant": ["qdrant:6333"], "postgres": ["postgres-exporter:9187"]}
     assert "rule_files" not in config and "alerting" not in config
+    assert all("scrape_interval" not in job for job in config["scrape_configs"]), "every job keeps the 15 s interval"
 
 
 def test_H7_grafana_provisions_the_prometheus_datasource_and_the_dashboard_folder() -> None:
@@ -63,3 +64,32 @@ def test_H7_grafana_provisions_the_prometheus_datasource_and_the_dashboard_folde
 def test_H9_there_are_no_alert_rules() -> None:
     assert not list(OBSERVABILITY.rglob("*alert*"))
     assert not list(OBSERVABILITY.rglob("*rules*"))
+    for content in render_all().values():
+        assert all("alert" not in panel for panel in json.loads(content)["panels"])
+
+
+REQUIRED_QUERIES = {
+    "api-health": ("http_requests_total[", 'status=~"5..', "http_request_duration_seconds_bucket", "rate_limit_rejections_total"),
+    "chat-llm": (
+        "chat_turns_total",
+        "chat_turns_by_agent_total",
+        "chat_ttft_seconds_bucket",
+        "chat_llm_duration_seconds_bucket",
+        "chat_stage_duration_seconds_bucket",
+        "chat_chunk_gap_seconds_bucket",
+        "chat_tokens_total",
+    ),
+    "kb-ingestion": ("kb_documents_processing", "kb_ingest_total", "kb_ingest_duration_seconds_bucket"),
+    "demo-overview": ("signups_total", 'action="book",outcome="ok"', 'action="cancel",outcome="ok"', 'action="complaint",outcome="ok"', "chat_turns_total"),
+}
+LABEL_VALUES = {"action": {"book", "cancel", "complaint"}, "outcome": {"ok", "error", "cancelled", "failed", "conflict", "rejected"}, "job": {"qdrant", "backend", "postgres"}}
+
+
+def test_H8_each_dashboard_shows_what_it_is_for_with_real_label_values() -> None:
+    for uid, required in REQUIRED_QUERIES.items():
+        exprs = " ".join(t["expr"] for p in json.loads(render_all()[f"{uid}.json"])["panels"] for t in p["targets"])
+        for fragment in required:
+            assert fragment in exprs, f"{uid} is missing {fragment!r}"
+        for key, value in re.findall(r'(\w+)="([^"]*)"', exprs):
+            if key in LABEL_VALUES:
+                assert value in LABEL_VALUES[key], f"{uid}: {key}={value!r} is not a real label value"

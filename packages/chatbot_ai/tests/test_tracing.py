@@ -76,7 +76,31 @@ def test_F7_the_langfuse_session_id_is_chat_dash_the_session_id() -> None:
 def test_F7_tracing_is_off_without_keys() -> None:
     assert isinstance(make_tracer(None, None, None), NoopTracer)
     assert isinstance(make_tracer("pk", None, "http://x"), NoopTracer)
+    assert isinstance(make_tracer(None, "sk", "http://x"), NoopTracer)
     assert isinstance(RoleClients(settings_for("http://x/v1")).tracer(), NoopTracer)
+
+
+def test_F7_the_tracer_is_built_from_the_langfuse_settings() -> None:
+    settings = settings_for("http://x/v1", langfuse_public_key=f"pk-{uuid.uuid4().hex}", langfuse_secret_key="sk", langfuse_host="http://127.0.0.1:9")
+    clients = RoleClients(settings)
+    assert isinstance(clients.tracer(), LangfuseTracer)
+    assert clients.tracer() is clients.tracer()
+
+
+@pytest.mark.anyio()
+async def test_F7_a_turn_without_keys_creates_no_spans(fake_openai: FakeOpenAI, exporter: InMemorySpanExporter) -> None:
+    settings = settings_for(fake_openai.base_url)
+    fake_openai.queue(json_reply({"intent": "other"}), model="router-model")
+    fake_openai.queue(text_reply("hi"), model="chat-model")
+    fakes = make_fake_ports(sample_catalog(), 10, 1, datetime(2026, 12, 1, tzinfo=UTC))
+    clients = RoleClients(settings)
+    try:
+        request = TurnRequest(history=[], message="hi", profile=PROFILE, needs_label=False, session_id=1)
+        [e async for e in run_turn(request, fakes.as_ports(), settings, clients)]
+        assert isinstance(clients.tracer(), NoopTracer)
+    finally:
+        await clients.aclose()
+    assert list(exporter.get_finished_spans()) == []
 
 
 @pytest.mark.anyio()
@@ -127,3 +151,8 @@ async def test_F7_a_knowledge_turn_has_spans_for_every_pipeline_stage(
     names = {span.name for span in spans}
     assert {"chat turn", "classify", "rewrite", "embed", "search", "rerank", "generate"} <= names
     assert _session_ids(spans) == {"chat-8"}
+    assert len({span.context.trace_id for span in spans if span.context}) == 1
+    root = next(span for span in spans if span.name == "chat turn")
+    assert root.context is not None
+    stage_spans = [span for span in spans if span.name in {"classify", "rewrite", "embed", "search", "rerank", "generate"}]
+    assert all(span.parent is not None and span.parent.trace_id == root.context.trace_id for span in stage_spans)

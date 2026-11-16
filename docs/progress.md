@@ -13,14 +13,14 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 4 | Visits and complaints | done | 4.6 |
 | 5 | Chat shell with a stub | done | 5.5 |
 | 6 | AI package | done | 6e |
-| 7 | Observability | in progress | 7.4 |
+| 7 | Observability | done | 7.4 |
 | 8 | Hardening and demo | not started | - |
 
 Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 7 close-out: rule coverage for phase 7, compose smoke test, independent review, then merge into `main` and phase 8.
+Phase 8, step 8.1 (end to end) on branch `phase-8`.
 
 ## Needs confirmation
 
@@ -63,6 +63,9 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [6c] (user decision, 2026-11-16) torch and torchvision come from the CPU-only PyTorch index (`torch 2.15.0+cpu`), so no CUDA packages are installed and the backend image stays much smaller. The index is declared in the root `pyproject.toml` as `[[tool.uv.index]] pytorch-cpu` with `explicit = true`, and `[tool.uv.sources]` in `chatbot_ai` pins only those two packages to it; the dependency lines and the lockfile came from `uv add`.
 - [5.3] (user decision, 2026-11-16) When the first turn of a new chat stores nothing (stream error or client disconnect), the chat route deletes that `chat_session` row in its `finally`, inside a shielded cancel scope so it also runs on disconnect; a failed turn in an existing session keeps the session. The frontend then drops the session id and returns to /chat, so Retry or a resend starts a new session.
 - [5.3] (user decision, 2026-11-16) A chat message over 1000 characters returns 422 `validation_error`, not 429: waiting does not help, so it is validation, not a rate limit. api.md updated.
+- [7 review] Independent review findings fixed: F7 traced through `/me/chat` with the chat session id, two turns giving two traces, the knowledge turn as one trace with its stages under the root, the tracer built from the LANGFUSE settings and no spans without keys; H2 asserted by a dependency and import scan of `chatbot_ai` plus a subprocess check that importing it does not load `prometheus_client`; H3 every stage and agent with exact `_sum` values from fixed timings, HTTP status and latency by route template, the chat_daily, signup and login limits, cancel, complaint and rejected card actions, and failed ingestion; H4 unmatched URLs share one `unmatched` label and the label check runs a card action and an ingestion itself; H5 an exact `--workers 1` match and no multiprocess directory; H8 a required-query map per dashboard with real label values, plus every panel query run on the live Prometheus and the backend's series present there; H6 also probes `/api/metrics/` and `/api/metrics?…` and checks that Grafana refuses `admin:admin`; H1 no per-job scrape interval; H9 no alert keys in the dashboards.
+- [7 review] Removed the leftover scaffold route `/items/{item_id}` from the app; the old metrics test used it and cleared the global registry, which could corrupt other tests' deltas.
+- [7 review] The backend image installs third-party dependencies (`uv sync --no-install-workspace`) and downloads the models before copying the source, so a code change rebuilds in seconds instead of reinstalling everything.
 - [7.4] Added `langfuse` (5.2, in the stack) to `chatbot_ai`. `chatbot_ai.tracing` has a `TurnTracer` protocol with a no-op tracer (used when `LANGFUSE_PUBLIC_KEY` or `LANGFUSE_SECRET_KEY` is missing) and a Langfuse tracer. `RoleClients.tracer()` creates one per process and flushes it on close. Each turn is one trace named "chat turn" with `session_id = "chat-<id>"` propagated to every span (F7); spans: classify (generation, router model), generate (generation, chat model, one per tool round), one tool span per tool call, and for knowledge turns rewrite, embed, search, rerank. The SDK is imported only when tracing is on.
 - [7.4] Tests use the SDK with OpenTelemetry's `InMemorySpanExporter` as its `span_exporter` (a local exporter, no network): one trace per turn, the expected span names, the root span as parent, and the session id on the spans.
 - [7.3] Compose adds `prometheus` (prom/prometheus v3.0.1, `--storage.tsdb.retention.time=15d`, `prometheus_data` volume), `postgres-exporter` (quay.io/prometheuscommunity/postgres-exporter v0.16.0) and `grafana` (grafana/grafana 11.4.0, admin password from `GRAFANA_ADMIN_PASSWORD`, which compose requires; sign-up and anonymous access off). Prometheus and Grafana publish on 127.0.0.1 only, so they are reached through an SSH tunnel (H6). Image versions are pinned older releases known to exist. A random local `GRAFANA_ADMIN_PASSWORD` was added to `.env`; `.env.example` lists the variable.
