@@ -78,6 +78,23 @@ def main() -> int:
     if spread < TOKEN_DELAY_S * (len(arrivals) - 2):
         raise SystemExit(f"FAIL: tokens arrived together ({spread:.2f}s spread); nginx is buffering the stream")
     print("OK: tokens streamed through nginx one by one")
+
+    victim = f"victim{uuid.uuid4().hex[:8]}"
+    _request("POST", "/api/auth/signup", {"username": victim, "password": "victimpass1"}, None)
+    statuses = []
+    for attempt in range(11):
+        connection = http.client.HTTPConnection(HOST, PORT, timeout=30)
+        connection.request(
+            "POST",
+            "/api/auth/login",
+            body=json.dumps({"username": victim, "password": "wrong-password"}),
+            headers={"Content-Type": "application/json", "X-Forwarded-For": f"203.0.113.{attempt}"},
+        )
+        statuses.append(connection.getresponse().status)
+        connection.close()
+    if statuses[-1] != 429:
+        raise SystemExit(f"FAIL: spoofed X-Forwarded-For headers escaped the login limit: {statuses}")
+    print("OK: a spoofed X-Forwarded-For header does not escape the login rate limit")
     return 0
 
 
