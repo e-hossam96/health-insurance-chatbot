@@ -21,8 +21,9 @@ vi.mock('../api/admin', () => ({
     items: [
       { id: 1, visit_id: 2, description: 'Bad service', status: 'open' },
       { id: 2, visit_id: 3, description: 'Rude doctor', status: 'closed' },
+      { id: 3, visit_id: 4, description: '<img src=x onerror="window.__xss=1"><script>window.__xss=2</script>', status: 'closed' },
     ],
-    total: 2,
+    total: 3,
   }),
   replyToComplaint: vi.fn(),
   closeComplaint: vi.fn(),
@@ -38,7 +39,7 @@ describe('AdminComplaintsPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('admin-complaints-table')).toBeTruthy();
       const badges = screen.getAllByTestId('complaint-status-badge');
-      expect(badges.length).toBe(2);
+      expect(badges.length).toBe(3);
     });
   });
 
@@ -51,5 +52,17 @@ describe('AdminComplaintsPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('reply-btn')).toBeTruthy();
     });
+  });
+
+  it('F17: a complaint written by a user is shown as text, never as HTML', async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <AdminComplaintsPage />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText(/onerror/)).toBeTruthy());
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('script')).toBeNull();
+    expect((window as unknown as { __xss?: number }).__xss).toBeUndefined();
   });
 });

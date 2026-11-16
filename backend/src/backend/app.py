@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from backend.auth import purge_expired
 from backend.config import Settings
 from backend.database import create_engine
+from backend.json_only import json_only_middleware
 from backend.kb_jobs import IngestFunction, KbJobRunner
 from backend.metrics import prometheus_middleware
 from backend.routes.admin import router as admin_router
@@ -73,6 +74,7 @@ def create_app(
     application.state.ai_settings = ai_settings
     application.state.role_clients = role_clients
 
+    application.middleware("http")(json_only_middleware)
     application.middleware("http")(prometheus_middleware)
     application.include_router(auth_router)
     application.include_router(admin_router)

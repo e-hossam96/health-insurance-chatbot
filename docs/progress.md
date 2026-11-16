@@ -14,18 +14,19 @@ State file for Claude Code. Read it at the start of every session and update it 
 | 5 | Chat shell with a stub | done | 5.5 |
 | 6 | AI package | done | 6e |
 | 7 | Observability | done | 7.4 |
-| 8 | Hardening and demo | in progress | 8.1 |
+| 8 | Hardening and demo | in progress | 8.2 |
 
 Status values: not started, in progress, done, blocked (say why below).
 
 ## Next step
 
-Phase 8, step 8.2 (security pass) on branch `phase-8`.
+Phase 8, step 8.3 (evals) waits for Gate 4 (paid eval run); continuing with 8.4 (docs and demo) meanwhile.
 
 ## Needs confirmation
 
 Questions for the user that do not block the current step. Format: `- [phase.step] question (options, your recommendation)`.
 
+- [8.2] B10 says state-changing routes accept JSON only. The KB upload (POST /admin/kb-documents) takes the raw file body so the size limit can be enforced while streaming (G2); a file upload cannot be JSON, and multipart would not be either. Options: add this one exception to B10 in rules.md (recommended; it is admin-only and SameSite=Lax already blocks cross-site posts), or change the upload to base64 JSON (larger bodies, no streaming check). Current code keeps the exception.
 
 ## Gates
 
@@ -63,6 +64,8 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [6c] (user decision, 2026-11-16) torch and torchvision come from the CPU-only PyTorch index (`torch 2.15.0+cpu`), so no CUDA packages are installed and the backend image stays much smaller. The index is declared in the root `pyproject.toml` as `[[tool.uv.index]] pytorch-cpu` with `explicit = true`, and `[tool.uv.sources]` in `chatbot_ai` pins only those two packages to it; the dependency lines and the lockfile came from `uv add`.
 - [5.3] (user decision, 2026-11-16) When the first turn of a new chat stores nothing (stream error or client disconnect), the chat route deletes that `chat_session` row in its `finally`, inside a shielded cancel scope so it also runs on disconnect; a failed turn in an existing session keeps the session. The frontend then drops the session id and returns to /chat, so Retry or a resend starts a new session.
 - [5.3] (user decision, 2026-11-16) A chat message over 1000 characters returns 422 `validation_error`, not 429: waiting does not help, so it is validation, not a rate limit. api.md updated.
+- [8.2] Bug fixed: only the auth routes rejected non-JSON bodies; other write routes relied on FastAPI's body parsing, which accepted a `text/plain` body (an admin DELETE did). `backend.json_only` now rejects any POST, PUT, PATCH or DELETE with a body that is not `application/json` (422 `validation_error`), except the raw KB upload. Proven by switching it off and watching the test fail.
+- [8.2] Security tests (`backend/tests/test_security.py`): every route is under /admin or /me or on an explicit public allowlist (B8), /auth/me and /auth/mode still need a login, every write route rejects text/plain and form bodies, a text/plain booking changes nothing, 404s for other users' resources do not echo the id, and an unhandled exception returns a bare 500 without the message or a traceback. The existing B8 role matrix (every /admin and /me route for anonymous, user, admin in user mode and admin in admin mode), the B10 cookie flag test and the F17 Markdown tests stay; a new F17 test shows a user's complaint text renders as text in the admin page.
 - [8.1] The fake model server's `--auto` mode has a rule-based brain (`testkit/fake_brain.py`) that drives the real agents through the compose stack without a key: the router classifies by keywords; the scheduling agent calls `list_specialties`, reads the result to find the specialty named in the message, calls `recommend_doctors`, then names the options with their UTC times or says no slot is free. It is checked against the real orchestrator in `test_fake_brain.py`.
 - [8.1] Stack e2e: `frontend/playwright.stack.config.ts` with specs in `frontend/e2e-stack/` runs against nginx on http://localhost (timezone America/New_York). `e2e-stack/full.spec.ts` covers both branches: sign up, onboard in Cairo, ask for a dermatologist, see cards and named options, book from a card, see the Booked badge and the visit in My visits; and, after an admin adds Neurology (no doctors) through the API, ask for a neurologist and get the no-slot reply with no cards and the "Book a visit" label. The stack-backed `auth.spec.ts` moved there too. `STACK_E2E=1 bash scripts/smoke_compose.sh` (and `make e2e`) seeds the demo catalog and `admin1`, then runs the suite; the CI stack job now installs Node and Chromium and runs it. Result: 5 passed.
 - [7 review] Independent review findings fixed: F7 traced through `/me/chat` with the chat session id, two turns giving two traces, the knowledge turn as one trace with its stages under the root, the tracer built from the LANGFUSE settings and no spans without keys; H2 asserted by a dependency and import scan of `chatbot_ai` plus a subprocess check that importing it does not load `prometheus_client`; H3 every stage and agent with exact `_sum` values from fixed timings, HTTP status and latency by route template, the chat_daily, signup and login limits, cancel, complaint and rejected card actions, and failed ingestion; H4 unmatched URLs share one `unmatched` label and the label check runs a card action and an ingestion itself; H5 an exact `--workers 1` match and no multiprocess directory; H8 a required-query map per dashboard with real label values, plus every panel query run on the live Prometheus and the backend's series present there; H6 also probes `/api/metrics/` and `/api/metrics?…` and checks that Grafana refuses `admin:admin`; H1 no per-job scrape interval; H9 no alert keys in the dashboards.
