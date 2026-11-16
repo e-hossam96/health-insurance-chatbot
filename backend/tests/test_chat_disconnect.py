@@ -4,7 +4,8 @@ import asyncio
 import json
 import os
 import threading
-from collections.abc import AsyncIterator, Iterator
+import time
+from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import UTC, datetime
 
 import httpx
@@ -83,6 +84,22 @@ def _signed_in_cookie(base_url: str) -> str:
         return cookie
 
 
+def _session_count(db_engine: Engine) -> int:
+    with db_engine.connect() as conn:
+        count: int = conn.execute(text("SELECT count(*) FROM chat_session")).scalar_one()
+        return count
+
+
+def _wait_until(condition: Callable[[], bool], deadline_s: float) -> bool:
+    give_up = time.monotonic() + deadline_s
+    pause = threading.Event()
+    while time.monotonic() < give_up:
+        if condition():
+            return True
+        pause.wait(0.02)
+    return condition()
+
+
 def _chat_message_count(db_engine: Engine) -> int:
     with db_engine.connect() as conn:
         count: int = conn.execute(text("SELECT count(*) FROM chat_message")).scalar_one()
@@ -114,3 +131,4 @@ def test_F16_disconnect_cancels_turn_and_stores_nothing(
     assert hanging_turn.cancelled.wait(CANCEL_DEADLINE), "turn was not cancelled after the client disconnected"
     assert not hanging_turn.finished.is_set()
     assert _chat_message_count(db_engine) == 0
+    assert _wait_until(lambda: _session_count(db_engine) == 0, CANCEL_DEADLINE), "the empty session was not removed"

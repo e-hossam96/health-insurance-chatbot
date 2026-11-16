@@ -69,7 +69,7 @@ Companion to `schema.dbml`, `wireframes.md`, `api.md` and `ai.md`. Each rule has
 - **F13.** While a turn streams, disable the input and older cards.
 - **F14.** User panel includes a "My visits & complaints" drawer (visit statuses, admin replies), served by normal APIs.
 - **F15.** Abuse limits (config values): 6 messages/min per user, 100 user messages/day per user (admins exempt), 1000 characters per message, ~800 output tokens per answer, sign-up 5/hour per IP, failed logins 10 per 15 min per IP + username. All counters are in memory, including the daily cap (keyed by user + UTC date). A turn is counted when it starts, so cancelled and failed turns count too. Counters reset on restart (accepted). No extra table. Client IP comes from the reverse proxy header.
-- **F16.** Client disconnect mid-stream (closed tab or Stop button): cancel the LLM call and store nothing for the turn (same as a failed turn, F3). Safe because the model only reads (D9). The user's message is not stored either. Card-action endpoints are plain requests and always run to completion in one transaction.
+- **F16.** Client disconnect mid-stream (closed tab or Stop button): cancel the LLM call and store nothing for the turn (same as a failed turn, F3). Safe because the model only reads (D9). The user's message is not stored either. If it was the first turn of a new chat, the session row created for it is removed too (also for a failed first turn). Card-action endpoints are plain requests and always run to completion in one transaction.
 - **F17.** English only: the system prompt requires English replies. Assistant text is Markdown, rendered without raw HTML (model output is untrusted).
 
 ## G. Knowledge base

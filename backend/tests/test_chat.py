@@ -632,3 +632,22 @@ async def test_F15_limits_are_per_user(user_client: AsyncClient, app: object) ->
         locs = (await c2.get("/locations")).json()
         await c2.post("/me/profile", json={"name": "User Two", "location_id": locs[0]["id"]})
         assert (await c2.post("/me/chat", json={"message": "hi"})).status_code == 200
+
+
+@pytest.mark.anyio()
+async def test_F3_F16_a_failed_first_turn_leaves_no_session(user_client: AsyncClient, db_engine: Engine) -> None:
+    resp = await user_client.post("/me/chat", json={"message": "trigger error"})
+    events = _parse_sse(resp.text)
+    assert (events[0]["event"], events[-1]["event"]) == ("session", "error")
+    assert _session_count(db_engine) == 0
+    assert (await user_client.get("/me/sessions")).json() == []
+
+
+@pytest.mark.anyio()
+async def test_F3_a_failed_turn_in_an_existing_session_keeps_the_session(user_client: AsyncClient, db_engine: Engine) -> None:
+    first = await user_client.post("/me/chat", json={"message": "hello"})
+    sid = json.loads(_parse_sse(first.text)[0]["data"])["session_id"]
+    failed = await user_client.post("/me/chat", json={"session_id": sid, "message": "trigger error"})
+    assert _parse_sse(failed.text)[-1]["event"] == "error"
+    assert _session_count(db_engine) == 1
+    assert [r[0] for r in _stored_rows(db_engine, sid)] == ["user", "assistant"]

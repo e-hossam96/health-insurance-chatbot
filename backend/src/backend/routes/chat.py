@@ -5,10 +5,11 @@ from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from typing import Annotated, Any, cast
 
+import anyio
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth import Clock
@@ -59,6 +60,7 @@ class ChatRequest(BaseModel):
 class PreparedTurn:
     session_id: int
     needs_label: bool
+    created_session: bool
     request: TurnRequest
 
 
@@ -128,6 +130,7 @@ async def prepare_turn(
     return PreparedTurn(
         session_id=session_id,
         needs_label=needs_label,
+        created_session=body.session_id is None,
         request=TurnRequest(
             history=build_context(history_rows),
             message=body.message,
@@ -152,6 +155,7 @@ async def chat(
     yield ServerSentEvent(event="session", data={"session_id": turn.session_id})
 
     intent_code: str | None = None
+    stored = False
     try:
         async for event in run_turn(turn.request):
             if isinstance(event, Intent):
@@ -163,6 +167,7 @@ async def chat(
                 yield ServerSentEvent(event="cards", data={"type": event.type, "items": event.items})
             elif isinstance(event, Done):
                 await _store_turn(db, turn.session_id, event, clock, intent_code, turn.needs_label)
+                stored = True
                 yield ServerSentEvent(event="done", data={})
     except Exception:
         logger.exception("chat turn failed for session %s", turn.session_id)
@@ -170,6 +175,17 @@ async def chat(
         yield ServerSentEvent(
             event="error", data={"code": "turn_error", "message": "Something went wrong."}
         )
+    finally:
+        if turn.created_session and not stored:
+            with anyio.CancelScope(shield=True):
+                await _drop_empty_session(db, turn.session_id)
+
+
+async def _drop_empty_session(db: AsyncSession, session_id: int) -> None:
+    # F16 and F3: a first turn that stores nothing leaves no session behind
+    await db.rollback()
+    await db.execute(delete(ChatSession).where(ChatSession.id == session_id))
+    await db.commit()
 
 
 async def _load_history(db: AsyncSession, session_id: int) -> list[HistoryRow]:

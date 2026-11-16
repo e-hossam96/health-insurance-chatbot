@@ -208,7 +208,7 @@ describe('ChatPage', () => {
     expect(signal.aborted).toBe(true);
   });
 
-  it('F3: a stream error shows Retry, which resends the same message once', async () => {
+  it('F3: a failed first turn drops its session and Retry resends the message once in a new one', async () => {
     scriptStream([{ event: 'session', session_id: 4 }, { event: 'error', code: 'turn_error', message: 'Something went wrong.' }]);
     scriptStream([{ event: 'session', session_id: 4 }, { event: 'token', text: 'Recovered.' }, { event: 'done' }]);
     renderChat();
@@ -217,7 +217,7 @@ describe('ChatPage', () => {
     await userEvent.setup().click(screen.getByTestId('retry-btn'));
     await screen.findByText('Recovered.');
     expect(streamChat.mock.calls[1][0]).toBe('trigger error');
-    expect(streamChat.mock.calls[1][1]).toBe(4);
+    expect(streamChat.mock.calls[1][1]).toBeNull();
     expect(screen.getAllByTestId('msg-user')).toHaveLength(1);
     expect(screen.queryByTestId('chat-error')).toBeNull();
   });
@@ -340,5 +340,35 @@ describe('ChatPage', () => {
     await waitFor(() => expect(getMessages).toHaveBeenLastCalledWith(1));
     expect(await screen.findByText('Options.')).toBeTruthy();
     expect(screen.queryByTestId('doctor-card')).toBeNull();
+  });
+
+  it('F3: a failed turn in an existing session keeps the session for Retry', async () => {
+    getMessages.mockResolvedValue([
+      { id: 1, session_id: 8, role: 'user', content: 'earlier' },
+      { id: 2, session_id: 8, role: 'assistant', content: 'earlier answer' },
+    ]);
+    scriptStream([{ event: 'session', session_id: 8 }, { event: 'error', code: 'turn_error', message: 'Something went wrong.' }]);
+    scriptStream([{ event: 'session', session_id: 8 }, { event: 'token', text: 'Second try.' }, { event: 'done' }]);
+    renderChat('/chat/8');
+    await screen.findByText('earlier answer');
+    await send('again');
+    await userEvent.setup().click(await screen.findByTestId('retry-btn'));
+    await screen.findByText('Second try.');
+    expect(streamChat.mock.calls.map(c => c[1])).toEqual([8, 8]);
+  });
+
+  it('F16: stopping a new chat forgets its session so the resend starts a new one', async () => {
+    const gate: { current: Gate | null } = { current: null };
+    scriptStream([{ event: 'session', session_id: 30 }, { event: 'token', text: 'partial' }], [{ event: 'done' }], gate);
+    scriptStream([{ event: 'session', session_id: 31 }, { event: 'token', text: 'Fresh answer.' }, { event: 'done' }]);
+    renderChat();
+    await send('first try');
+    await screen.findByText('partial');
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('stop-btn'));
+    await waitFor(() => expect(input().value).toBe('first try'));
+    await user.click(screen.getByTestId('send-btn'));
+    await screen.findByText('Fresh answer.');
+    expect(streamChat.mock.calls[1][1]).toBeNull();
   });
 });

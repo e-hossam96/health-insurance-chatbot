@@ -131,8 +131,16 @@ export function ChatPage(): ReactNode {
 
     const controller = new AbortController();
     abortRef.current = controller;
+    const startsNewSession = activeSessionRef.current === null;
     let assistantText = '';
     let pendingCards: CardsPayload | null = null;
+    const forgetUnsavedSession = (): void => {
+      if (!startsNewSession || activeSessionRef.current === null) return;
+      activeSessionRef.current = null;
+      setActiveSessionId(null);
+      navigate('/chat', { replace: true });
+      void refreshSessions();
+    };
 
     try {
       await streamChat(text, activeSessionRef.current, event => {
@@ -171,6 +179,7 @@ export function ChatPage(): ReactNode {
           case 'error':
             setStreamingText('');
             setTurnError({ userKey, text, message: GENERIC_ERROR });
+            forgetUnsavedSession();
             break;
         }
       }, controller.signal);
@@ -178,7 +187,10 @@ export function ChatPage(): ReactNode {
       setStreamingText('');
       if (controller.signal.aborted) {
         setItems(prev => prev.filter(i => i.key !== userKey));
-        if (abortRef.current === controller) setInput(text);
+        if (abortRef.current === controller) {
+          setInput(text);
+          forgetUnsavedSession();
+        }
       } else {
         const message = err instanceof ChatRequestError ? err.message : GENERIC_ERROR;
         setTurnError({ userKey, text, message });

@@ -163,6 +163,6 @@ test.describe('chat against stub scenarios', () => {
     await expect(page.getByText('All good now.')).toBeVisible();
     await expect(page.getByTestId('chat-error')).toHaveCount(0);
     await expect(page.getByTestId('msg-user')).toHaveCount(1);
-    expect(chatRequests[1]).toEqual({ message: 'trigger an error', session_id: SESSION_ID });
+    expect(chatRequests[1]).toEqual({ message: 'trigger an error' });
   });
 });
