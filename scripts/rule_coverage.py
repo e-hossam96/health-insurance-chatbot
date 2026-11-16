@@ -40,16 +40,35 @@ def load_exemptions(exemptions_path: Path) -> set[str]:
     return set(re.findall(r"^-\s+([A-Z]\d+)\s", text, re.MULTILINE))
 
 
+RULE_ID = r"(?<![A-Za-z0-9])[A-Z]\d+(?![0-9A-Za-z])"
+PY_TEST_NAME = re.compile(r"^\s*(?:async\s+)?def\s+(test_\w+)", re.MULTILINE)
+TS_TEST_NAME = re.compile(r"\b(?:it|test)(?:\.\w+)?\(\s*(['\"`])(.+?)\1")
+SELF_TEST = "test_rule_coverage.py"
+
+
+def _is_test_file(path: Path) -> bool:
+    name = path.name
+    if name == SELF_TEST:
+        return False
+    return (name.startswith("test_") and name.endswith(".py")) or name.endswith((".test.ts", ".test.tsx", ".spec.ts"))
+
+
+def _ids_in_test_names(path: Path, content: str) -> set[str]:
+    if path.suffix == ".py":
+        names = [name.replace("_", " ") for name in PY_TEST_NAME.findall(content)]
+    else:
+        names = [title for _, title in TS_TEST_NAME.findall(content)]
+    return {rule_id for name in names for rule_id in re.findall(RULE_ID, name)}
+
+
 def scan_test_files(test_dirs: list[Path]) -> set[str]:
     covered: set[str] = set()
-    extensions = {"*.py", "*.ts", "*.tsx"}
     for d in test_dirs:
         if not d.exists():
             continue
-        for ext in extensions:
-            for f in d.rglob(ext):
-                content = f.read_text(encoding="utf-8")
-                covered |= set(re.findall(r"(?<![A-Za-z0-9])[A-Z]\d+(?![0-9])", content))
+        for f in d.rglob("*"):
+            if f.is_file() and _is_test_file(f) and "node_modules" not in f.parts:
+                covered |= _ids_in_test_names(f, f.read_text(encoding="utf-8"))
     return covered
 
 

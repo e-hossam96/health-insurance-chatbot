@@ -199,6 +199,7 @@ async def test_E6_complaint_writes_static_messages(
     assert resp.status_code == 201
     messages = resp.json()["messages"]
     assert len(messages) == 4
+    assert messages[0]["content"] == "File a complaint about my visit with Dr on Tue 15 Dec, 10:00 UTC."
     assert messages[1]["tool_calls"][0]["function"]["name"] == "file_complaint"
     assert messages[2]["tool_name"] == "file_complaint"
 

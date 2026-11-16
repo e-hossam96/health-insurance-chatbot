@@ -51,6 +51,27 @@ for variant in "/api/metrics/" "/api/metrics?format=text"; do
 done
 echo "OK: /api/metrics is blocked through nginx"
 
+for path in /api/docs /api/redoc /api/openapi.json; do
+    status=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost${path}")
+    if [ "$status" != "404" ]; then
+        echo "FAIL: ${path} returned $status through nginx, expected 404"
+        exit 1
+    fi
+done
+echo "OK: the API docs and schema are not served"
+
+if ! curl -s -D - -o /dev/null http://localhost/ | grep -qi "^content-security-policy: default-src 'self'"; then
+    echo "FAIL: the index page has no Content-Security-Policy header"
+    exit 1
+fi
+echo "OK: nginx sends the Content-Security-Policy"
+
+if [ "$("${COMPOSE[@]}" exec -T backend id -u | tr -d '\r')" = "0" ]; then
+    echo "FAIL: the backend container runs as root"
+    exit 1
+fi
+echo "OK: the backend runs as a non-root user"
+
 echo "Testing the internal scrape of /metrics..."
 if ! "${COMPOSE[@]}" exec -T frontend wget -qO- http://backend:8000/metrics | grep -q '^http_requests_total'; then
     echo "FAIL: /metrics is not reachable on the internal network"
@@ -59,7 +80,11 @@ fi
 echo "OK: /metrics is reachable inside the Docker network"
 
 echo "Seeding a location and an admin..."
-"${COMPOSE[@]}" exec -T backend sh -c 'python scripts/create_admin.py --database-url "$DATABASE_URL" --username "smoke-admin-$(date +%s)" --password adminpass1 --name "Admin One" --location Cairo'
+SMOKE_ADMIN="smoke-admin-$(date +%s)"
+"${COMPOSE[@]}" exec -T -e SMOKE_ADMIN="$SMOKE_ADMIN" backend sh -c 'python scripts/create_admin.py --database-url "$DATABASE_URL" --username "$SMOKE_ADMIN" --password adminpass1 --name "Admin One" --location Cairo'
+
+echo "Testing a KB upload and ingestion as the non-root backend user..."
+SMOKE_ADMIN="$SMOKE_ADMIN" "$PYTHON" scripts/stack_kb_check.py
 
 echo "Testing a streamed chat turn through nginx..."
 "$PYTHON" scripts/stack_stream_check.py

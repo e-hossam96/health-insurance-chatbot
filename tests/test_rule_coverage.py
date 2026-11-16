@@ -180,3 +180,12 @@ def test_id_inside_a_word_is_not_coverage(tmp_path: Path) -> None:
     covered = scan_test_files([tmp_path])
     assert "F16" in covered
     assert "F8" not in covered
+
+
+def test_only_rule_ids_in_test_names_count(tmp_path: Path) -> None:
+    (tmp_path / "test_named.py").write_text("def test_D1_booking_is_atomic() -> None:\n    pass  # also mentions A2\n", encoding="utf-8")
+    (tmp_path / "helpers.py").write_text("def test_B1_not_a_test_file() -> None:\n    pass\n", encoding="utf-8")
+    (tmp_path / "Card.test.tsx").write_text("// F9 in a comment\nit('F13: cards lock while streaming', () => {});\n", encoding="utf-8")
+    (tmp_path / "Card.tsx").write_text("it('F14: in a source file', () => {});\n", encoding="utf-8")
+    (tmp_path / "flow.spec.ts").write_text("test(`C8: times are UTC`, async () => {});\n", encoding="utf-8")
+    assert scan_test_files([tmp_path]) == {"D1", "F13", "C8"}

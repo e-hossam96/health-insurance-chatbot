@@ -1,0 +1,63 @@
+{
+  "suite": "ingest",
+  "date": "2026-11-16T03:49:08.551467+00:00",
+  "config": {
+    "roles": {
+      "chat": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-5.5"
+      },
+      "router": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "rewrite": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "embedding": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "text-embedding-3-small"
+      },
+      "rerank": {
+        "base_url": "https://api.openai.com/v1",
+        "model": null
+      },
+      "judge": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6.1-sol"
+      }
+    },
+    "switches": {
+      "ai_query_count": 3,
+      "ai_retrieval_mode": "hybrid",
+      "ai_prefetch_k": 20,
+      "ai_fused_k": 30,
+      "ai_context_k": 5,
+      "ai_rerank_provider": "none",
+      "ai_rerank_min_score": null,
+      "ai_router_history_rows": 6,
+      "ai_chat_max_output_tokens": 800
+    }
+  },
+  "result": {
+    "documents": {
+      "policy_handbook.pdf": {
+        "chunks": 11,
+        "table_chunks": 4,
+        "tables": 3,
+        "parse_and_chunk_s": 25.017
+      },
+      "member_guide.docx": {
+        "chunks": 7,
+        "table_chunks": 3,
+        "tables": 2,
+        "parse_and_chunk_s": 0.065
+      }
+    },
+    "empty_chunks": 0,
+    "chunks_without_breadcrumb": 0,
+    "split_tables_missing_header": 0,
+    "passed": true
+  }
+}

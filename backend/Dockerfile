@@ -2,6 +2,8 @@ FROM python:3.14-slim
 
 WORKDIR /app
 
+RUN useradd --system --uid 10001 --create-home app && mkdir -p /data/kb && chown app:app /data/kb
+
 COPY --from=ghcr.io/astral-sh/uv:0.13.8 /uv /uvx /bin/
 
 COPY pyproject.toml uv.lock ./
@@ -15,7 +17,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     KB_STORAGE_DIR=/data/kb
 
 RUN docling-tools models download layout tableformer \
-    && python -c "from fastembed import SparseTextEmbedding; SparseTextEmbedding('Qdrant/bm25')"
+    && python -c "from fastembed import SparseTextEmbedding; SparseTextEmbedding('Qdrant/bm25')" \n    && chown -R app:app /app/models
 
 COPY backend/src backend/src
 COPY packages/chatbot_ai/src packages/chatbot_ai/src
@@ -24,6 +26,8 @@ RUN uv sync --frozen --no-dev --package backend
 COPY backend/alembic backend/alembic
 COPY backend/alembic.ini backend/alembic.ini
 COPY scripts scripts
+
+USER app
 
 EXPOSE 8000
 

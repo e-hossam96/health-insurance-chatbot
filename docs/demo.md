@@ -18,7 +18,7 @@ Setup: the stack is running with real models, the demo data is seeded, and `poli
 ## 3. Policy questions from the knowledge base (2 min)
 
 1. Start a new chat and click **Ask about my coverage**, or ask "How much is the co-pay for an outpatient visit?" (50 EGP) and "Does an MRI need approval, and how far ahead?" (3 working days, from a table in the member guide).
-2. Ask something the documents don't cover, such as "Does the plan cover IVF?": the assistant answers "I couldn't find that in the documents." without guessing.
+2. Ask something the documents don't cover, such as "Does the plan cover IVF?": the assistant says it could not find IVF in the documents and does not guess. Until a reranker and its minimum score are set (`AI_RERANK_MIN_SCORE`), the model writes this reply itself from the closest excerpts and may mention related clauses; the fixed reply "I couldn't find that in the documents." appears only when the search returns nothing (I8).
 
 ## 4. Cancel and complain (2 min)
 
@@ -34,5 +34,5 @@ Setup: the stack is running with real models, the demo data is seeded, and `poli
 ## Things to say
 
 - Every change is a button click on a card; the model only reads data and proposes.
-- Answers about policy come only from uploaded documents, with a fixed reply when nothing relevant is found.
+- Answers about policy come only from the uploaded documents, with the excerpts they used; when the documents do not cover a question, the assistant says so instead of guessing.
 - Each turn is routed to one specialist agent by a small classifier; the conversation history stays the same for all of them.

@@ -129,6 +129,7 @@ async def test_D6_booking_writes_4_messages(
     messages = data["messages"]
     assert len(messages) == 4
     assert messages[0]["role"] == "user"
+    assert messages[0]["content"] == "Book Dr Test on Tue 15 Dec, 10:00 UTC."
     assert messages[1]["role"] == "assistant"
     assert messages[1]["tool_calls"] is not None
     assert messages[1]["tool_calls"][0]["function"]["name"] == "book_visit"

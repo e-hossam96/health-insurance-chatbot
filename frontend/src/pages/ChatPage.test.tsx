@@ -261,6 +261,22 @@ describe('ChatPage', () => {
     expect(streamChat.mock.calls[1][0]).toBe('Show me other options.');
   });
 
+  it('F17: a replayed transcript and the sidebar subtitle never render HTML', async () => {
+    getSessions.mockResolvedValue([
+      { id: 5, intent: 'qa.kb', created_at: '2026-11-15T10:00:00Z', last_message_at: '2026-11-15T10:00:00Z', first_user_message: '<img src=x onerror="window.hacked=1">hello' },
+    ]);
+    getMessages.mockResolvedValue([
+      { id: 1, session_id: 5, role: 'user', content: '<script>window.hacked=1</script>my question' },
+      { id: 4, session_id: 5, role: 'assistant', content: 'Answer <iframe src="https://evil.test"></iframe><img src=x onerror="window.hacked=1"> **bold**' },
+    ]);
+    renderChat('/chat/5');
+    const reply = await screen.findByTestId('msg-assistant');
+    await waitFor(() => expect(screen.getAllByTestId('session-label').length).toBe(1));
+    expect(document.querySelector('script, iframe, img')).toBeNull();
+    expect(reply.querySelector('strong')?.textContent).toBe('bold');
+    expect(screen.getByTestId('msg-user').textContent).toBe('<script>window.hacked=1</script>my question');
+  });
+
   it('F12: reopening a session loads the transcript without cards', async () => {
     const transcript: ChatMessage[] = [
       { id: 1, session_id: 5, role: 'user', content: 'I need a dermatologist' },

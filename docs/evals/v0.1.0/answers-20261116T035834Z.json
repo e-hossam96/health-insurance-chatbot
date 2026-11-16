@@ -1,0 +1,172 @@
+{
+  "suite": "answers",
+  "date": "2026-11-16T03:58:34.108291+00:00",
+  "config": {
+    "roles": {
+      "chat": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-5.5"
+      },
+      "router": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "rewrite": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "embedding": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "text-embedding-3-small"
+      },
+      "rerank": {
+        "base_url": "https://api.openai.com/v1",
+        "model": null
+      },
+      "judge": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6.1-sol"
+      }
+    },
+    "switches": {
+      "ai_query_count": 3,
+      "ai_retrieval_mode": "hybrid",
+      "ai_prefetch_k": 20,
+      "ai_fused_k": 30,
+      "ai_context_k": 5,
+      "ai_rerank_provider": "none",
+      "ai_rerank_min_score": null,
+      "ai_router_history_rows": 6,
+      "ai_chat_max_output_tokens": 800
+    }
+  },
+  "result": {
+    "items": 12,
+    "faithfulness": 1.0,
+    "facts_present": 1.0,
+    "refusal_accuracy": 0.9166666666666666,
+    "judge_errors": 0,
+    "outcomes": [
+      {
+        "id": "a-outpatient-copay",
+        "answerable": true,
+        "answer": "For **outpatient visits at network clinics**, the co-pay is **50 EGP per visit**.\n\nFrom **2.1 Outpatient care** / **2.3 Annual coverage limits**: outpatient visits are **Unlimited** with a **50 EGP** co-pay.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true
+      },
+      {
+        "id": "a-inpatient",
+        "answerable": true,
+        "answer": "The plan covers **hospital stays up to 30 nights per year** in a **semi-private room**.\n\nSource: **2 Covered services > 2.2 Inpatient care**",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true
+      },
+      {
+        "id": "a-claim-deadline",
+        "answerable": true,
+        "answer": "Submit reimbursement claims **within 90 days of the service date** with the **original receipts and the medical report**.  \nSource: **4 Claims > 4.1 Submitting a claim**",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true
+      },
+      {
+        "id": "a-appeal",
+        "answerable": true,
+        "answer": "Appeals are answered within **15 working days**.\n\nSource: **4 Claims > 4.2 Appeals**",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true
+      },
+      {
+        "id": "a-maternity",
+        "answerable": true,
+        "answer": "Yes. **Maternity is covered up to 35000 EGP** with a **0 EGP co-pay**.\n\nSource: **2 Covered services > 2.3 Annual coverage limits**.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true
+      },
+      {
+        "id": "a-cosmetic",
+        "answerable": true,
+        "answer": "No. Under **3 Exclusions**, the plan **does not cover cosmetic surgery**.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true
+      },
+      {
+        "id": "a-mri",
+        "answerable": true,
+        "answer": "Yes. From **Pre-authorization > Services that need approval**:\n\n- **MRI scan**: approval needed \u2014 **Yes**\n- **Lead time**: **3 working days** before the service.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true
+      },
+      {
+        "id": "a-missed",
+        "answerable": true,
+        "answer": "Yes. Under **[1] Booking visits**, missed visits without cancellation are counted. If you miss **three visits in a year**, your **online booking is suspended for 30 days**.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true
+      },
+      {
+        "id": "u-abroad",
+        "answerable": false,
+        "answer": "Treatment outside the network is **not covered**, **except in an emergency**.  \n\nSource: **Section 3 Exclusions** \u2014 \u201cThe plan does not cover \u2026 treatment received outside the network except in an emergency.\u201d",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": false
+      },
+      {
+        "id": "u-ivf",
+        "answerable": false,
+        "answer": "I couldn\u2019t find IVF treatment mentioned in the policy excerpts.\n\nThe excerpts do say the plan **does not cover experimental treatments** and lists **Maternity** with an annual limit of **35000 EGP** and **0 EGP** co-pay, but they do not state whether IVF is covered.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": true,
+        "correct_refusal": true
+      },
+      {
+        "id": "u-premium-price",
+        "answerable": false,
+        "answer": "I couldn\u2019t find the **Premium tier monthly cost** in the policy excerpts provided.\n\nThe excerpts include **dental and vision yearly limits** for Premium items, but not the monthly premium price.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": true,
+        "correct_refusal": true
+      },
+      {
+        "id": "u-pet",
+        "answerable": false,
+        "answer": "I couldn\u2019t find anything in the policy excerpts about adding pets, including dogs, to the policy.\n\nThe excerpts only mention coverage for **members and their dependents** in the **Overview** section.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": true,
+        "correct_refusal": true
+      }
+    ]
+  }
+}

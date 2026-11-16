@@ -1,0 +1,99 @@
+{
+  "suite": "retrieval",
+  "date": "2026-11-16T03:57:36.109111+00:00",
+  "config": {
+    "roles": {
+      "chat": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-5.5"
+      },
+      "router": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "rewrite": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "embedding": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "text-embedding-3-small"
+      },
+      "rerank": {
+        "base_url": "https://api.openai.com/v1",
+        "model": null
+      },
+      "judge": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6.1-sol"
+      }
+    },
+    "switches": {
+      "ai_query_count": 3,
+      "ai_retrieval_mode": "hybrid",
+      "ai_prefetch_k": 20,
+      "ai_fused_k": 30,
+      "ai_context_k": 5,
+      "ai_rerank_provider": "none",
+      "ai_rerank_min_score": null,
+      "ai_router_history_rows": 6,
+      "ai_chat_max_output_tokens": 800
+    }
+  },
+  "result": {
+    "items": 16,
+    "stages": {
+      "first_query": {
+        "hit": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "recall": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "mrr": 0.96875
+      },
+      "fused": {
+        "hit": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "recall": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "mrr": 0.96875
+      },
+      "deduped": {
+        "hit": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "recall": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "mrr": 0.96875
+      },
+      "reranked": {
+        "hit": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "recall": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "mrr": 0.96875
+      }
+    },
+    "mean_latency_s": {
+      "rewrite": 1.1042740250049974,
+      "embed": 0.2240014187518682,
+      "search": 0.021102050002809847,
+      "rerank": 0.00012260000221431255
+    },
+    "misses": []
+  }
+}

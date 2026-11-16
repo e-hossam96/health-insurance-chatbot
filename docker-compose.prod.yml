@@ -22,6 +22,8 @@ services:
 
   postgres:
     ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     restart: unless-stopped
 
   qdrant:
@@ -30,6 +32,8 @@ services:
 
   backend:
     restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://chatbot:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/chatbot
 
   prometheus:
     restart: unless-stopped
@@ -39,6 +43,8 @@ services:
 
   postgres-exporter:
     restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: postgresql://chatbot:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/chatbot?sslmode=disable
 
 volumes:
   certbot_conf:

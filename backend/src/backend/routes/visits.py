@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -81,6 +82,16 @@ async def _get_profile_for_session(db: Db, account_id: int) -> Profile:
     return profile
 
 
+async def _slot_label(db: Db, slot_id: int) -> str:
+    row = (await db.execute(select(Doctor.name, Slot.start_at).join(Slot, Slot.doctor_id == Doctor.id).where(Slot.id == slot_id))).one()
+    return f"{row.name} on {_utc_text(row.start_at)}"
+
+
+def _utc_text(moment: datetime) -> str:
+    utc = moment.astimezone(UTC)
+    return f"{utc.strftime('%a')} {utc.day} {utc.strftime('%b')}, {utc.strftime('%H:%M')} UTC"
+
+
 async def _write_booking_messages(
     db: Db,
     chat_session_id: int,
@@ -92,7 +103,7 @@ async def _write_booking_messages(
         {"id": tool_call_id, "type": "function", "function": {"name": "book_visit", "arguments": json.dumps({"slot_id": slot_id})}}
     ]
 
-    m1 = ChatMessage(session_id=chat_session_id, role=MessageRole.user, content=f"Book slot {slot_id}")
+    m1 = ChatMessage(session_id=chat_session_id, role=MessageRole.user, content=f"Book {await _slot_label(db, slot_id)}.")
     db.add(m1)
     await db.flush()
 
@@ -198,13 +209,14 @@ async def _write_cancel_messages(
     db: Db,
     chat_session_id: int,
     visit_id: int,
+    slot_id: int,
 ) -> list[ChatMessage]:
     tool_call_id = f"cancel_{visit_id}"
     tool_calls_json = [
         {"id": tool_call_id, "type": "function", "function": {"name": "cancel_visit", "arguments": json.dumps({"visit_id": visit_id})}}
     ]
 
-    m1 = ChatMessage(session_id=chat_session_id, role=MessageRole.user, content=f"Cancel visit {visit_id}")
+    m1 = ChatMessage(session_id=chat_session_id, role=MessageRole.user, content=f"Cancel my visit with {await _slot_label(db, slot_id)}.")
     db.add(m1)
     await db.flush()
 
@@ -274,7 +286,7 @@ async def cancel_visit(
         chat_session = await db.get(ChatSession, body.session_id)
         if chat_session is None or chat_session.profile_id != profile.id:
             raise _error("not_found", "Session not found.", 404)
-        messages = await _write_cancel_messages(db, body.session_id, visit_id)
+        messages = await _write_cancel_messages(db, body.session_id, visit_id, visit.slot_id)
 
     await db.commit()
 
@@ -324,7 +336,9 @@ async def _write_complaint_messages(
         {"id": tool_call_id, "type": "function", "function": {"name": "file_complaint", "arguments": json.dumps({"visit_id": visit_id})}}
     ]
 
-    m1 = ChatMessage(session_id=chat_session_id, role=MessageRole.user, content=f"File complaint for visit {visit_id}")
+    visit_slot = (await db.execute(select(Visit.slot_id).where(Visit.id == visit_id))).scalar_one()
+    label = await _slot_label(db, visit_slot)
+    m1 = ChatMessage(session_id=chat_session_id, role=MessageRole.user, content=f"File a complaint about my visit with {label}.")
     db.add(m1)
     await db.flush()
 

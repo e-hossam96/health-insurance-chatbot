@@ -45,6 +45,13 @@ function list(items: KbDocument[]): KbDocumentList {
   return { items, total: items.length, max_upload_bytes: LIMIT };
 }
 
+async function tickUntil(text: string): Promise<void> {
+  for (let tick = 0; tick < 5 && screen.queryByText(text) === null; tick += 1) {
+    await act(async () => vi.advanceTimersByTime(1000));
+  }
+  expect(await screen.findByText(text)).toBeTruthy();
+}
+
 function renderPage(pollMs = 3000): void {
   render(
     <MemoryRouter>
@@ -60,6 +67,7 @@ function pick(files: File[]): void {
 describe('AdminKbPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getKbDocuments.mockReset();
   });
 
   afterEach(() => {
@@ -135,10 +143,9 @@ describe('AdminKbPage', () => {
       .mockResolvedValue(list([doc({ status: 'ready' })]));
     renderPage(1000);
     expect(await screen.findByText('Uploaded')).toBeTruthy();
-    await act(async () => vi.advanceTimersByTime(1000));
-    expect(await screen.findByText('Processing')).toBeTruthy();
-    await act(async () => vi.advanceTimersByTime(1000));
-    expect(await screen.findByText('Ready')).toBeTruthy();
+    // the interval is registered by an effect after the row renders, so tick until the next status shows
+    await tickUntil('Processing');
+    await tickUntil('Ready');
     const callsWhenDone = getKbDocuments.mock.calls.length;
     await act(async () => vi.advanceTimersByTime(5000));
     expect(getKbDocuments.mock.calls.length).toBe(callsWhenDone);

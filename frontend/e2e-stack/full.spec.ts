@@ -28,19 +28,48 @@ test.describe('full scenario on the compose stack', () => {
     await page.getByTestId('chat-input').fill('I need a dermatologist');
     await page.getByTestId('send-btn').click();
 
-    await expect(page.getByTestId('doctor-card').first()).toBeVisible({ timeout: 30_000 });
+    const cards = page.getByTestId('doctor-card');
+    await expect(cards.first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('msg-assistant').last()).toContainText('Here are the earliest options');
-    await expect(page.getByTestId('msg-assistant').last()).toContainText('UTC');
-    const doctor = (await page.getByTestId('doctor-card').first().locator('.font-medium').textContent()) ?? '';
+    expect(await cards.count()).toBeGreaterThan(1);
+    const card = cards.first();
+    await expect(card).toContainText('Dermatology');
+    const doctor = (await card.locator('.font-medium').textContent()) ?? '';
     expect(doctor).toMatch(/^Dr\. /);
+    const cardTime = (await card.getByText(/UTC$/).textContent()) ?? '';
 
-    await page.getByTestId('book-btn').first().click();
-    await expect(page.getByTestId('booked-badge')).toBeVisible();
-    await expect(page.getByTestId('msg-assistant').last()).not.toContainText('Here are the earliest options');
+    await card.getByTestId('book-btn').click();
+    await expect(card.getByTestId('booked-badge')).toBeVisible();
+    for (const sibling of await page.getByTestId('book-btn').all()) {
+      await expect(sibling).toBeDisabled();
+    }
+
+    // C8: the card shows the stored slot time in UTC although the browser runs in New York
+    const visits = (await (await page.request.get('/api/me/visits')).json()) as { doctor_name: string; start_at: string; status: string }[];
+    expect(visits).toHaveLength(1);
+    const start = new Date(visits[0].start_at);
+    const utcClock = `${String(start.getUTCHours()).padStart(2, '0')}:${String(start.getUTCMinutes()).padStart(2, '0')} UTC`;
+    expect(cardTime).toContain(` ${start.getUTCDate()} `);
+    expect(cardTime.endsWith(utcClock)).toBeTruthy();
+    expect(visits[0].doctor_name).toBe(doctor);
+
+    // D6: the four static messages are stored; the user and confirmation texts are shown
+    const booking = `Book ${doctor} on ${cardTime}.`;
+    await expect(page.getByTestId('msg-user').last()).toHaveText(booking);
+    await expect(page.getByTestId('msg-assistant').last()).toHaveText('Your visit has been booked successfully.');
+
+    // F12: reopening the session replays the transcript without cards
+    await page.getByRole('button', { name: /New chat/ }).click();
+    await page.getByTestId('session-label').first().click();
+    await expect(page.getByTestId('msg-user').last()).toHaveText(booking);
+    await expect(page.getByTestId('msg-assistant').last()).toHaveText('Your visit has been booked successfully.');
+    await expect(page.getByTestId('doctor-card')).toHaveCount(0);
 
     await page.getByTestId('visits-btn').click();
-    await expect(page.getByText(doctor).first()).toBeVisible();
-    await expect(page.getByText('Scheduled').first()).toBeVisible();
+    const row = page.getByTestId('visits-list').locator('div.border').filter({ hasText: doctor });
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText(cardTime);
+    await expect(row.getByTestId('status-badge')).toHaveText(/Scheduled/i);
   });
 
   test('a specialty without free slots: the assistant says so and shows no cards', async ({ page, request }) => {

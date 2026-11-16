@@ -8,10 +8,10 @@ Per-screen endpoint paths are in the `Calls:` lines of `wireframes.md` (sections
 
 - JSON, snake_case. Ids are integers. Timestamps are ISO-8601 UTC strings. The frontend shows them as UTC; no time zone header or conversion (C8).
 - Small lists are plain arrays. Admin visits, complaints and KB documents return `{items, total}` and accept `limit` and `offset` (default limit 50).
-- Errors always look like:
+- Errors always look like this (FastAPI's `detail` wrapper is kept), including request validation errors, which name the invalid fields but never echo the submitted values:
 
 ```
-{"error": {"code": "slot_taken", "message": "This slot was just taken."}}
+{"detail": {"error": {"code": "slot_taken", "message": "This slot was just taken."}}}
 ```
 
 | HTTP | Meaning | Codes |

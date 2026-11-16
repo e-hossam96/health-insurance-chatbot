@@ -1,0 +1,99 @@
+{
+  "suite": "retrieval",
+  "date": "2026-11-16T03:50:12.598097+00:00",
+  "config": {
+    "roles": {
+      "chat": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-5.5"
+      },
+      "router": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "rewrite": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "embedding": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "text-embedding-3-small"
+      },
+      "rerank": {
+        "base_url": "https://api.openai.com/v1",
+        "model": null
+      },
+      "judge": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6.1-sol"
+      }
+    },
+    "switches": {
+      "ai_query_count": 1,
+      "ai_retrieval_mode": "dense",
+      "ai_prefetch_k": 20,
+      "ai_fused_k": 30,
+      "ai_context_k": 5,
+      "ai_rerank_provider": "none",
+      "ai_rerank_min_score": null,
+      "ai_router_history_rows": 6,
+      "ai_chat_max_output_tokens": 800
+    }
+  },
+  "result": {
+    "items": 16,
+    "stages": {
+      "first_query": {
+        "hit": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "recall": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "mrr": 0.96875
+      },
+      "fused": {
+        "hit": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "recall": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "mrr": 0.96875
+      },
+      "deduped": {
+        "hit": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "recall": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "mrr": 0.96875
+      },
+      "reranked": {
+        "hit": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "recall": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "mrr": 0.96875
+      }
+    },
+    "mean_latency_s": {
+      "rewrite": 1.128170481253619,
+      "embed": 0.2542112249939237,
+      "search": 0.03225246250076452,
+      "rerank": 0.00013790625234832987
+    },
+    "misses": []
+  }
+}

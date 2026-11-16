@@ -1,4 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { formatUtc } from '../api/chat';
 import { type VisitItem, type ComplaintItem, getMyVisits, getMyComplaints, cancelVisit } from '../api/visits';
 
 function statusBadge(status: string): ReactNode {
@@ -78,7 +79,7 @@ export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => 
                     <div>
                       <p className="font-medium text-sm">{v.doctor_name}</p>
                       <p className="text-xs text-gray-500">{v.specialty} · {v.clinic} · {v.location}</p>
-                      <p className="text-xs text-gray-400">{new Date(v.start_at).toLocaleString()}</p>
+                      <p className="text-xs text-gray-400">{formatUtc(v.start_at)}</p>
                     </div>
                     {statusBadge(v.status)}
                   </div>

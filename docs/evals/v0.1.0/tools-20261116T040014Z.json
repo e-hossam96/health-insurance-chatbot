@@ -1,0 +1,165 @@
+{
+  "suite": "tools",
+  "date": "2026-11-16T04:00:14.595662+00:00",
+  "config": {
+    "roles": {
+      "chat": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-5.5"
+      },
+      "router": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "rewrite": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "embedding": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "text-embedding-3-small"
+      },
+      "rerank": {
+        "base_url": "https://api.openai.com/v1",
+        "model": null
+      },
+      "judge": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6.1-sol"
+      }
+    },
+    "switches": {
+      "ai_query_count": 3,
+      "ai_retrieval_mode": "hybrid",
+      "ai_prefetch_k": 20,
+      "ai_fused_k": 30,
+      "ai_context_k": 5,
+      "ai_rerank_provider": "none",
+      "ai_rerank_min_score": null,
+      "ai_router_history_rows": 6,
+      "ai_chat_max_output_tokens": 800
+    }
+  },
+  "result": {
+    "scenarios": 7,
+    "turns": 9,
+    "turn_pass_rate": 1.0,
+    "scenario_pass_rate": 1.0,
+    "outcomes": [
+      {
+        "scenario": "recommend-derm",
+        "turn": 0,
+        "expected_intent": "visit.book",
+        "intent": "visit.book",
+        "tools": [
+          "list_specialties",
+          "recommend_doctors"
+        ],
+        "cards": "doctors",
+        "foreign_tool_calls": 0,
+        "passed": true
+      },
+      {
+        "scenario": "doctor-availability",
+        "turn": 0,
+        "expected_intent": "visit.book",
+        "intent": "qa.db",
+        "tools": [
+          "search_doctors",
+          "get_availability"
+        ],
+        "cards": "doctors",
+        "foreign_tool_calls": 0,
+        "passed": true
+      },
+      {
+        "scenario": "cancel-flow",
+        "turn": 0,
+        "expected_intent": "visit.cancel",
+        "intent": "visit.cancel",
+        "tools": [
+          "propose_cancel"
+        ],
+        "cards": "cancel_confirm",
+        "foreign_tool_calls": 0,
+        "passed": true
+      },
+      {
+        "scenario": "complaint-flow",
+        "turn": 0,
+        "expected_intent": "complaint.file",
+        "intent": "complaint.file",
+        "tools": [
+          "eligible_visits"
+        ],
+        "cards": "visits_for_complaint",
+        "foreign_tool_calls": 0,
+        "passed": true
+      },
+      {
+        "scenario": "check-visits",
+        "turn": 0,
+        "expected_intent": "visit.check",
+        "intent": "visit.check",
+        "tools": [
+          "my_visits"
+        ],
+        "cards": null,
+        "foreign_tool_calls": 0,
+        "passed": true
+      },
+      {
+        "scenario": "db-question",
+        "turn": 0,
+        "expected_intent": "qa.db",
+        "intent": "qa.db",
+        "tools": [
+          "list_locations",
+          "list_specialties",
+          "search_clinics"
+        ],
+        "cards": null,
+        "foreign_tool_calls": 0,
+        "passed": true
+      },
+      {
+        "scenario": "cross-agent",
+        "turn": 0,
+        "expected_intent": "visit.book",
+        "intent": "qa.db",
+        "tools": [
+          "list_specialties",
+          "recommend_doctors"
+        ],
+        "cards": "doctors",
+        "foreign_tool_calls": 0,
+        "passed": true
+      },
+      {
+        "scenario": "cross-agent",
+        "turn": 1,
+        "expected_intent": "qa.kb",
+        "intent": "qa.kb",
+        "tools": [
+          "search_kb"
+        ],
+        "cards": null,
+        "foreign_tool_calls": 0,
+        "passed": true
+      },
+      {
+        "scenario": "cross-agent",
+        "turn": 2,
+        "expected_intent": "visit.book",
+        "intent": "qa.db",
+        "tools": [
+          "list_specialties",
+          "recommend_doctors"
+        ],
+        "cards": "doctors",
+        "foreign_tool_calls": 0,
+        "passed": true
+      }
+    ]
+  }
+}

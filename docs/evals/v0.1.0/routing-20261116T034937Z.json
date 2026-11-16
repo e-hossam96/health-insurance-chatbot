@@ -1,0 +1,93 @@
+{
+  "suite": "routing",
+  "date": "2026-11-16T03:49:37.764370+00:00",
+  "config": {
+    "roles": {
+      "chat": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-5.5"
+      },
+      "router": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "rewrite": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "embedding": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "text-embedding-3-small"
+      },
+      "rerank": {
+        "base_url": "https://api.openai.com/v1",
+        "model": null
+      },
+      "judge": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6.1-sol"
+      }
+    },
+    "switches": {
+      "ai_query_count": 3,
+      "ai_retrieval_mode": "hybrid",
+      "ai_prefetch_k": 20,
+      "ai_fused_k": 30,
+      "ai_context_k": 5,
+      "ai_rerank_provider": "none",
+      "ai_rerank_min_score": null,
+      "ai_router_history_rows": 6,
+      "ai_chat_max_output_tokens": 800
+    }
+  },
+  "result": {
+    "items": 26,
+    "accuracy": 0.9615384615384616,
+    "recall": {
+      "complaint.check": 1.0,
+      "complaint.file": 1.0,
+      "other": 1.0,
+      "qa.db": 1.0,
+      "qa.kb": 1.0,
+      "visit.book": 0.8333333333333334,
+      "visit.cancel": 1.0,
+      "visit.check": 1.0
+    },
+    "confusion": {
+      "visit.book": {
+        "visit.book": 5,
+        "qa.db": 1
+      },
+      "visit.check": {
+        "visit.check": 2
+      },
+      "visit.cancel": {
+        "visit.cancel": 3
+      },
+      "complaint.file": {
+        "complaint.file": 3
+      },
+      "complaint.check": {
+        "complaint.check": 2
+      },
+      "qa.kb": {
+        "qa.kb": 5
+      },
+      "qa.db": {
+        "qa.db": 2
+      },
+      "other": {
+        "other": 3
+      }
+    },
+    "mistakes": [
+      {
+        "id": "book-earliest",
+        "expected": "visit.book",
+        "predicted": "qa.db",
+        "latency_s": 1.0176705999765545
+      }
+    ],
+    "mean_latency_s": 1.233871069228581
+  }
+}

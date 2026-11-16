@@ -124,6 +124,7 @@ async def test_D8_cancel_with_session_writes_messages(
     messages = resp.json()["messages"]
     assert len(messages) == 4
     assert messages[0]["role"] == "user"
+    assert messages[0]["content"] == "Cancel my visit with Dr on Tue 15 Dec, 10:00 UTC."
     assert messages[1]["tool_calls"][0]["function"]["name"] == "cancel_visit"
     assert messages[2]["role"] == "tool"
     assert messages[3]["role"] == "assistant"

@@ -3,7 +3,9 @@ import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from backend.auth import purge_expired
@@ -66,7 +68,7 @@ def create_app(
             await role_clients.aclose()
         await engine.dispose()
 
-    application = FastAPI(title="Health Insurance Chatbot", lifespan=lifespan)
+    application = FastAPI(title="Health Insurance Chatbot", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     application.state.settings = settings
     application.state.session_factory = session_factory
     application.state.engine = engine
@@ -83,6 +85,13 @@ def create_app(
     application.include_router(chat_router)
     application.include_router(visits_router)
     application.include_router(kb_router)
+
+    @application.exception_handler(RequestValidationError)
+    async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        fields = sorted({".".join(str(part) for part in error["loc"][1:]) or "body" for error in exc.errors()})
+        message = f"Invalid request: check {', '.join(fields)}."
+        # B8: never echo the submitted values back
+        return JSONResponse(status_code=422, content={"detail": {"error": {"code": "validation_error", "message": message}}})
 
     @application.get("/health")
     async def health() -> dict[str, str]:

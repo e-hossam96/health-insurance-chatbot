@@ -32,6 +32,16 @@ describe('VisitsDrawer', () => {
     });
   });
 
+  it('C8: visit times are shown in UTC, not the browser time zone', async () => {
+    render(
+      <MemoryRouter>
+        <VisitsDrawer open={true} onClose={() => {}} />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('Tue 15 Dec, 10:00 UTC')).toBeTruthy();
+    expect(screen.queryByText(/19:00/)).toBeNull();
+  });
+
   it('F14: shows status badges', async () => {
     render(
       <MemoryRouter>

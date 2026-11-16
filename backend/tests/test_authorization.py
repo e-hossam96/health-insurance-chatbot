@@ -4,6 +4,7 @@ import os
 from collections.abc import AsyncGenerator
 
 import pytest
+from backend_routes import all_routes
 from httpx import ASGITransport, AsyncClient
 
 from backend.app import create_app
@@ -34,14 +35,7 @@ def _get_protected_routes(app: object) -> list[tuple[str, str]]:
     from fastapi import FastAPI
 
     assert isinstance(app, FastAPI)
-    schema = app.openapi()
-    routes: list[tuple[str, str]] = []
-    for path, methods in schema.get("paths", {}).items():
-        if path.startswith(("/admin/", "/me/")):
-            for method in methods:
-                if method.upper() in ("GET", "POST", "PUT", "PATCH", "DELETE"):
-                    routes.append((method.upper(), path))
-    return sorted(routes)
+    return sorted((m, p) for m, p in all_routes(app) if p.startswith(("/admin/", "/me/")))
 
 
 def _admin_routes(app: object) -> list[tuple[str, str]]:
@@ -67,6 +61,33 @@ async def _create_admin_and_login(client: AsyncClient) -> None:
         "/auth/login",
         json={"username": "admin1", "password": "adminpass1"},
     )
+
+
+async def _complete_profile(client: AsyncClient) -> None:
+    from scripts.create_admin import create_admin
+
+    create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "TestCity")
+    locations = (await client.get("/locations")).json()
+    response = await client.post("/me/profile", json={"name": "Test Person", "location_id": locations[0]["id"]})
+    assert response.status_code in (200, 201), response.text
+
+
+REQUIRED_QUERY = {"/admin/slots": "?doctor_id=1&year=2026&month=12"}
+
+
+async def _assert_reachable(client: AsyncClient, routes: list[tuple[str, str]]) -> None:
+    for method, path in routes:
+        resp = await client.request(method, path + (REQUIRED_QUERY.get(path, "") if method == "GET" else ""))
+        assert resp.status_code not in (401, 403), f"{method} {path} refused an allowed role: {resp.status_code}"
+        if method == "GET" and "{" not in path:
+            assert resp.status_code == 200, f"GET {path} should be served to an allowed role, got {resp.status_code}"
+
+
+@pytest.mark.anyio()
+async def test_B11_admin_in_user_mode_can_access_me_routes(app: object, client: AsyncClient) -> None:
+    await _create_admin_and_login(client)
+    assert (await client.post("/auth/mode", json={"mode": "user"})).status_code == 200
+    await _assert_reachable(client, _me_routes(app))
 
 
 @pytest.mark.anyio()
@@ -106,10 +127,7 @@ async def test_B11_admin_in_admin_mode_can_access_admin_routes(
     app: object, client: AsyncClient
 ) -> None:
     await _create_admin_and_login(client)
-    for method, path in _admin_routes(app):
-        resp = await client.request(method, path)
-        assert resp.status_code != 401, f"{method} {path} should not return 401"
-        assert resp.status_code != 403, f"{method} {path} should not return 403"
+    await _assert_reachable(client, _admin_routes(app))
 
 
 @pytest.mark.anyio()
@@ -127,7 +145,5 @@ async def test_B11_user_can_access_me_routes(
     app: object, client: AsyncClient
 ) -> None:
     await _signup_user(client)
-    for method, path in _me_routes(app):
-        resp = await client.request(method, path)
-        assert resp.status_code != 401, f"{method} {path} should not return 401"
-        assert resp.status_code != 403, f"{method} {path} should not return 403"
+    await _complete_profile(client)
+    await _assert_reachable(client, _me_routes(app))

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import time
 import uuid
 from collections.abc import AsyncIterator, Callable, Sequence
@@ -120,6 +121,7 @@ class TurnOutcome(BaseModel):
     tools: list[str]
     cards: str | None
     foreign_tool_calls: int
+    stale_slot_mentions: int = 0
     passed: bool
 
 
@@ -302,7 +304,7 @@ async def run_answers_suite(settings: AISettings, items: list[AnswerItem]) -> An
                 excerpts = result.rows[1].content if result and len(result.rows) > 1 else "{}"
                 verdict = await _judge(clients, item, answer, excerpts)
                 judge_errors += verdict is None
-                refused = "couldn't find" in answer.lower() or "could not find" in answer.lower() or (verdict is not None and verdict[2])
+                refused = is_refusal(answer, verdict[2] if verdict is not None else None)
                 outcomes.append(
                     AnswerOutcome(
                         id=item.id,
@@ -329,6 +331,21 @@ async def run_answers_suite(settings: AISettings, items: list[AnswerItem]) -> An
     )
 
 
+TOOL_RESULT_CLOCK = re.compile(r"T(\d{2}:\d{2})")
+ANSWER_CLOCK = re.compile(r"\b(\d{2}:\d{2})\b")
+
+
+def is_refusal(answer: str, judged_refusal: bool | None) -> bool:
+    if judged_refusal is not None:
+        return judged_refusal
+    return answer.lower().lstrip().startswith(("i couldn't find", "i could not find"))
+
+
+def stale_slot_mentions(earlier_tool_results: str, current_tool_results: str, answer: str) -> int:
+    stale = set(TOOL_RESULT_CLOCK.findall(earlier_tool_results)) - set(TOOL_RESULT_CLOCK.findall(current_tool_results))
+    return len(set(ANSWER_CLOCK.findall(answer)) & stale)
+
+
 def _subset(expected: dict[str, object], actual: dict[str, object]) -> bool:
     return all(actual.get(key) == value for key, value in expected.items())
 
@@ -343,6 +360,7 @@ async def run_tools_suite(
             for scenario in scenarios:
                 ports = ports_factory(DOCUMENT_IDS)
                 history: list[HistoryRow] = []
+                earlier_tool_results = ""
                 for index, turn in enumerate(scenario.turns):
                     request = TurnRequest(history=history, message=turn.message, profile=PROFILE, needs_label=True, session_id=index)
                     events = [e async for e in run_turn(request, ports, scoped, clients)]
@@ -357,6 +375,10 @@ async def run_tools_suite(
                     foreign = sum(1 for row in done.new_rows if row.role == "tool" and "not available here" in row.content)
                     cards = next((e.type for e in events if isinstance(e, Cards)), None)
                     intent = next((e.code for e in events if isinstance(e, Intent)), None)
+                    current_tool_results = "\n".join(row.content for row in done.new_rows if row.role == "tool")
+                    answer = next((row.content for row in reversed(done.new_rows) if row.role == "assistant" and row.content), "")
+                    stale = stale_slot_mentions(earlier_tool_results, current_tool_results, answer)
+                    earlier_tool_results += "\n" + current_tool_results
                     tools_ok = all(any(name == want.name and _subset(want.arguments, args) for name, args in calls) for want in turn.expected_tools)
                     outcomes.append(
                         TurnOutcome(
@@ -367,7 +389,8 @@ async def run_tools_suite(
                             tools=[name for name, _ in calls],
                             cards=cards,
                             foreign_tool_calls=foreign,
-                            passed=tools_ok and cards == turn.expected_cards and foreign == 0,
+                            stale_slot_mentions=stale,
+                            passed=tools_ok and cards == turn.expected_cards and foreign == 0 and stale == 0,
                         )
                     )
         finally:

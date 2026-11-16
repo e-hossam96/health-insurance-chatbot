@@ -282,7 +282,7 @@ export function ChatPage(): ReactNode {
                     }`}
                     data-testid={`msg-${item.role}`}
                   >
-                    <MarkdownContent content={item.content} />
+                    {item.role === 'user' ? <p className="whitespace-pre-wrap break-words">{item.content}</p> : <MarkdownContent content={item.content} />}
                   </div>
                 </div>
               ) : (
