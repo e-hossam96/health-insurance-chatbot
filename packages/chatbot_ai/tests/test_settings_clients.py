@@ -11,7 +11,7 @@ from testkit.ai_settings import settings_for
 from testkit.fake_openai import FakeOpenAI, text_reply
 
 PACKAGE_SRC = Path(__file__).resolve().parent.parent / "src" / "chatbot_ai"
-MODEL_NAME_PATTERN = re.compile(r"gpt-\d|gpt-4o|o\d-mini|text-embedding-|whisper-|dall-e|claude-|gemini-|llama-?\d|mistral-", re.IGNORECASE)
+MODEL_NAME_PATTERN = re.compile(r"gpt-?\d|\bo\d(?:-[a-z]+)?\b|text-embedding-|whisper-|dall-e|claude-|gemini-|llama-?\d|mistral-|qwen", re.IGNORECASE)
 
 
 def test_I11_each_role_has_its_own_base_url_key_and_model() -> None:

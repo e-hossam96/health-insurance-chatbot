@@ -13,7 +13,6 @@ from chatbot_ai.interface import (
     Done,
     HistoryRow,
     ProfileInfo,
-    Token,
     TurnEvent,
     TurnRequest,
 )
@@ -211,4 +210,5 @@ async def test_I4_I14_cross_agent_turns_only_offer_and_run_the_current_agents_to
     assert offered == [SCHEDULING_TOOL_NAMES] * 2 + [COMPLAINT_TOOL_NAMES] * 3 + [SCHEDULING_TOOL_NAMES] * 2
     third_request_messages = fake_openai.chat_requests[-2]["messages"]
     assert any(m.get("tool_calls") for m in third_request_messages), "the history keeps earlier agents' tool calls (I4)"
-    assert not any(isinstance(e, Token) and "slot_id" in e.text for e in third)
+    third_tool_names = [call["function"]["name"] for row in third_done.new_rows for call in row.tool_calls or []]
+    assert third_tool_names == ["eligible_visits"], "the third turn re-fetches through its own tools instead of reusing old results"

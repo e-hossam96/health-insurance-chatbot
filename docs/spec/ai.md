@@ -56,7 +56,7 @@ Router plus specialists, with handoff (I1 to I4).
       +-- other -------------------------------------------> responder    (no tools)
 ```
 
-- The classifier sees the last 6 history rows (trimmed to start at a user row, I1), and its prompt says a short follow-up ("yes, the second one") continues the current task. Its result picks the agent every turn (I1). When `needs_label` is true the same result is also stored as the sidebar label (F6).
+- The classifier sees the last 6 history rows (trimmed to start at a user row, I1). The 6 are counted over all stored rows, tool rows included; tool rows and tool-call-only assistant rows are then left out of the router request, which carries only the conversation text, and its prompt says a short follow-up ("yes, the second one") continues the current task. Its result picks the agent every turn (I1). When `needs_label` is true the same result is also stored as the sidebar label (F6).
 - The router is invisible: its calls are never stored. Only the chosen agent's rows are stored, so history looks like a single-agent history (I3).
 - Tool loops run up to `AI_MAX_TOOL_ROUNDS` rounds. Tool results are size-capped (F4).
 - Each agent has a system prompt in `prompts/<agent>.md`, built from shared blocks (persona, F5 re-fetch note, F8 no medical advice, F17 English, C8 UTC, profile name, location name and id, and a note that the history may contain tool calls the agent cannot make: use only the tools listed now and re-fetch anything that can change) plus agent-specific instructions.

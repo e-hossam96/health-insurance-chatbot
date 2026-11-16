@@ -36,6 +36,21 @@ class JobFailed:
 JobOutcome = JobSucceeded | JobFailed
 
 
+@dataclass(frozen=True)
+class ChildRun:
+    outcome: JobOutcome
+    pid: int | None
+    exitcode: int | None
+
+
+@dataclass(frozen=True)
+class JobRecord:
+    document_id: int
+    outcome: JobOutcome
+    child_pid: int | None = None
+    child_exitcode: int | None = None
+
+
 def _child_main(ingest: IngestFunction, document_id: int, path: str, file_type: FileType, settings: AISettings, conn: Connection) -> None:
     try:
         conn.send(JobSucceeded(ingest(document_id, path, file_type, settings)))
@@ -47,7 +62,7 @@ def _child_main(ingest: IngestFunction, document_id: int, path: str, file_type: 
 
 async def run_in_child(
     ingest: IngestFunction, document_id: int, path: str, file_type: FileType, settings: AISettings, timeout_s: float
-) -> JobOutcome:
+) -> ChildRun:
     context = multiprocessing.get_context("spawn")
     receiver, sender = context.Pipe(duplex=False)
     process = context.Process(target=_child_main, args=(ingest, document_id, path, file_type, settings, sender), daemon=True)
@@ -58,11 +73,11 @@ async def run_in_child(
         if process.is_alive():
             process.kill()
             await asyncio.to_thread(process.join)
-            return JobFailed(f"Ingestion timed out after {timeout_s:g} s")
+            return ChildRun(JobFailed(f"Ingestion timed out after {timeout_s:g} s"), process.pid, process.exitcode)
         if receiver.poll():
             outcome: JobOutcome = receiver.recv()
-            return outcome
-        return JobFailed(f"Ingestion process exited with code {process.exitcode}")
+            return ChildRun(outcome, process.pid, process.exitcode)
+        return ChildRun(JobFailed(f"Ingestion process exited with code {process.exitcode}"), process.pid, process.exitcode)
     finally:
         receiver.close()
         if process.is_alive():
@@ -93,7 +108,7 @@ class KbJobRunner:
         self.delete_points = delete_points
         self._queue: asyncio.Queue[int] = asyncio.Queue()
         self._worker: asyncio.Task[None] | None = None
-        self.completed: list[tuple[int, JobOutcome]] = []
+        self.completed: list[JobRecord] = []
 
     @property
     def ai_settings(self) -> AISettings | None:
@@ -160,12 +175,14 @@ class KbJobRunner:
 
         settings = self._ai_settings
         if settings is None:
-            outcome: JobOutcome = JobFailed(AI_NOT_CONFIGURED)
+            record = JobRecord(document_id, JobFailed(AI_NOT_CONFIGURED))
         elif not Path(path).is_file():
-            outcome = JobFailed("The uploaded file is missing from storage.")
+            record = JobRecord(document_id, JobFailed("The uploaded file is missing from storage."))
         else:
-            outcome = await run_in_child(self.ingest_function, document_id, path, file_type, settings, settings.ingest_timeout_s)
-        self.completed.append((document_id, outcome))
+            run = await run_in_child(self.ingest_function, document_id, path, file_type, settings, settings.ingest_timeout_s)
+            record = JobRecord(document_id, run.outcome, run.pid, run.exitcode)
+        self.completed.append(record)
+        outcome = record.outcome
 
         if isinstance(outcome, JobSucceeded):
             still_there = await self._set_status(document_id, KbDocumentStatus.ready, None)

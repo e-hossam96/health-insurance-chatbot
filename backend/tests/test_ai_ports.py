@@ -220,3 +220,44 @@ async def test_I5_catalog_searches_filter_and_unknown_ids_are_rejected(session: 
     ):
         with pytest.raises(InvalidArgument, match="99999"):
             await call
+
+
+@pytest.mark.anyio()
+async def test_C7_a_slot_starting_exactly_now_is_not_offered(session: AsyncSession, seed: Seed, db_engine: Engine) -> None:
+    with db_engine.begin() as conn:
+        at_now = _insert(conn, "INSERT INTO slot (doctor_id, start_at, status) VALUES (:d, :t, 'available')", d=seed.karim, t=NOW.isoformat())
+    scheduling = _ports(session, seed).scheduling
+    assert at_now not in [c.slot_id for c in await scheduling.available_slots(seed.karim, None, None, 10)]
+    assert [c.start_at for c in await scheduling.recommend_doctors(seed.cardio, None, 3)] == ["2026-12-17T13:00:00Z"]
+
+
+@pytest.mark.anyio()
+async def test_D5_ties_on_location_and_time_break_by_slot_id(session: AsyncSession, seed: Seed, db_engine: Engine) -> None:
+    with db_engine.begin() as conn:
+        cs = conn.execute(
+            text("SELECT d.clinic_specialty_id FROM doctor d WHERE d.id = :d"), {"d": seed.karim}
+        ).scalar_one()
+        late = _insert(conn, "INSERT INTO doctor (name, clinic_specialty_id) VALUES ('Dr. Zed Late', :cs)", cs=cs)
+        early = _insert(conn, "INSERT INTO doctor (name, clinic_specialty_id) VALUES ('Dr. Amy Early', :cs)", cs=cs)
+        later_slot = _insert(conn, "INSERT INTO slot (doctor_id, start_at, status) VALUES (:d, '2026-12-10 09:00:00+00', 'available')", d=early)
+        earlier_slot = _insert(conn, "INSERT INTO slot (doctor_id, start_at, status) VALUES (:d, '2026-12-10 09:00:00+00', 'available')", d=late)
+    assert earlier_slot > later_slot
+    ranked = await _ports(session, seed).scheduling.recommend_doctors(seed.cardio, None, 3)
+    assert [c.slot_id for c in ranked[:2]] == [later_slot, earlier_slot]
+    assert [c.doctor_name for c in ranked] == ["Dr. Amy Early", "Dr. Zed Late", "Dr. Karim Adel"]
+
+
+@pytest.mark.anyio()
+async def test_G8_only_ready_documents_are_reported_searchable(session: AsyncSession, seed: Seed, db_engine: Engine) -> None:
+    with db_engine.begin() as conn:
+        admin = _insert(conn, "INSERT INTO account (username, password_hash, role) VALUES ('kbadmin', 'x', 'admin')")
+        ids = {
+            status: _insert(
+                conn,
+                "INSERT INTO kb_document (filename, file_type, file_size_bytes, storage_path, content_hash, status, uploaded_by) "
+                "VALUES (:n, 'txt', 1, :p, :h, :s, :a)",
+                n=f"{status}.txt", p=f"/data/kb/{status}.txt", h=status, s=status, a=admin,
+            )
+            for status in ("uploaded", "processing", "ready", "failed")
+        }
+    assert await _ports(session, seed).knowledge.ready_document_ids() == [ids["ready"]]

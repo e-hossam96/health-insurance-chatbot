@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -22,7 +22,14 @@ from chatbot_ai.ingest.index import collection_name, document_filter, make_qdran
 from chatbot_ai.settings import AISettings
 from testkit.ai_settings import settings_for
 from testkit.fake_openai import run_fake_openai
-from testkit.kb_ingest import JOB_LOG, hanging_ingest, quick_ingest, scanned_ingest
+from testkit.kb_ingest import (
+    JOB_LOG,
+    RUNNING_MARKER,
+    blocking_ingest,
+    hanging_ingest,
+    quick_ingest,
+    scanned_ingest,
+)
 
 TEST_DB_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot")
 LIMIT = 4096
@@ -34,7 +41,7 @@ class KbHarness:
     app: FastAPI
     admin: AsyncClient
     storage: Path
-    deletes: list[tuple[int, bool]] = field(default_factory=list)
+    deletes: list[tuple[int, bool, bool]] = field(default_factory=list)
 
     @property
     def runner(self) -> KbJobRunner:
@@ -71,7 +78,8 @@ async def kb_harness(
 
         async def record_delete(document_id: int, settings: AISettings) -> None:
             row_exists = (await admin.get("/admin/kb-documents")).json()["total"] > 0
-            harness.deletes.append((document_id, row_exists))
+            file_exists = bool(harness.stored_files())
+            harness.deletes.append((document_id, row_exists, file_exists))
 
         harness.runner.delete_points = record_delete
         yield harness
@@ -181,11 +189,15 @@ async def test_G5_I12_jobs_run_one_at_a_time_in_order(kb: KbHarness) -> None:
 async def test_I12_a_slow_parser_is_killed_at_the_timeout(_migrate_fresh: None, tmp_path: Path) -> None:
     settings = settings_for("http://127.0.0.1:9/v1", ai_embedding_model="kb-route-tests", ingest_timeout_s=3)
     async with kb_harness(tmp_path / "kb", settings, hanging_ingest) as harness:
-        await harness.upload("slow.pdf", PDF)
+        document = await harness.upload("slow.pdf", PDF)
         await asyncio.wait_for(harness.runner.join(), timeout=60)
         listed = (await harness.listed())["slow.pdf"]
         assert listed["status"] == "failed"
         assert listed["error_message"] == "Ingestion timed out after 3 s"
+        record = harness.runner.completed[0]
+        child_pid = int((harness.storage / f"pid-{document['id']}.txt").read_text(encoding="utf-8"))
+        assert record.child_pid == child_pid != os.getpid()
+        assert record.child_exitcode is not None, "the child must be dead after the kill"
 
 
 @pytest.mark.anyio()
@@ -205,7 +217,7 @@ async def test_G6_retry_and_reindex_set_uploaded_and_rerun(kb: KbHarness) -> Non
     reindexed = await kb.admin.post(f"/admin/kb-documents/{document['id']}/reindex")
     assert reindexed.json()["status"] == "uploaded"
     await kb.runner.join()
-    assert [doc_id for doc_id, _ in kb.runner.completed] == [document["id"]] * 3
+    assert [record.document_id for record in kb.runner.completed] == [document["id"]] * 3
 
 
 @pytest.mark.anyio()
@@ -235,7 +247,7 @@ async def test_G7_startup_resets_processing_rows_and_reruns_them(_migrate_fresh:
         await harness.runner.join()
         statuses = {name: item["status"] for name, item in (await harness.listed()).items()}
         assert statuses == {"stuck.txt": "ready", "queued.txt": "ready", "done.txt": "ready"}
-        assert [document_id for document_id, _ in harness.runner.completed] == list(rerun_ids)
+        assert [record.document_id for record in harness.runner.completed] == list(rerun_ids)
 
 
 @pytest.mark.anyio()
@@ -247,9 +259,24 @@ async def test_G9_delete_removes_points_then_the_file_then_the_row(kb: KbHarness
 
     response = await kb.admin.delete(f"/admin/kb-documents/{document['id']}")
     assert response.status_code == 204
-    assert kb.deletes == [(document["id"], True)]
+    assert kb.deletes == [(document["id"], True, True)]
     assert not storage_path.exists()
     assert (await kb.admin.get("/admin/kb-documents")).json()["total"] == 0
+
+
+@pytest.mark.anyio()
+async def test_G9_when_the_file_cannot_be_removed_the_row_is_kept(kb: KbHarness, monkeypatch: pytest.MonkeyPatch) -> None:
+    document = await kb.upload("handbook.pdf", PDF)
+
+    def refuse(self: Path, missing_ok: bool = False) -> None:
+        raise PermissionError("file is locked")
+
+    monkeypatch.setattr(Path, "unlink", refuse)
+    with pytest.raises(PermissionError):
+        await kb.admin.delete(f"/admin/kb-documents/{document['id']}")
+    monkeypatch.undo()
+    assert kb.deletes == [(document["id"], True, True)]
+    assert (await kb.admin.get("/admin/kb-documents")).json()["total"] == 1
 
 
 @pytest.mark.anyio()
@@ -319,3 +346,60 @@ async def test_G4_G6_a_real_ingest_runs_in_a_child_process_and_fills_qdrant(_mig
             if await client.collection_exists(collection_name(settings)):
                 await client.delete_collection(collection_name(settings))
             await client.close()
+
+
+async def _wait_until(condition: Callable[[], bool], deadline_s: float = 60.0) -> None:
+    loop = asyncio.get_running_loop()
+    give_up = loop.time() + deadline_s
+    while not condition():
+        assert loop.time() < give_up, "condition not met before the deadline"
+        await asyncio.sleep(0.05)
+
+
+@pytest.mark.anyio()
+async def test_G2_an_upload_of_exactly_the_limit_is_accepted(kb: KbHarness) -> None:
+    document = await kb.upload("exact.txt", b"z" * LIMIT)
+    assert document["file_size_bytes"] == LIMIT
+
+
+@pytest.mark.anyio()
+async def test_G3_a_duplicate_upload_starts_no_job(kb: KbHarness) -> None:
+    await kb.upload("handbook.pdf", PDF)
+    await kb.runner.join()
+    assert (await kb.admin.post("/admin/kb-documents", params={"filename": "copy.pdf"}, content=PDF)).status_code == 409
+    await kb.runner.join()
+    assert len(kb.runner.completed) == 1
+
+
+@pytest.mark.anyio()
+async def test_G5_I12_upload_returns_at_once_and_jobs_run_one_at_a_time_in_a_child_process(
+    _migrate_fresh: None, tmp_path: Path, ai_settings: AISettings
+) -> None:
+    async with kb_harness(tmp_path / "kb", ai_settings, blocking_ingest) as harness:
+        first = await harness.upload("first.txt", b"first document")
+        second = await harness.upload("second.txt", b"second document")
+        assert (first["status"], second["status"]) == ("uploaded", "uploaded")
+
+        first_pid = harness.storage / f"pid-{first['id']}.txt"
+        await _wait_until(first_pid.exists)
+        statuses = {name: item["status"] for name, item in (await harness.listed()).items()}
+        assert statuses == {"first.txt": "processing", "second.txt": "uploaded"}
+
+        busy = await harness.admin.post(f"/admin/kb-documents/{first['id']}/reindex")
+        assert busy.json()["status"] == "processing"
+        queued = await harness.admin.post(f"/admin/kb-documents/{second['id']}/reindex")
+        assert queued.json()["status"] == "uploaded"
+
+        (harness.storage / f"release-{first['id']}").touch()
+        second_pid = harness.storage / f"pid-{second['id']}.txt"
+        await _wait_until(second_pid.exists)
+        assert (await harness.listed())["first.txt"]["status"] == "ready"
+        (harness.storage / f"release-{second['id']}").touch()
+        await harness.runner.join()
+
+        assert {name: item["status"] for name, item in (await harness.listed()).items()} == {"first.txt": "ready", "second.txt": "ready"}
+        assert [r.document_id for r in harness.runner.completed] == [first["id"], second["id"]]
+        pids = {int(first_pid.read_text(encoding="utf-8")), int(second_pid.read_text(encoding="utf-8"))}
+        assert os.getpid() not in pids
+        assert {r.child_pid for r in harness.runner.completed} == pids
+        assert not (harness.storage / RUNNING_MARKER).exists()

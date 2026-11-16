@@ -128,7 +128,7 @@ describe('AdminKbPage', () => {
   });
 
   it('G5: the list polls while a row is uploaded or processing and stops when all are done', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     getKbDocuments
       .mockResolvedValueOnce(list([doc({ status: 'uploaded' })]))
       .mockResolvedValueOnce(list([doc({ status: 'processing' })]))

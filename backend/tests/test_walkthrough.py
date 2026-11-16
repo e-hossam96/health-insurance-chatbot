@@ -203,6 +203,9 @@ async def test_walkthrough_booking_card_click_and_knowledge_question(
                 text("SELECT count(*) FROM chat_message WHERE session_id = :s AND tool_name = 'search_kb'"), {"s": session_id}
             ).scalar_one()
         assert search_rows == 1
+        with db_engine.connect() as conn:
+            label = conn.execute(text("SELECT intent FROM chat_session WHERE id = :s"), {"s": session_id}).scalar_one()
+        assert label == "visit.book", "F6: the label never changes after it is set"
         assert fake.pending() == 0
     finally:
         await client.aclose()

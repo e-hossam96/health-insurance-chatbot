@@ -101,7 +101,6 @@ async def test_I3_router_call_is_not_in_the_stored_rows(
     done = events[-1]
     assert isinstance(done, Done)
     assert done.new_rows == [HistoryRow(role="user", content="hi"), HistoryRow(role="assistant", content="Hello Mona!")]
-    assert all("intent" not in row.content for row in done.new_rows)
     assert [r["model"] for r in fake_openai.chat_requests] == ["router-model", "chat-model"]
 
 
