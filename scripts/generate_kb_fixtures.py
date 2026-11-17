@@ -14,6 +14,7 @@ DEFAULT_OUTPUT = ROOT / "packages" / "chatbot_ai" / "src" / "chatbot_ai" / "eval
 PAGE_WIDTH, PAGE_HEIGHT, MARGIN = 612, 792, 54
 CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN
 ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
+ZIP_CREATE_SYSTEM_UNIX = 3
 
 
 @dataclass(frozen=True)
@@ -348,7 +349,9 @@ def render_docx(document: FixtureDocument) -> bytes:
     with zipfile.ZipFile(out, "w") as archive:
         for name, content in parts:
             info = zipfile.ZipInfo(name, date_time=ZIP_TIMESTAMP)
-            info.compress_type = zipfile.ZIP_DEFLATED
+            info.create_system = ZIP_CREATE_SYSTEM_UNIX
+            # stored, not deflated: zlib output differs between the Windows and Linux Python builds
+            info.compress_type = zipfile.ZIP_STORED
             info.external_attr = 0o644 << 16
             archive.writestr(info, content.encode("utf-8"))
     return out.getvalue()
