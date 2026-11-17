@@ -1,5 +1,6 @@
 services:
   fakeai:
+    container_name: health-chatbot-fakeai
     image: health-insurance-chatbot-backend:local
     command: ["python", "-m", "testkit.fake_openai", "--auto", "--token-delay", "0.3", "--port", "9000", "--embedding-dimensions", "64"]
     environment:

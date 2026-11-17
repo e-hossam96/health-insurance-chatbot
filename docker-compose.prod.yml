@@ -13,6 +13,7 @@ services:
     restart: unless-stopped
 
   certbot:
+    container_name: health-chatbot-certbot
     image: certbot/certbot:v5.10.0
     volumes:
       - certbot_conf:/etc/letsencrypt
