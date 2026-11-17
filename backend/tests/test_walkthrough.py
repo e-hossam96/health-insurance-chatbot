@@ -117,7 +117,7 @@ async def _signed_in(app: FastAPI) -> AsyncClient:
 
 @pytest.fixture()
 async def app_and_world(
-    _migrate_fresh: None, db_engine: Engine, ai_settings: AISettings, tmp_path: Path
+    _clean_database: None, db_engine: Engine, ai_settings: AISettings, tmp_path: Path
 ) -> AsyncIterator[tuple[FastAPI, World]]:
     from scripts.create_admin import create_admin
 
@@ -212,7 +212,7 @@ async def test_walkthrough_booking_card_click_and_knowledge_question(
 
 
 @pytest.mark.anyio()
-async def test_without_ai_settings_a_turn_fails_cleanly(_migrate_fresh: None, tmp_path: Path, db_engine: Engine) -> None:
+async def test_without_ai_settings_a_turn_fails_cleanly(_clean_database: None, tmp_path: Path, db_engine: Engine) -> None:
     from scripts.create_admin import create_admin
 
     create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "TestCity")

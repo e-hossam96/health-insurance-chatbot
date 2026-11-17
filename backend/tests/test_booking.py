@@ -27,7 +27,7 @@ class FakeClock:
 
 
 @pytest.fixture()
-def app(_migrate_fresh: None) -> object:
+def app(_clean_database: None) -> object:
     settings = Settings(database_url=TEST_DB_URL)  # type: ignore[call-arg]
     application = create_app(settings)
     application.state.clock = FakeClock(datetime(2026, 12, 1, 8, 0, tzinfo=UTC))  # type: ignore[union-attr]

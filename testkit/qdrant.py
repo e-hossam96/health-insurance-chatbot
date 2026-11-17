@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from qdrant_client import AsyncQdrantClient
 
-DEFAULT_QDRANT_URL = "http://localhost:6333"
+DEFAULT_QDRANT_URL = "http://127.0.0.1:6333"
 
 
 def qdrant_url() -> str:

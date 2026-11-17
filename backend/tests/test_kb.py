@@ -92,7 +92,7 @@ def ai_settings() -> Iterator[AISettings]:
 
 
 @pytest.fixture()
-async def kb(_migrate_fresh: None, tmp_path: Path, ai_settings: AISettings) -> AsyncIterator[KbHarness]:
+async def kb(_clean_database: None, tmp_path: Path, ai_settings: AISettings) -> AsyncIterator[KbHarness]:
     async with kb_harness(tmp_path / "kb", ai_settings) as harness:
         yield harness
 
@@ -159,7 +159,7 @@ async def test_G5_upload_returns_immediately_as_uploaded_and_the_job_makes_it_re
 
 
 @pytest.mark.anyio()
-async def test_G5_a_failed_job_stores_the_error_message(_migrate_fresh: None, tmp_path: Path, ai_settings: AISettings) -> None:
+async def test_G5_a_failed_job_stores_the_error_message(_clean_database: None, tmp_path: Path, ai_settings: AISettings) -> None:
     async with kb_harness(tmp_path / "kb", ai_settings, scanned_ingest) as harness:
         await harness.upload("scan.pdf", PDF)
         await harness.runner.join()
@@ -169,7 +169,7 @@ async def test_G5_a_failed_job_stores_the_error_message(_migrate_fresh: None, tm
 
 
 @pytest.mark.anyio()
-async def test_G5_without_ai_settings_the_job_fails_with_a_clear_message(_migrate_fresh: None, tmp_path: Path) -> None:
+async def test_G5_without_ai_settings_the_job_fails_with_a_clear_message(_clean_database: None, tmp_path: Path) -> None:
     async with kb_harness(tmp_path / "kb", None) as harness:
         await harness.upload("handbook.pdf", PDF)
         await harness.runner.join()
@@ -187,7 +187,7 @@ async def test_G5_I12_jobs_run_one_at_a_time_in_order(kb: KbHarness) -> None:
 
 
 @pytest.mark.anyio()
-async def test_I12_a_slow_parser_is_killed_at_the_timeout(_migrate_fresh: None, tmp_path: Path) -> None:
+async def test_I12_a_slow_parser_is_killed_at_the_timeout(_clean_database: None, tmp_path: Path) -> None:
     # the timeout must outlast spawning the child, which imports the AI package before the parser starts
     settings = settings_for("http://127.0.0.1:9/v1", ai_embedding_model="kb-route-tests", ingest_timeout_s=15)
     async with kb_harness(tmp_path / "kb", settings, hanging_ingest) as harness:
@@ -223,7 +223,7 @@ async def test_G6_retry_and_reindex_set_uploaded_and_rerun(kb: KbHarness) -> Non
 
 
 @pytest.mark.anyio()
-async def test_G7_startup_resets_processing_rows_and_reruns_them(_migrate_fresh: None, tmp_path: Path, ai_settings: AISettings, db_engine: Engine) -> None:
+async def test_G7_startup_resets_processing_rows_and_reruns_them(_clean_database: None, tmp_path: Path, ai_settings: AISettings, db_engine: Engine) -> None:
     storage = tmp_path / "kb"
     storage.mkdir()
     from scripts.create_admin import create_admin
@@ -328,7 +328,7 @@ async def test_listing_is_paginated_and_reports_the_upload_limit(kb: KbHarness) 
 
 
 @pytest.mark.anyio()
-async def test_G4_G6_a_real_ingest_runs_in_a_child_process_and_fills_qdrant(_migrate_fresh: None, tmp_path: Path) -> None:
+async def test_G4_G6_a_real_ingest_runs_in_a_child_process_and_fills_qdrant(_clean_database: None, tmp_path: Path) -> None:
     from chatbot_ai.ingest import ingest
 
     with run_fake_openai() as fake:
@@ -375,7 +375,7 @@ async def test_G3_a_duplicate_upload_starts_no_job(kb: KbHarness) -> None:
 
 @pytest.mark.anyio()
 async def test_G5_I12_upload_returns_at_once_and_jobs_run_one_at_a_time_in_a_child_process(
-    _migrate_fresh: None, tmp_path: Path, ai_settings: AISettings
+    _clean_database: None, tmp_path: Path, ai_settings: AISettings
 ) -> None:
     async with kb_harness(tmp_path / "kb", ai_settings, blocking_ingest) as harness:
         first = await harness.upload("first.txt", b"first document")
@@ -408,7 +408,7 @@ async def test_G5_I12_upload_returns_at_once_and_jobs_run_one_at_a_time_in_a_chi
 
 
 @pytest.mark.anyio()
-async def test_H3_the_ingestion_gauge_moves_and_outcomes_are_counted(_migrate_fresh: None, tmp_path: Path, ai_settings: AISettings) -> None:
+async def test_H3_the_ingestion_gauge_moves_and_outcomes_are_counted(_clean_database: None, tmp_path: Path, ai_settings: AISettings) -> None:
     async with kb_harness(tmp_path / "kb", ai_settings, blocking_ingest) as harness:
         before = (await harness.admin.get("/metrics")).text
         document = await harness.upload("gauge.txt", b"gauge document")

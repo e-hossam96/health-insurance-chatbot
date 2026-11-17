@@ -18,7 +18,7 @@ TEST_DB_URL = os.environ.get(
 
 
 @pytest.fixture()
-def app(_migrate_fresh: None) -> object:
+def app(_clean_database: None) -> object:
     settings = Settings(database_url=TEST_DB_URL)  # type: ignore[call-arg]
     return create_app(settings)
 

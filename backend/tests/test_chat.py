@@ -42,7 +42,7 @@ def clock() -> FakeClock:
 
 
 @pytest.fixture()
-def app(_migrate_fresh: None, clock: FakeClock) -> object:
+def app(_clean_database: None, clock: FakeClock) -> object:
     settings = Settings(database_url=TEST_DB_URL)  # type: ignore[call-arg]
     application = create_app(settings)
     application.state.clock = clock  # type: ignore[union-attr]

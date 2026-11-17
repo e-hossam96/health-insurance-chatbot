@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
-// Grafana also defaults to 3000; set E2E_PORT to run the mocked specs while the stack is up.
-const port = Number(process.env.E2E_PORT ?? 3000);
+// not 3000: reuseExistingServer would silently test the stack's Grafana instead of the dev server
+const port = Number(process.env.E2E_PORT ?? 5199);
 
 export default defineConfig({
   testDir: './e2e',
