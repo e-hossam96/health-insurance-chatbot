@@ -1,6 +1,8 @@
 services:
   postgres:
     container_name: health-chatbot-postgres
+    networks:
+      - data
     image: postgres:18.7
     environment:
       POSTGRES_USER: chatbot
@@ -18,6 +20,9 @@ services:
 
   qdrant:
     container_name: health-chatbot-qdrant
+    networks:
+      - data
+      - metrics
     image: qdrant/qdrant:v1.20.2
     ports:
       - "127.0.0.1:6333:6333"
@@ -31,6 +36,11 @@ services:
 
   backend:
     container_name: health-chatbot-backend
+    networks:
+      - app
+      - data
+      - metrics
+      - egress
     image: health-insurance-chatbot-backend:local
     build:
       context: .
@@ -58,17 +68,22 @@ services:
 
   frontend:
     container_name: health-chatbot-frontend
+    networks:
+      - edge
+      - app
     build:
       context: frontend
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "80:8080"
     depends_on:
       backend:
         condition: service_healthy
 
   prometheus:
     container_name: health-chatbot-prometheus
+    networks:
+      - metrics
     image: prom/prometheus:v3.16.0
     command:
       - --config.file=/etc/prometheus/prometheus.yml
@@ -90,6 +105,9 @@ services:
 
   postgres-exporter:
     container_name: health-chatbot-postgres-exporter
+    networks:
+      - data
+      - metrics
     image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1
     environment:
       DATA_SOURCE_NAME: postgresql://chatbot:${POSTGRES_PASSWORD:-chatbot}@postgres:5432/chatbot?sslmode=disable
@@ -99,6 +117,8 @@ services:
 
   grafana:
     container_name: health-chatbot-grafana
+    networks:
+      - metrics
     image: grafana/grafana:13.3.1
     environment:
       GF_SECURITY_ADMIN_USER: admin
@@ -119,6 +139,22 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
+
+networks:
+  edge:
+    name: health-chatbot-edge
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24
+  app:
+    name: health-chatbot-app
+    internal: true
+  data:
+    name: health-chatbot-data
+  metrics:
+    name: health-chatbot-metrics
+  egress:
+    name: health-chatbot-egress
 
 volumes:
   pgdata:

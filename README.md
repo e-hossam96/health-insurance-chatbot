@@ -51,7 +51,8 @@ flowchart TB
     browser(["Browser"])
 
     subgraph compose["Docker Compose"]
-        frontend["<b>frontend</b> (nginx)<br/>serves the React app<br/>proxies /api to the backend"]
+        caddy["<b>caddy</b> (production only)<br/>HTTPS, certificates, HSTS"]
+        frontend["<b>frontend</b> (nginx, non-root)<br/>serves the React app<br/>proxies /api to the backend"]
 
         subgraph backend["backend (FastAPI)"]
             routes["auth, routes, SSE"]
@@ -68,7 +69,8 @@ flowchart TB
 
     models["<b>model APIs</b><br/>chat, router, rewrite,<br/>embedding, judge"]
 
-    browser -- "HTTP(S)" --> frontend
+    browser -- "HTTPS" --> caddy
+    caddy --> frontend
     frontend --> backend
     backend --> postgres
     chatbot_ai --> qdrant
@@ -110,7 +112,7 @@ flowchart TB
 | Data | PostgreSQL 17, Qdrant 1.13 |
 | Observability | Prometheus 3, Grafana 13, postgres-exporter |
 | Tooling | uv workspace (one lockfile), npm, ruff, mypy `--strict`, oxlint, tsc, pytest + httpx, Vitest + Testing Library, Playwright |
-| Delivery | Docker Compose, Let's Encrypt via certbot, GitHub Actions CI |
+| Delivery | Docker Compose, Caddy (automatic Let's Encrypt HTTPS), GitHub Actions CI |
 
 ## Services
 
@@ -118,23 +120,25 @@ All services are defined in [`docker-compose.yml`](docker-compose.yml). There is
 
 | Service | Image | Port (local) | Purpose |
 |---|---|---|---|
-| `frontend` | built from `frontend/Dockerfile` (nginx 1.27) | `80` (and `443` in production) | the web app, proxies `/api` to the backend |
+| `frontend` | built from `frontend/Dockerfile` (`nginxinc/nginx-unprivileged:1.30-alpine`, listens on 8080 as a non-root user) | `80` (not published in production) | the web app, proxies `/api` to the backend |
 | `backend` | built from `backend/Dockerfile` (Python 3.14) | internal `8000` | API, chat stream, KB jobs, `/metrics`; runs migrations on start |
 | `postgres` | `postgres:18.7` | `127.0.0.1:5432` (not published in production) | relational data |
 | `qdrant` | `qdrant/qdrant:v1.20.2` | `127.0.0.1:6333` (not published in production) | vector and BM25 search |
 | `prometheus` | `prom/prometheus:v3.16.0` | `127.0.0.1:9090` | metrics, 15 days retention |
 | `grafana` | `grafana/grafana:13.3.1` | `127.0.0.1:3000` | dashboards (provisioned from `observability/`) |
 | `postgres-exporter` | `prometheuscommunity/postgres-exporter:v0.20.1` | internal | Postgres metrics |
-| `certbot` | `certbot/certbot:v5.10.0` | – | production only: certificate issue and renewal |
+| `caddy` | `caddy:2.11.9-alpine` | `80`, `443` (TCP and UDP) | production only: HTTPS in front of the frontend, gets and renews its own certificate |
 
-Volumes: `pgdata`, `qdrant_data`, `kb_data` (uploaded originals), `prometheus_data`, `grafana_data`, and in production `certbot_conf` and `certbot_www`.
+Volumes: `pgdata`, `qdrant_data`, `kb_data` (uploaded originals), `prometheus_data`, `grafana_data`, and in production `caddy_data` (the certificates) and `caddy_config`.
+
+Networks: each service joins only the networks of the services it talks to. `edge` (Caddy and the frontend), `app` (frontend and backend, no route out), `data` (backend, Postgres, Qdrant, the exporter; no route out in production), `metrics` (backend, Qdrant, exporter, Prometheus, Grafana; the scrape targets) and `egress` (the backend's way out to the model APIs and Langfuse). The frontend cannot reach the databases or the dashboards.
 
 Compose files:
 
 | File | Use |
 |---|---|
 | `docker-compose.yml` | the base stack, local and production |
-| `docker-compose.prod.yml` | production overlay: HTTPS, certbot, restart policies, no published database ports, required Postgres password |
+| `docker-compose.prod.yml` | production overlay: Caddy for HTTPS, restart policies, no published frontend or database ports, the data network cut off from the internet, required Postgres password |
 | `docker-compose.stack-test.yml` | test overlay: adds a fake OpenAI-compatible server so the stack runs without real models |
 
 ## Repository layout
@@ -311,7 +315,7 @@ Tests use real Postgres and Qdrant (start them with `docker compose up -d postgr
 |---|---|---|
 | `make check` | ruff, oxlint, mypy (strict), tsc, pytest, Vitest and the Playwright specs that mock the API (set `E2E_PORT` if Grafana already holds port 3000) | no |
 | `make lint` / `make typecheck` / `make test` | the parts of `make check` on their own | no |
-| `make smoke` | builds the compose stack with the fake model server and checks health, private `/metrics`, streaming through nginx, Prometheus targets and the Grafana dashboards | no |
+| `make smoke` | builds the compose stack with the fake model server and checks health, private `/metrics`, non-root containers, network isolation, the production Caddyfile with Caddy in front of nginx (HTTPS, HSTS, redirect, client address), streaming through both proxies, Prometheus targets and the Grafana dashboards | no |
 | `make e2e` | the smoke checks plus the full Playwright scenario on the stack | no |
 | `make smoke-models` | a short run against the real models configured in `.env` | a little |
 
@@ -334,14 +338,13 @@ The demo is designed to run as one Compose stack on a single VM behind HTTPS. Th
 1. **VM.** 4 vCPU, 8 GB RAM, 50 GB SSD on a current Ubuntu LTS with Docker and the Compose plugin. Open ports 22, 80 and 443 only.
 2. **DNS.** Point an `A` record (and `AAAA` for IPv6) for your domain at the VM.
 3. **Configure.** Clone the repo, `cp .env.example .env`, and set `OPENAI_API_KEY`, the `AI_*` model settings, a long random `GRAFANA_ADMIN_PASSWORD`, `POSTGRES_PASSWORD` (letters and digits, set before the first start), `DOMAIN` and `LETSENCRYPT_EMAIL`.
-4. **Certificate and start.**
+4. **Start.**
 
    ```bash
-   bash scripts/issue_certificate.sh
    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
    ```
 
-   The script starts nginx with a temporary self-signed certificate, gets the real one from Let's Encrypt over the HTTP challenge and reloads nginx. certbot renews every 12 hours and nginx reloads every 6 hours. HTTP redirects to HTTPS, and responses carry HSTS.
+   Caddy (configured in [`Caddyfile`](Caddyfile)) gets the Let's Encrypt certificate for `DOMAIN` on its first start and renews it on its own. HTTP redirects to HTTPS, and responses carry HSTS.
 
 5. **First admin and data.** Run `create_admin.py` (and `seed.py` for demo data) as in the local steps, with `-f docker-compose.yml -f docker-compose.prod.yml` on each `docker compose` command. Change or remove the seeded sample members before sharing the link.
 
@@ -356,7 +359,7 @@ $P exec postgres pg_dump -U chatbot chatbot | gzip > backup-$(date +%F).sql.gz  
 
 Back up the `kb_data` volume too (the uploaded originals). Qdrant can be rebuilt by re-indexing every document from the admin page. Every service restarts on its own after a reboot.
 
-In production Postgres and Qdrant are not published on the host, and `/metrics` is not reachable through nginx.
+In production only Caddy is published. Postgres and Qdrant are not published on the host and have no route to the internet, and `/metrics` is not reachable through Caddy or nginx.
 
 ## Observability
 

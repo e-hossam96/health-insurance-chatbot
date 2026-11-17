@@ -23,7 +23,7 @@ Read the whole of items 1 to 2 at the start of a session. Read only the spec fil
 - AI package: OpenAI SDK against the OpenAI API shape (Chat Completions, embeddings), one provider config per role (I11). Closed-source OpenAI models first. Docling parses PDF and DOCX. Reranker sits behind a Protocol; the provider is a placeholder (`ai.md`).
 - Retrieval: Qdrant (dense + BM25, RRF fusion). Chunks live only in Qdrant.
 - Tracing: Langfuse (use `chat-<session id>` as the session id). Metrics: Prometheus + Grafana.
-- Docker Compose services: postgres, qdrant, backend, frontend (nginx), prometheus, grafana, postgres exporter. No Redis and no model containers. KB originals sit on a local Docker volume.
+- Docker Compose services: postgres, qdrant, backend, frontend (nginx, non-root), prometheus, grafana, postgres exporter, and caddy in production only (HTTPS). Each service joins only the networks it needs (edge, app, data, metrics, egress). No Redis and no model containers. KB originals sit on a local Docker volume.
 - Testing: pytest and httpx with real Postgres and Qdrant; Vitest and Testing Library; Playwright; ruff and a type checker; eslint and tsc. Equivalent tools may be substituted. Log the choice in `docs/progress.md`.
 
 ## Repo layout (to create)
