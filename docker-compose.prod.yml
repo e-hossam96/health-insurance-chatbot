@@ -1,24 +1,27 @@
 services:
-  frontend:
+  caddy:
+    container_name: health-chatbot-caddy
+    image: caddy:2.11.9-alpine
     ports:
       - "80:80"
       - "443:443"
+      - "443:443/udp"
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:?set LETSENCRYPT_EMAIL in .env}
     volumes:
-      - ./frontend/nginx.prod.conf.template:/etc/nginx/templates/default.conf.template:ro
-      - certbot_conf:/etc/letsencrypt:ro
-      - certbot_www:/var/www/certbot:ro
-    command: ["/bin/sh", "-c", "while :; do sleep 6h; nginx -s reload; done & exec /docker-entrypoint.sh nginx -g 'daemon off;'"]
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      edge:
+        ipv4_address: 172.31.250.250
+    depends_on:
+      - frontend
     restart: unless-stopped
 
-  certbot:
-    container_name: health-chatbot-certbot
-    image: certbot/certbot:v5.10.0
-    volumes:
-      - certbot_conf:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    entrypoint: ["/bin/sh", "-c", "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"]
+  frontend:
+    ports: !reset []
     restart: unless-stopped
 
   postgres:
@@ -47,6 +50,10 @@ services:
     environment:
       DATA_SOURCE_NAME: postgresql://chatbot:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/chatbot?sslmode=disable
 
+networks:
+  data:
+    internal: true
+
 volumes:
-  certbot_conf:
-  certbot_www:
+  caddy_data:
+  caddy_config:

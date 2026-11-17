@@ -35,7 +35,7 @@ def test_H6_nginx_hides_metrics_and_proxies_the_api() -> None:
 
 def test_H6_only_nginx_is_public_and_grafana_needs_a_real_password() -> None:
     assert "ports" not in SERVICES["backend"]
-    assert SERVICES["frontend"]["ports"] == ["80:80"]
+    assert SERVICES["frontend"]["ports"] == ["80:8080"]
     for name in ("prometheus", "grafana"):
         ports = SERVICES[name]["ports"]
         assert isinstance(ports, list)
@@ -87,41 +87,83 @@ PROD = yaml.load(
     (ROOT / "docker-compose.prod.yml").read_text(encoding="utf-8"),
     Loader=_ComposeLoader,
 )
-PROD_NGINX = (ROOT / "frontend" / "nginx.prod.conf.template").read_text(
-    encoding="utf-8"
-)
+CADDYFILE = (ROOT / "Caddyfile").read_text(encoding="utf-8")
+DEV_NGINX = (ROOT / "frontend" / "nginx.conf").read_text(encoding="utf-8")
+CADDY_ADDRESS = "172.31.250.250"
 
 
-def test_F15_nginx_overwrites_the_forwarded_for_header() -> None:
-    for config in (
-        (ROOT / "frontend" / "nginx.conf").read_text(encoding="utf-8"),
-        PROD_NGINX,
-    ):
-        assert "proxy_set_header X-Forwarded-For $remote_addr;" in config
-        assert "$proxy_add_x_forwarded_for" not in config
+def _networks_of(service: dict[str, object]) -> set[str]:
+    networks = service.get("networks", [])
+    return set(networks if isinstance(networks, list) else networks or {})
 
 
-def test_H6_production_nginx_serves_https_only_and_keeps_metrics_private() -> None:
-    http_block, https_block = PROD_NGINX.split("listen 443 ssl;")
-    assert "location /.well-known/acme-challenge/" in http_block
-    assert "return 301 https://$host$request_uri;" in http_block
-    assert (
-        "ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;" in https_block
+def test_F15_nginx_overwrites_the_forwarded_for_header_and_trusts_only_caddy() -> None:
+    assert "proxy_set_header X-Forwarded-For $remote_addr;" in DEV_NGINX
+    assert "$proxy_add_x_forwarded_for" not in DEV_NGINX
+    assert re.findall(r"set_real_ip_from (\S+);", DEV_NGINX) == [CADDY_ADDRESS]
+    assert "real_ip_header X-Forwarded-For;" in DEV_NGINX
+    assert "real_ip_recursive on;" not in DEV_NGINX
+    caddy_networks = PROD["services"]["caddy"]["networks"]
+    assert caddy_networks == {"edge": {"ipv4_address": CADDY_ADDRESS}}
+    subnet = COMPOSE["networks"]["edge"]["ipam"]["config"][0]["subnet"]
+    assert subnet == "172.31.250.0/24"
+
+
+def test_H6_each_service_joins_only_the_networks_it_needs() -> None:
+    expected = {
+        "postgres": {"data"},
+        "qdrant": {"data", "metrics"},
+        "backend": {"app", "data", "metrics", "egress"},
+        "frontend": {"edge", "app"},
+        "prometheus": {"metrics"},
+        "grafana": {"metrics"},
+        "postgres-exporter": {"data", "metrics"},
+    }
+    assert {name: _networks_of(service) for name, service in SERVICES.items()} == expected
+    assert COMPOSE["networks"]["app"]["internal"] is True, (
+        "the frontend-to-backend network has no route out"
     )
-    assert "Strict-Transport-Security" in https_block
-    assert re.search(r"location \^~ /api/metrics \{\s*return 404;\s*\}", https_block)
-    assert "proxy_buffering off;" in https_block
+    assert PROD["networks"]["data"]["internal"] is True, (
+        "Postgres and Qdrant have no route out in production"
+    )
+    stack_test = yaml.safe_load(
+        (ROOT / "docker-compose.stack-test.yml").read_text(encoding="utf-8")
+    )
+    assert _networks_of(stack_test["services"]["fakeai"]) == {"egress"}
 
 
-def test_production_compose_publishes_only_80_and_443_and_renews_certificates() -> None:
+def test_H6_production_caddy_is_the_only_public_service_and_serves_https() -> None:
     services = PROD["services"]
-    assert services["frontend"]["ports"] == ["80:80", "443:443"]
-    assert services["frontend"]["environment"]["DOMAIN"].startswith("${DOMAIN:?")
-    assert "certbot renew" in " ".join(services["certbot"]["entrypoint"])
+    assert services["caddy"]["ports"] == ["80:80", "443:443", "443:443/udp"]
+    assert services["frontend"]["ports"] == []
     for name in ("postgres", "qdrant"):
         assert services[name]["ports"] == [], (
             f"{name} must not be published in production"
         )
+    environment = services["caddy"]["environment"]
+    assert environment["DOMAIN"].startswith("${DOMAIN:?")
+    assert environment["LETSENCRYPT_EMAIL"].startswith("${LETSENCRYPT_EMAIL:?")
+    assert "caddy_data:/data" in services["caddy"]["volumes"], (
+        "certificates must survive a container rebuild"
+    )
+    assert "certbot" not in services
+    site = CADDYFILE.split("{$DOMAIN} {", 1)[1]
+    assert "email {$LETSENCRYPT_EMAIL}" in CADDYFILE
+    assert re.search(r"reverse_proxy frontend:8080 \{\s*flush_interval -1\s*\}", site), (
+        "Caddy must proxy to nginx and flush the chat stream at once"
+    )
+    assert 'Strict-Transport-Security "max-age=31536000"' in site
+    assert "-Server" in site
+
+
+def test_the_frontend_runs_nginx_as_a_non_root_user() -> None:
+    dockerfile = (ROOT / "frontend" / "Dockerfile").read_text(encoding="utf-8")
+    runtime_image = re.findall(r"^FROM (\S+)", dockerfile, re.MULTILINE)[-1]
+    assert runtime_image.startswith("nginxinc/nginx-unprivileged:")
+    assert not re.search(r"^USER (root|0)\b", dockerfile, re.MULTILINE)
+    assert re.search(r"^\s*listen 8080;", DEV_NGINX, re.MULTILINE), (
+        "a non-root nginx cannot bind port 80"
+    )
 
 
 def test_every_image_is_pinned_to_a_version() -> None:
@@ -144,24 +186,20 @@ def test_every_image_is_pinned_to_a_version() -> None:
         assert tag and tag != "latest", f"{image} is not pinned"
 
 
-DEV_NGINX = (ROOT / "frontend" / "nginx.conf").read_text(encoding="utf-8")
-
-
 def test_F17_nginx_sends_a_content_security_policy_and_hides_its_version() -> None:
-    for config in (DEV_NGINX, PROD_NGINX):
-        policy = re.search(
-            r'add_header Content-Security-Policy "([^"]+)" always;', config
-        )
-        assert policy, "nginx must send a Content-Security-Policy"
-        directives = dict(
-            part.strip().split(" ", 1) for part in policy.group(1).split(";")
-        )
-        assert directives["script-src"] == "'self'", "no inline or remote scripts"
-        assert (
-            directives["object-src"] == "'none'"
-            and directives["frame-ancestors"] == "'none'"
-        )
-        assert config.count("server_tokens off;") >= 1
+    policy = re.search(
+        r'add_header Content-Security-Policy "([^"]+)" always;', DEV_NGINX
+    )
+    assert policy, "nginx must send a Content-Security-Policy"
+    directives = dict(
+        part.strip().split(" ", 1) for part in policy.group(1).split(";")
+    )
+    assert directives["script-src"] == "'self'", "no inline or remote scripts"
+    assert (
+        directives["object-src"] == "'none'"
+        and directives["frame-ancestors"] == "'none'"
+    )
+    assert "server_tokens off;" in DEV_NGINX
 
 
 def test_databases_are_local_only_in_development_and_need_a_real_password_in_production() -> (
@@ -214,9 +252,8 @@ def test_ci_reads_the_repo_only_and_pins_actions_to_commits() -> None:
         )
 
 
-def test_the_certificate_script_never_executes_the_env_file() -> None:
-    script = (ROOT / "scripts" / "issue_certificate.sh").read_text(encoding="utf-8")
-    assert ". ./.env" not in script and "source .env" not in script
-    assert "temporary_certificate" in script.split("certonly", 1)[1], (
-        "a failed request must restore a working certificate"
-    )
+def test_the_caddyfile_takes_the_domain_and_email_from_the_environment() -> None:
+    assert "@" not in CADDYFILE, "the contact email belongs in .env, not in git"
+    assert "hossammostafa" not in CADDYFILE
+    assert not (ROOT / "scripts" / "issue_certificate.sh").exists()
+    assert not (ROOT / "frontend" / "nginx.prod.conf.template").exists()

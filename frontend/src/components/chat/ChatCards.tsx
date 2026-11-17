@@ -56,7 +56,7 @@ function DoctorCard({ item, status, disabled, onBook, onShowOther }: {
 }): ReactNode {
   return (
     <div className={`${CARD} w-60`} data-testid="doctor-card">
-      <div className="font-semibold">{item.doctor_name}</div>
+      <div className="font-semibold" data-testid="doctor-name">{item.doctor_name}</div>
       <div className="text-xs text-muted">{item.specialty}</div>
       <div className="text-xs text-muted">{item.clinic}, {item.location}</div>
       <div className="mt-2 text-xs font-medium text-accent">{formatUtc(item.start_at)}</div>

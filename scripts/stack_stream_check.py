@@ -2,18 +2,28 @@ from __future__ import annotations
 
 import http.client
 import json
+import os
+import ssl
 import sys
 import time
 import uuid
+from urllib.parse import urlsplit
 
-HOST = "localhost"
-PORT = 80
+STACK_URL = urlsplit(os.environ.get("STACK_URL", "http://localhost"))
 TOKEN_DELAY_S = 0.3
 MIN_TOKENS = 5
 
 
+def _connect(timeout: float) -> http.client.HTTPConnection:
+    host = STACK_URL.hostname or "localhost"
+    if STACK_URL.scheme == "https":
+        context = ssl.create_default_context(cadata=os.environ.get("STACK_CA_PEM"))
+        return http.client.HTTPSConnection(host, STACK_URL.port or 443, timeout=timeout, context=context)
+    return http.client.HTTPConnection(host, STACK_URL.port or 80, timeout=timeout)
+
+
 def _request(method: str, path: str, body: dict[str, object] | None, cookie: str | None) -> tuple[int, dict[str, str], bytes]:
-    connection = http.client.HTTPConnection(HOST, PORT, timeout=30)
+    connection = _connect(30)
     headers = {"Content-Type": "application/json"}
     if cookie:
         headers["Cookie"] = cookie
@@ -48,7 +58,7 @@ def main() -> int:
     if status not in (200, 201):
         raise SystemExit(f"FAIL: profile returned {status}: {body!r}")
 
-    connection = http.client.HTTPConnection(HOST, PORT, timeout=60)
+    connection = _connect(60)
     started = time.monotonic()
     connection.request("POST", "/api/me/chat", body=json.dumps({"message": "hello"}), headers={"Content-Type": "application/json", "Cookie": cookie})
     response = connection.getresponse()
@@ -76,14 +86,14 @@ def main() -> int:
         raise SystemExit(f"FAIL: expected at least {MIN_TOKENS} token events, got {len(arrivals)}")
     spread = arrivals[-1] - arrivals[0]
     if spread < TOKEN_DELAY_S * (len(arrivals) - 2):
-        raise SystemExit(f"FAIL: tokens arrived together ({spread:.2f}s spread); nginx is buffering the stream")
-    print("OK: tokens streamed through nginx one by one")
+        raise SystemExit(f"FAIL: tokens arrived together ({spread:.2f}s spread); a proxy is buffering the stream")
+    print("OK: tokens streamed through the proxy one by one")
 
     victim = f"victim{uuid.uuid4().hex[:8]}"
     _request("POST", "/api/auth/signup", {"username": victim, "password": "victimpass1"}, None)
     statuses = []
     for attempt in range(11):
-        connection = http.client.HTTPConnection(HOST, PORT, timeout=30)
+        connection = _connect(30)
         connection.request(
             "POST",
             "/api/auth/login",
