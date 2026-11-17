@@ -67,7 +67,9 @@ for path in /api/docs /api/redoc /api/openapi.json; do
 done
 echo "OK: the API docs and schema are not served"
 
-if ! curl -s -D - -o /dev/null http://localhost/ | grep -qi "^content-security-policy: default-src 'self'"; then
+# capture first: grep -q closes the pipe early and curl's SIGPIPE fails the check under pipefail
+index_headers=$(curl -s -D - -o /dev/null http://localhost/ || true)
+if ! grep -qi "^content-security-policy: default-src 'self'" <<<"$index_headers"; then
     echo "FAIL: the index page has no Content-Security-Policy header"
     exit 1
 fi
@@ -86,7 +88,8 @@ fi
 echo "OK: the frontend nginx runs as a non-root user"
 
 echo "Testing the internal scrape of /metrics..."
-if ! "${COMPOSE[@]}" exec -T prometheus wget -qO- http://backend:8000/metrics | grep -q '^http_requests_total'; then
+scraped_metrics=$("${COMPOSE[@]}" exec -T prometheus wget -qO- http://backend:8000/metrics || true)
+if ! grep -q '^http_requests_total' <<<"$scraped_metrics"; then
     echo "FAIL: /metrics is not reachable from Prometheus"
     exit 1
 fi
@@ -126,7 +129,8 @@ if echo "$headers" | grep -qi '^server:'; then
     echo "FAIL: Caddy names itself in the Server header"
     exit 1
 fi
-curl -sf --ssl-no-revoke --cacert "$SCRATCH/caddy-root.crt" -D - -o /dev/null https://localhost:8443/ | grep -qi "^content-security-policy: default-src 'self'" \
+caddy_index_headers=$(curl -sf --ssl-no-revoke --cacert "$SCRATCH/caddy-root.crt" -D - -o /dev/null https://localhost:8443/ || true)
+grep -qi "^content-security-policy: default-src 'self'" <<<"$caddy_index_headers" \
     || { echo "FAIL: the CSP from nginx does not pass through Caddy"; exit 1; }
 status=$(curl -s --ssl-no-revoke --cacert "$SCRATCH/caddy-root.crt" -o /dev/null -w '%{http_code}' https://localhost:8443/api/metrics)
 [ "$status" = "404" ] || { echo "FAIL: /api/metrics returned $status through Caddy, expected 404"; exit 1; }
