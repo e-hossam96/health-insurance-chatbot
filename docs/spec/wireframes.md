@@ -15,7 +15,7 @@ Companion files: `schema.dbml` (tables; its A-items are migration notes), `rules
 - Auth: server-side session in an HTTP-only cookie (B10, B11). Contracts in `api.md`.
 - Time: everything is UTC and the UI says so (C8). No time zone conversion anywhere.
 - Frontend stack: Vite, TypeScript, React Router, TanStack Query, Tailwind with shadcn/ui. The chat stream is read with fetch (it is a POST), not EventSource.
-- Language: English only. Assistant text renders as Markdown with raw HTML disabled (F17). Branding: the product is "Health Insurance Chatbot" with a text logo (a chat-bubble mark); colors are the Midnight Sky palette (#001F3F, #002D55, #004B87, #6A9BD1, #F0F4F8) with #6A9BD1 as the accent and navy text on it.
+- Language: English only. Assistant text renders as Markdown with raw HTML disabled (F17). Branding: the product is "Health Insurance Chatbot" with a text logo (a chat-bubble mark); colors follow the system light or dark setting, and the header has a toggle to pin light, dark or system. The palette is an indigo accent (#2C4BD0 light, #8FA3FF dark) on cool neutrals (#F4F6FA / #0D1119 page, #FFFFFF / #151B27 cards), with soft 1px dividers, 10px control and 14px card radii, and soft shadows. Tokens live in `frontend/src/index.css`.
 - The chatbot is the primary way to do everything (book, cancel, complain, ask). The drawer is a convenience.
 - Out of scope for v1: password reset, profile editing, user replies in complaints, deleting chats, Excel upload, notifications.
 
@@ -62,8 +62,8 @@ Guards (UX only; the backend checks the role on every call, B8):
 - Display name: `profile.name`, or the username if there is no profile (admin in admin panel).
 - `[My visits & complaints]`: user view only. Opens the drawer (section 6).
 - Mode toggle: admins only. In the admin panel it reads `[User view]`, in user view it reads `[Admin panel]`. Calls POST /auth/mode, then goes to /chat or /admin/kb.
-- `[Log out]`.
-- Admin panel header has the same layout with the section nav below it (section 7).
+- Section menu: admin panel only, just before `[User view]`. See section 7.
+- `[Log out]`, then the theme switch (system, light, dark).
 - Desktop first. On narrow screens the chat sidebar collapses and the drawer goes full screen.
 
 ---
@@ -356,15 +356,41 @@ Complaints tab:
 
 ## 7. Admin panel
 
-Header as in section 3 plus a section nav:
+Header as in section 3, with a section menu next to the `[User view]` toggle so admins never type a path:
 
 ```
 +-------------------------------------------------------------------------+
-| HEADER (with [User view] toggle)                                        |
-+-------------------------------------------------------------------------+
-| [ KB documents ] [ Catalog ] [ Slots ] [ Visits ] [ Complaints ]        |
+| Health Insurance Chatbot   admin1  [KB documents v] [User view] [Log out] |
+|                                    +-----------------------------------+ |
+|                                    | KB documents                      | |
+|                                    |   Upload and index policy files   | |
+|                                    | Catalog                           | |
+|                                    |   Locations, specialties, clinics,| |
+|                                    |   doctors                         | |
+|                                    | Slots                             | |
+|                                    |   Open and remove appointment     | |
+|                                    |   slots                           | |
+|                                    | Visits                            | |
+|                                    |   Review and complete booked      | |
+|                                    |   visits                          | |
+|                                    | Complaints                        | |
+|                                    |   Reply to and close complaints   | |
+|                                    +-----------------------------------+ |
 +-------------------------------------------------------------------------+
 ```
+
+- The trigger shows the current section's name and icon. The menu lists the five sections in this order, each with an icon and a one-line hint, and highlights the current one.
+- Picking a section goes to its page and closes the menu. Escape or a click outside closes it; arrow keys move between sections.
+- Shown only in admin mode. In user view an admin sees `[Admin panel]`, which lands on /admin/kb.
+
+Row actions and confirmations (all admin screens, and the member's visits drawer):
+
+- Actions that change data are buttons, never text links; links are only for going to another page. Row actions sit right-aligned in the last column.
+- Main row action (`[Re-index]`, `[Retry]`, `[Mark completed]`, `[Reply]`): small outlined accent button.
+- Destructive action (`[Delete]`, `[Close]`, the drawer's `[Cancel]`): small borderless red button that tints on hover, kept quieter than the main action.
+- Dense grids (the x on a free slot chip): icon-only button with a tooltip and an accessible label. Removing a free slot is not confirmed (it is easy to re-add).
+- Every delete, close, complete, cancel and auto-fill opens the same in-app confirm dialog, never the browser's `confirm()`: a title naming the item ("Delete Cairo?"), one line on what happens (including what cascades), `[Cancel]` (focused) and a confirm button labelled with the action (red for destructive, accent otherwise). Escape or a click outside cancels. While the request runs both buttons are disabled; on failure the dialog stays open and shows the server's message (for example A5's "Can't delete: it has visit history."); on success it closes and the list reloads.
+- Errors that are not tied to a confirmation (a rejected reply, a slot that cannot be removed) show inline next to the control, never in `alert()`.
 
 ### AP1. KB documents (/admin/kb)
 

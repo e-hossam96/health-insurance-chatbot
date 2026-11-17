@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { AdminComplaintsPage } from './AdminComplaintsPage';
+import { closeComplaint, replyToComplaint } from '../api/admin';
 
 vi.mock('../api/AuthContext', () => ({
   useAuth: () => ({
@@ -41,6 +42,32 @@ describe('AdminComplaintsPage', () => {
       const badges = screen.getAllByTestId('complaint-status-badge');
       expect(badges.length).toBe(3);
     });
+  });
+
+  it('E4: Close is its own confirmed action', async () => {
+    render(
+      <MemoryRouter>
+        <AdminComplaintsPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByTestId('close-btn'));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Close complaint #1?');
+    expect(closeComplaint).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('confirm-yes'));
+    await waitFor(() => expect(closeComplaint).toHaveBeenCalledWith(1));
+  });
+
+  it('E5: a rejected reply shows the reason inside the reply dialog', async () => {
+    (replyToComplaint as ReturnType<typeof vi.fn>).mockRejectedValueOnce({ error: { message: "Closed complaints can't receive replies." } });
+    render(
+      <MemoryRouter>
+        <AdminComplaintsPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByTestId('reply-btn'));
+    fireEvent.change(screen.getByTestId('reply-body'), { target: { value: 'Sorry about that.' } });
+    fireEvent.submit(screen.getByTestId('reply-body').closest('form') as HTMLFormElement);
+    expect((await screen.findByTestId('reply-error')).textContent).toBe("Closed complaints can't receive replies.");
   });
 
   it('AP5: shows reply button for open complaints', async () => {

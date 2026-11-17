@@ -38,7 +38,6 @@ function renderPage(): void {
 describe('AdminSlotsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    window.confirm = vi.fn(() => true);
   });
 
   it('AP3: shows doctor select', async () => {
@@ -64,9 +63,44 @@ describe('AdminSlotsPage', () => {
     fireEvent.change(screen.getByTestId('doctor-select'), { target: { value: '1' } });
     await waitFor(() => expect(screen.getByTestId('autofill-btn')).toBeTruthy());
     fireEvent.click(screen.getByTestId('autofill-btn'));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Create all missing slots for Dr. Sara');
+    fireEvent.click(screen.getByTestId('confirm-yes'));
     await waitFor(() => {
       expect(screen.getByTestId('autofill-message').textContent).toContain('Created 120');
     });
+  });
+
+  it('AP3: a free slot is removed straight away from its chip; a booked one has no remove', async () => {
+    const { deleteSlot } = await import('../api/admin');
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('doctor-select')).toBeTruthy());
+    fireEvent.change(screen.getByTestId('doctor-select'), { target: { value: '1' } });
+    const removeButtons = await screen.findAllByRole('button', { name: 'Remove slot' });
+    expect(removeButtons).toHaveLength(1);
+    fireEvent.click(removeButtons[0]);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(deleteSlot).toHaveBeenCalledWith(10));
+  });
+
+  it('AP3: a slot that cannot be removed shows why above the grid', async () => {
+    const { deleteSlot } = await import('../api/admin');
+    (deleteSlot as ReturnType<typeof vi.fn>).mockRejectedValueOnce({ error: { message: 'Slot is booked.' } });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('doctor-select')).toBeTruthy());
+    fireEvent.change(screen.getByTestId('doctor-select'), { target: { value: '1' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove slot' }));
+    expect((await screen.findByTestId('slot-grid-error')).textContent).toBe('Slot is booked.');
+  });
+
+  it('C5: cancelling the auto-fill confirmation creates nothing', async () => {
+    const { autofillSlots } = await import('../api/admin');
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('doctor-select')).toBeTruthy());
+    fireEvent.change(screen.getByTestId('doctor-select'), { target: { value: '1' } });
+    fireEvent.click(await screen.findByTestId('autofill-btn'));
+    fireEvent.click(screen.getByTestId('confirm-cancel'));
+    expect(autofillSlots).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('autofill-message')).toBeNull();
   });
 
   it('C3: shows add slot dialog error on duplicate', async () => {

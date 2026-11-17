@@ -39,6 +39,7 @@ flowchart LR
 |---|---|
 | `src/api/` | typed fetch clients per area (`auth`, `chat`, `visits`, `admin`, `kb`) and `AuthContext` |
 | `src/pages/` | one component per screen |
+| `src/components/` | header with the admin section menu (`AdminNav`, sections in `adminSections.tsx`), theme switch, dialog and the shared confirm dialog (`useConfirm`), visits drawer, icons |
 | `src/components/chat/` | sidebar, cards, Markdown renderer |
 | `e2e/` | Playwright specs against mocked APIs |
 | `e2e-stack/` | Playwright specs against the full Docker stack |
@@ -84,5 +85,7 @@ npm run dev          # http://localhost:5173, proxies /api to http://localhost:8
 npm run lint         # oxlint
 npm run typecheck    # tsc
 npm test             # Vitest
-npx playwright test e2e/chat.spec.ts e2e/kb.spec.ts
+npx playwright test e2e/chat.spec.ts e2e/kb.spec.ts e2e/admin.spec.ts
 ```
+
+The mocked Playwright specs start Vite on port 3000. Grafana uses the same port, so while the Docker stack is up run them (or `make check`) with another port, for example `E2E_PORT=3917`.

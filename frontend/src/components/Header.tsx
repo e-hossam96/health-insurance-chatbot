@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { logout, setMode } from '../api/auth';
 import { useAuth } from '../api/AuthContext';
+import { AdminNav } from './AdminNav';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Header({ onVisitsClick }: { onVisitsClick?: () => void } = {}): ReactNode {
   const auth = useAuth();
@@ -25,35 +27,25 @@ export function Header({ onVisitsClick }: { onVisitsClick?: () => void } = {}): 
   };
 
   return (
-    <header className="flex items-center justify-between px-4 py-3 border-b border-brand-800 bg-brand-900">
-      <Logo tone="dark" />
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-brand-100">{user.username}</span>
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-card/80 px-5 py-3 backdrop-blur">
+      <Logo />
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="mr-2 text-sm text-muted">{user.username}</span>
         {user.mode === 'user' && onVisitsClick && (
-          <button
-            onClick={onVisitsClick}
-            className="text-sm text-brand-400 hover:underline"
-            data-testid="visits-btn"
-          >
+          <button type="button" onClick={onVisitsClick} className="btn btn-ghost btn-sm" data-testid="visits-btn">
             My visits &amp; complaints
           </button>
         )}
+        {user.role === 'admin' && user.mode === 'admin' && <AdminNav />}
         {user.role === 'admin' && (
-          <button
-            onClick={handleModeToggle}
-            className="text-sm text-brand-400 hover:underline"
-            data-testid="mode-toggle"
-          >
+          <button type="button" onClick={handleModeToggle} className="btn btn-secondary btn-sm" data-testid="mode-toggle">
             {user.mode === 'admin' ? 'User view' : 'Admin panel'}
           </button>
         )}
-        <button
-          onClick={handleLogout}
-          className="text-sm text-brand-100 hover:underline"
-          data-testid="logout-btn"
-        >
+        <button type="button" onClick={handleLogout} className="btn btn-ghost btn-sm" data-testid="logout-btn">
           Log out
         </button>
+        <ThemeToggle />
       </div>
     </header>
   );

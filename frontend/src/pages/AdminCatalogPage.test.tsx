@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { AdminCatalogPage } from './AdminCatalogPage';
+import { deleteClinic, deleteLocation } from '../api/admin';
 
 vi.mock('../api/AuthContext', () => ({
   useAuth: () => ({
@@ -42,6 +43,46 @@ function renderPage(): void {
 describe('AdminCatalogPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('A5: delete is a button that asks for confirmation before deleting', async () => {
+    renderPage();
+    const [deleteCairo] = await screen.findAllByTestId('catalog-delete');
+    expect(deleteCairo.tagName).toBe('BUTTON');
+    fireEvent.click(deleteCairo);
+    expect(screen.getByRole('dialog')).toHaveTextContent('Delete Cairo?');
+    expect(deleteLocation).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('confirm-yes'));
+    await waitFor(() => expect(deleteLocation).toHaveBeenCalledWith(1));
+  });
+
+  it('A5: a delete blocked by visit history shows the reason in the dialog', async () => {
+    (deleteClinic as ReturnType<typeof vi.fn>).mockRejectedValueOnce({ error: { message: "Can't delete: it has visit history." } });
+    renderPage();
+    fireEvent.click(await screen.findByTestId('tab-clinics'));
+    fireEvent.click(await screen.findByTestId('catalog-delete'));
+    expect(screen.getByRole('dialog')).toHaveTextContent('also deletes its linked specialties and doctors');
+    fireEvent.click(screen.getByTestId('confirm-yes'));
+    expect((await screen.findByTestId('confirm-error')).textContent).toBe("Can't delete: it has visit history.");
+  });
+
+  it('AP2: the tabs show which catalog list is open', async () => {
+    renderPage();
+    await screen.findByTestId('locations-table');
+    expect(screen.getByTestId('tab-locations')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByTestId('tab-doctors'));
+    expect(screen.getByTestId('tab-doctors')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('tab-locations')).toHaveAttribute('aria-pressed', 'false');
+    expect(await screen.findByTestId('doctors-table')).toBeTruthy();
+  });
+
+  it('A5: cancelling the confirmation deletes nothing', async () => {
+    renderPage();
+    fireEvent.click((await screen.findAllByTestId('catalog-delete'))[1]);
+    expect(screen.getByRole('dialog')).toHaveTextContent('Delete Giza?');
+    fireEvent.click(screen.getByTestId('confirm-cancel'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(deleteLocation).not.toHaveBeenCalled();
   });
 
   it('AP2: shows catalog tabs', async () => {

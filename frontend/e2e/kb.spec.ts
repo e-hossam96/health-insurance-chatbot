@@ -75,10 +75,28 @@ test.describe('AP1 KB documents', () => {
     await expect(page.getByTestId('kb-row')).toHaveCount(1);
 
     await page.getByTestId('kb-delete').click();
-    await expect(page.getByTestId('kb-confirm')).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Delete handbook.pdf?' })).toBeVisible();
     expect(deleted).toBeNull();
-    await page.getByTestId('kb-confirm-yes').click();
+    await page.getByTestId('confirm-yes').click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.getByText('No documents yet.')).toBeVisible();
     expect(deleted).toBe(1);
+  });
+
+  test('B5: the admin header menu reaches every section without typing a path', async ({ page }) => {
+    await page.route('**/api/auth/me', route => json(route, { username: 'admin1', role: 'admin', has_profile: true, mode: 'admin' }));
+    await page.route('**/api/admin/kb-documents?limit=*', route => json(route, { items: [], total: 0, max_upload_bytes: LIMIT }));
+    await page.route('**/api/admin/locations', route => json(route, [{ id: 1, name: 'Cairo' }]));
+
+    await page.goto('/admin/kb');
+    await expect(page.getByTestId('admin-nav-btn')).toHaveText('KB documents');
+    await page.getByTestId('admin-nav-btn').click();
+    await expect(page.getByRole('menuitem')).toHaveText([/KB documents/, /Catalog/, /Slots/, /Visits/, /Complaints/]);
+
+    await page.getByRole('menuitem', { name: /Catalog/ }).click();
+    await expect(page).toHaveURL(/\/admin\/catalog$/);
+    await expect(page.getByRole('heading', { name: 'Catalog' })).toBeVisible();
+    await expect(page.getByTestId('admin-nav-btn')).toHaveText('Catalog');
+    await expect(page.getByRole('menu')).toHaveCount(0);
   });
 });

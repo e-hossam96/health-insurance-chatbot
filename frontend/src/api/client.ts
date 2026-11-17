@@ -21,6 +21,6 @@ export async function apiFetch<T>(
 }
 
 export function errorMessage(err: unknown, fallback: string): string {
-  const apiErr = err as { error?: { message?: string } };
-  return apiErr.error?.message ?? fallback;
+  const apiErr = err as { error?: { message?: string } } | null | undefined;
+  return apiErr?.error?.message ?? fallback;
 }

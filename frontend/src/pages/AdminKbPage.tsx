@@ -13,6 +13,8 @@ import {
   uploadKbDocument,
 } from '../api/kb';
 import { Header } from '../components/Header';
+import { useConfirm } from '../components/ConfirmDialog';
+import { InfoIcon, UploadIcon } from '../components/icons';
 
 const STATUS_LABELS: Record<KbStatus, string> = {
   uploaded: 'Uploaded',
@@ -22,10 +24,10 @@ const STATUS_LABELS: Record<KbStatus, string> = {
 };
 
 const STATUS_STYLES: Record<KbStatus, string> = {
-  uploaded: 'bg-gray-100 text-gray-700',
-  processing: 'bg-brand-100 text-brand-700',
-  ready: 'bg-green-100 text-green-700',
-  failed: 'bg-red-100 text-red-700',
+  uploaded: '',
+  processing: 'accent',
+  ready: 'success',
+  failed: 'danger',
 };
 
 function uploadErrorText(file: File, error: unknown, limit: number): string {
@@ -42,10 +44,10 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
   const [documents, setDocuments] = useState<KbDocument[]>([]);
   const [maxBytes, setMaxBytes] = useState<number | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
-  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   const load = useCallback(async (): Promise<void> => {
     try {
@@ -95,15 +97,18 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
     await load();
   }
 
-  async function handleDelete(id: number): Promise<void> {
-    setConfirmDelete(null);
-    try {
-      await deleteKbDocument(id);
-      setErrors([]);
-    } catch (error: unknown) {
-      setErrors([error instanceof Error ? error.message : 'Delete failed.']);
-    }
-    await load();
+  function askDelete(doc: KbDocument): void {
+    confirm({
+      title: `Delete ${doc.filename}?`,
+      message: 'Its chunks are removed from search and the original file is deleted. This cannot be undone.',
+      confirmLabel: 'Delete document',
+      failureText: 'Delete failed.',
+      run: async () => {
+        await deleteKbDocument(doc.id);
+        setErrors([]);
+        await load();
+      },
+    });
   }
 
   function onDrop(event: DragEvent<HTMLDivElement>): void {
@@ -115,8 +120,8 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 p-6 max-w-5xl w-full mx-auto space-y-4">
-        <h1 className="text-xl font-semibold">Knowledge Base</h1>
+      <main className="page flex-1 space-y-4">
+        <h1 className="page-title">Knowledge Base</h1>
         <div
           onDragOver={e => {
             e.preventDefault();
@@ -124,14 +129,19 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
-          className={`border-2 border-dashed rounded-lg p-6 text-center text-sm ${dragging ? 'border-brand-400 bg-brand-50' : 'border-gray-300'}`}
+          className={`flex flex-col items-center gap-2 rounded-card border-2 border-dashed px-4 py-8 text-center text-sm transition-colors ${dragging ? 'border-accent bg-accent-soft' : 'border-line-strong bg-surface hover:border-accent'}`}
           data-testid="kb-dropzone"
         >
+          <span className="grid h-12 w-12 place-items-center rounded-full bg-accent-soft text-accent">
+            <UploadIcon />
+          </span>
+          <span className="font-semibold">
           Drag files here or{' '}
-          <button type="button" onClick={() => inputRef.current?.click()} className="text-brand-700 underline">
+          <button type="button" onClick={() => inputRef.current?.click()} className="link-btn underline">
             Browse
           </button>
-          <span className="ml-2 text-gray-500" data-testid="kb-limit">
+          </span>
+          <span className="text-muted" data-testid="kb-limit">
             pdf, txt, docx{maxBytes !== null ? ` - max ${formatBytes(maxBytes)}` : ''}
           </span>
           <input
@@ -150,29 +160,30 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
         </div>
 
         {errors.length > 0 && (
-          <ul className="text-sm text-red-700 bg-red-50 rounded p-3 space-y-1" data-testid="kb-errors">
+          <ul className="alert error space-y-1" data-testid="kb-errors">
             {errors.map(message => (
               <li key={message}>{message}</li>
             ))}
           </ul>
         )}
 
-        <table className="w-full text-sm border-collapse" data-testid="kb-table">
+        <div className="table-wrap">
+        <table className="table" data-testid="kb-table">
           <thead>
-            <tr className="text-left text-gray-500 border-b">
-              <th className="py-2">Filename</th>
+            <tr>
+              <th>Filename</th>
               <th>Type</th>
               <th>Size</th>
               <th>Status</th>
               <th>Uploaded by</th>
               <th>Date</th>
-              <th>Actions</th>
+              <th className="text-right!">Actions</th>
             </tr>
           </thead>
           <tbody>
             {documents.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-6 text-center text-gray-500">No documents yet.</td>
+                <td colSpan={7} className="py-8! text-center! text-muted">No documents yet.</td>
               </tr>
             )}
             {documents.map(doc => (
@@ -180,80 +191,74 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
                 key={doc.id}
                 doc={doc}
                 expanded={expanded === doc.id}
-                confirming={confirmDelete === doc.id}
                 onToggleError={() => setExpanded(expanded === doc.id ? null : doc.id)}
                 onReindex={() => void handleReindex(doc.id)}
-                onAskDelete={() => setConfirmDelete(doc.id)}
-                onCancelDelete={() => setConfirmDelete(null)}
-                onDelete={() => void handleDelete(doc.id)}
+                onDelete={() => askDelete(doc)}
               />
             ))}
           </tbody>
         </table>
+        </div>
+        {confirmDialog}
       </main>
     </div>
   );
 }
 
-function KbRow({ doc, expanded, confirming, onToggleError, onReindex, onAskDelete, onCancelDelete, onDelete }: {
+function KbRow({ doc, expanded, onToggleError, onReindex, onDelete }: {
   doc: KbDocument;
   expanded: boolean;
-  confirming: boolean;
   onToggleError: () => void;
   onReindex: () => void;
-  onAskDelete: () => void;
-  onCancelDelete: () => void;
   onDelete: () => void;
 }): ReactNode {
   return (
     <>
-      <tr className="border-b" data-testid="kb-row">
-        <td className="py-2">{doc.filename}</td>
+      <tr data-testid="kb-row">
+        <td className="font-medium">{doc.filename}</td>
         <td>{doc.file_type}</td>
         <td>{formatBytes(doc.file_size_bytes)}</td>
         <td>
-          <span className={`px-2 py-0.5 rounded text-xs ${STATUS_STYLES[doc.status]}`} data-testid="kb-status">
+          <span className={`badge ${STATUS_STYLES[doc.status]}`} data-testid="kb-status">
             {STATUS_LABELS[doc.status]}
           </span>
           {doc.status === 'failed' && doc.error_message && (
-            <button type="button" onClick={onToggleError} className="ml-1 text-xs text-gray-500" aria-label="Show error" data-testid="kb-error-toggle">
-              (i)
+            <button
+              type="button"
+              onClick={onToggleError}
+              className="btn btn-ghost btn-sm ml-1 px-1.5 py-1 align-middle"
+              aria-label={expanded ? 'Hide error' : 'Show error'}
+              aria-expanded={expanded}
+              title={expanded ? 'Hide error' : 'Show error'}
+              data-testid="kb-error-toggle"
+            >
+              <InfoIcon />
             </button>
           )}
         </td>
         <td>{doc.uploaded_by}</td>
         <td>{formatUtcDay(doc.created_at)}</td>
-        <td className="space-x-2 whitespace-nowrap">
-          {doc.status === 'ready' && (
-            <button type="button" onClick={onReindex} className="text-brand-700 underline" data-testid="kb-reindex">
-              Re-index
-            </button>
-          )}
-          {doc.status === 'failed' && (
-            <button type="button" onClick={onReindex} className="text-brand-700 underline" data-testid="kb-retry">
-              Retry
-            </button>
-          )}
-          {confirming ? (
-            <span data-testid="kb-confirm">
-              Delete?{' '}
-              <button type="button" onClick={onDelete} className="text-red-600 underline" data-testid="kb-confirm-yes">
-                Yes
-              </button>{' '}
-              <button type="button" onClick={onCancelDelete} className="text-gray-600 underline">
-                No
+        <td>
+          <div className="row-actions">
+            {doc.status === 'ready' && (
+              <button type="button" onClick={onReindex} className="btn btn-secondary btn-sm" data-testid="kb-reindex">
+                Re-index
               </button>
-            </span>
-          ) : (
-            <button type="button" onClick={onAskDelete} className="text-red-600 underline" data-testid="kb-delete">
+            )}
+            {doc.status === 'failed' && (
+              <button type="button" onClick={onReindex} className="btn btn-secondary btn-sm" data-testid="kb-retry">
+                Retry
+              </button>
+            )}
+            <button type="button" onClick={onDelete} className="btn btn-danger-ghost btn-sm" data-testid="kb-delete">
               Delete
             </button>
-          )}
+          </div>
         </td>
       </tr>
       {expanded && doc.error_message && (
         <tr>
-          <td colSpan={7} className="pb-2 text-xs text-red-700" data-testid="kb-error-message">
+          <td colSpan={7} className="bg-danger-soft text-xs text-danger-fg" data-testid="kb-error-message">
             {doc.error_message}
           </td>
         </tr>

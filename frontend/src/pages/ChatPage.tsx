@@ -12,6 +12,8 @@ import {
 import type { ApiError } from '../api/client';
 import { type StaticMessage, bookVisit, cancelVisit, fileComplaint } from '../api/visits';
 import { Header } from '../components/Header';
+import { LogoMark } from '../components/Logo';
+import { SendIcon } from '../components/icons';
 import { VisitsDrawer } from '../components/VisitsDrawer';
 import { ChatCards } from '../components/chat/ChatCards';
 import { type CardFailureKind, type CardSetState, INITIAL_CARD_STATE } from '../components/chat/cardState';
@@ -253,17 +255,22 @@ export function ChatPage(): ReactNode {
           onNewChat={handleNewChat}
         />
         <main className="flex-1 flex flex-col min-w-0" data-testid="chat-main">
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-6">
             {showStarters && (
               <div data-testid="starter-cards">
-                <p className="text-gray-500 text-center mb-4">How can I help today?</p>
-                <div className="grid grid-cols-2 gap-3 max-w-lg mx-auto">
+                <div className="mx-auto mt-[12vh] mb-6 flex max-w-lg flex-col items-center gap-3 text-center">
+                  <LogoMark size={48} />
+                  <p className="text-xl font-bold">How can I help today?</p>
+                  <p className="text-sm text-muted">Book a visit, check a complaint, or ask about your policy and clinics.</p>
+                </div>
+                <div className="mx-auto grid max-w-lg grid-cols-1 gap-3 sm:grid-cols-2">
                   {STARTER_CARDS.map(card => (
                     <button
                       type="button"
                       key={card.label}
                       onClick={() => void sendMessage(card.message)}
-                      className="p-3 border border-gray-200 rounded-lg text-sm hover:bg-gray-50 text-left"
+                      className="card rise p-4 text-left text-sm font-medium transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent"
                       data-testid="starter-card"
                     >
                       {card.label}
@@ -275,10 +282,12 @@ export function ChatPage(): ReactNode {
 
             {items.map(item =>
               item.kind === 'message' ? (
-                <div key={item.key} className={`flex ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div key={item.key} className={`rise flex ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div
-                    className={`max-w-xl px-4 py-2 rounded-lg ${
-                      item.role === 'user' ? 'bg-brand-400 text-brand-900' : 'bg-white border border-brand-100 text-brand-900'
+                    className={`max-w-xl px-4 py-2.5 ${
+                      item.role === 'user'
+                        ? 'rounded-card rounded-br-md bg-accent text-on-accent'
+                        : 'rounded-card rounded-bl-md border border-line bg-card shadow-card'
                     }`}
                     data-testid={`msg-${item.role}`}
                   >
@@ -303,9 +312,9 @@ export function ChatPage(): ReactNode {
 
             {isStreaming && (
               <div className="flex justify-start">
-                <div className="max-w-xl px-4 py-2 rounded-lg bg-white border border-brand-100 text-brand-900" data-testid="msg-streaming">
+                <div className="max-w-xl rounded-card rounded-bl-md border border-line bg-card px-4 py-2.5 shadow-card" data-testid="msg-streaming">
                   {streamingText === '' ? (
-                    <span className="text-gray-400" data-testid="typing-indicator">…</span>
+                    <span className="animate-pulse text-muted" data-testid="typing-indicator">…</span>
                   ) : (
                     <MarkdownContent content={streamingText} />
                   )}
@@ -314,17 +323,17 @@ export function ChatPage(): ReactNode {
             )}
 
             {loadFailed && (
-              <p className="text-sm text-red-600" data-testid="load-error">Could not load this chat.</p>
+              <p className="alert error" data-testid="load-error">Could not load this chat.</p>
             )}
 
             {turnError && (
               <div className="flex justify-start" data-testid="chat-error">
-                <div className="px-4 py-2 bg-red-50 text-red-700 rounded-lg">
+                <div className="alert error">
                   {turnError.message}
                   <button
                     type="button"
                     onClick={() => void sendMessage(turnError.text, turnError)}
-                    className="ml-2 underline"
+                    className="link-btn ml-2 underline"
                     data-testid="retry-btn"
                   >
                     Retry
@@ -335,8 +344,10 @@ export function ChatPage(): ReactNode {
 
             <div ref={messagesEndRef} />
           </div>
+          </div>
 
-          <div className="border-t border-gray-200 p-4">
+          <div className="border-t border-line bg-card/70 px-4 py-3 backdrop-blur">
+            <div className="mx-auto w-full max-w-3xl">
             <form
               onSubmit={e => {
                 e.preventDefault();
@@ -350,7 +361,7 @@ export function ChatPage(): ReactNode {
                 onChange={e => setInput(e.target.value)}
                 placeholder="Type your message..."
                 maxLength={1000}
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-brand-400 disabled:bg-gray-100"
+                className="input flex-1 px-4"
                 disabled={isStreaming}
                 data-testid="chat-input"
               />
@@ -362,7 +373,7 @@ export function ChatPage(): ReactNode {
                     e.preventDefault();
                     handleStop();
                   }}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  className="btn btn-danger"
                   data-testid="stop-btn"
                 >
                   Stop
@@ -372,14 +383,16 @@ export function ChatPage(): ReactNode {
                   key="send"
                   type="submit"
                   disabled={input.trim() === ''}
-                  className="px-4 py-2 bg-brand-400 text-brand-900 rounded-lg hover:bg-brand-500 disabled:opacity-50"
+                  className="btn"
                   data-testid="send-btn"
                 >
+                  <SendIcon />
                   Send
                 </button>
               )}
             </form>
-            <p className="text-xs text-gray-400 mt-1" data-testid="utc-note">All times are UTC.</p>
+            <p className="mt-1.5 text-xs text-muted" data-testid="utc-note">All times are UTC.</p>
+            </div>
           </div>
         </main>
       </div>

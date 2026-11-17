@@ -4,33 +4,31 @@ import re
 from pathlib import Path
 
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend"
-PALETTE = ("#001f3f", "#002d55", "#004b87", "#6a9bd1", "#f0f4f8")
+RAW_PALETTE_CLASS = re.compile(
+    r"\b(?:bg|text|border|ring|from|to|fill|stroke)-"
+    r"(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|brand)-\d+"
+    r"|\b(?:bg|text|border)-(?:white|black)\b"
+)
 
 
-def test_the_page_title_and_theme_colour_use_the_brand() -> None:
+def test_the_page_title_and_theme_colours_use_the_brand() -> None:
     html = (FRONTEND / "index.html").read_text(encoding="utf-8")
     assert "<title>Health Insurance Chatbot</title>" in html
-    assert 'content="#001F3F"' in html
+    assert 'media="(prefers-color-scheme: light)" content="#f4f6fa"' in html
+    assert 'media="(prefers-color-scheme: dark)" content="#0d1119"' in html
 
 
-def test_the_midnight_sky_palette_is_the_theme_with_the_light_blue_accent() -> None:
+def test_the_theme_defines_the_indigo_accent_for_light_and_dark() -> None:
     css = (FRONTEND / "src" / "index.css").read_text(encoding="utf-8").lower()
-    assert all(colour in css for colour in PALETTE)
-    assert "--color-brand-400: #6a9bd1" in css
+    assert "--accent: light-dark(#2c4bd0, #8fa3ff);" in css
+    assert "--color-accent: var(--accent);" in css
 
 
-def test_no_component_uses_the_old_blue_classes_or_the_placeholder_name() -> None:
+def test_components_use_theme_tokens_not_raw_palette_classes_or_the_placeholder_name() -> None:
     offenders: list[str] = []
     for path in (FRONTEND / "src").rglob("*"):
-        if path.suffix in {".ts", ".tsx", ".css"} and not path.name.endswith(".test.tsx"):
+        if path.suffix in {".ts", ".tsx", ".css"} and not path.name.endswith((".test.tsx", ".test.ts")):
             text = path.read_text(encoding="utf-8")
-            if re.search(r"\b(bg|text|border|ring)-blue-\d+", text) or "Health Assistant" in text:
+            if RAW_PALETTE_CLASS.search(text) or "Health Assistant" in text:
                 offenders.append(str(path.relative_to(FRONTEND)))
     assert offenders == []
-
-
-def test_the_accent_never_carries_white_text() -> None:
-    for path in (FRONTEND / "src").rglob("*.tsx"):
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if "bg-brand-400" in line:
-                assert "text-white" not in line, f"{path.name}: white on #6A9BD1 is too low contrast"

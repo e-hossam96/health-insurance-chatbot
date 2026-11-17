@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { VisitsDrawer } from './VisitsDrawer';
+import { cancelVisit } from '../api/visits';
 
 vi.mock('../api/visits', () => ({
   getMyVisits: () => Promise.resolve([
@@ -17,7 +18,6 @@ vi.mock('../api/visits', () => ({
 describe('VisitsDrawer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    window.confirm = vi.fn(() => true);
   });
 
   it('F14: shows visits list when open', async () => {
@@ -64,7 +64,10 @@ describe('VisitsDrawer', () => {
       expect(screen.getByTestId('cancel-visit-btn')).toBeTruthy();
     });
     fireEvent.click(screen.getByTestId('cancel-visit-btn'));
-    expect(window.confirm).toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toHaveTextContent('Dr. Sara, Tue 15 Dec, 10:00 UTC');
+    expect(cancelVisit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('confirm-yes'));
+    await waitFor(() => expect(cancelVisit).toHaveBeenCalledWith(1));
   });
 
   it('F14: complaints tab shows replies with Support team label', async () => {
@@ -79,6 +82,46 @@ describe('VisitsDrawer', () => {
       expect(screen.getByText('Support team:')).toBeTruthy();
       expect(screen.getByText('We apologize.')).toBeTruthy();
     });
+  });
+
+  it('F14: the tabs show which list is open', async () => {
+    render(
+      <MemoryRouter>
+        <VisitsDrawer open={true} onClose={() => {}} />
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('visits-list');
+    expect(screen.getByTestId('drawer-tab-visits')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('drawer-tab-complaints')).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByTestId('drawer-tab-complaints'));
+    expect(screen.getByTestId('drawer-tab-complaints')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('complaints-list')).toBeTruthy();
+    expect(screen.queryByTestId('visits-list')).toBeNull();
+  });
+
+  it('F14: the close button and the backdrop close the drawer', async () => {
+    const onClose = vi.fn();
+    render(
+      <MemoryRouter>
+        <VisitsDrawer open={true} onClose={onClose} />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByTestId('visits-drawer').previousElementSibling as HTMLElement);
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('F14: a refused cancel keeps the dialog open with the reason', async () => {
+    (cancelVisit as ReturnType<typeof vi.fn>).mockRejectedValueOnce({});
+    render(
+      <MemoryRouter>
+        <VisitsDrawer open={true} onClose={() => {}} />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByTestId('cancel-visit-btn'));
+    fireEvent.click(screen.getByTestId('confirm-yes'));
+    expect((await screen.findByTestId('confirm-error')).textContent).toBe('Cannot cancel this visit.');
   });
 
   it('F14: hidden when not open', () => {
