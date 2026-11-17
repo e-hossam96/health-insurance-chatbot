@@ -12,9 +12,9 @@ from chatbot_ai.context import to_openai_messages
 from chatbot_ai.ingest.index import collection_name, embed_dense, embed_sparse
 from chatbot_ai.intents import AgentName
 from chatbot_ai.interface import HistoryRow, Token, Usage
-from chatbot_ai.llm import StreamedReply, stream_reply
+from chatbot_ai.llm import StreamedReply, reply_output, stream_reply
 from chatbot_ai.prompts import agent_system_prompt
-from chatbot_ai.rag.rewrite import rewrite_question
+from chatbot_ai.rag.rewrite import rewrite_messages, rewrite_question
 from chatbot_ai.rag.search import Candidate, dedupe, rrf_merge, search_one
 from chatbot_ai.rerank.base import Reranker, make_reranker
 from chatbot_ai.settings import AISettings, Role
@@ -53,19 +53,25 @@ class KnowledgeAgent:
 
         started = clock()
         embedder = context.clients.get(Role.embedding)
-        with context.tracer.stage("embed", "embedding", model=embedder.model):
+        with context.tracer.stage("embed", "embedding", model=embedder.model) as embed_record:
             dense = await embed_dense(embedder, queries, "query", settings)
             sparse = embed_sparse(queries, "query")
+            embed_record.record(input=queries)
         embedded = clock()
-        with context.tracer.stage("search", "retriever"):
+        with context.tracer.stage("search", "retriever") as search_record:
             ranked_lists = [
                 await search_one(qdrant, collection, d, s, settings.ai_retrieval_mode, settings.ai_prefetch_k, ready)
                 for d, s in zip(dense, sparse, strict=True)
             ]
             candidates = dedupe(rrf_merge(ranked_lists, settings.ai_fused_k))
+            search_record.record(input=queries, output=[{"section": c.breadcrumb, "content": c.content} for c in candidates])
         searched = clock()
-        with context.tracer.stage("rerank"):
+        with context.tracer.stage("rerank") as rerank_record:
             reranked = await self._reranker_factory(settings).rerank(standalone, [c.content for c in candidates], settings.ai_context_k)
+            rerank_record.record(
+                input=standalone,
+                output=[{"section": candidates[r.index].breadcrumb, "score": r.score} for r in reranked],
+            )
         excerpts = [replace(candidates[r.index], rerank_score=r.score) for r in reranked]
         stages.update(embed=embedded - started, search=searched - embedded, rerank=clock() - searched)
         return excerpts, stages
@@ -76,9 +82,14 @@ class KnowledgeAgent:
         clock = context.clock
         started = clock()
         rewriter = context.clients.get(Role.rewrite)
-        with context.tracer.stage("rewrite", "generation", model=rewriter.model):
+        with context.tracer.stage("rewrite", "generation", model=rewriter.model) as rewrite_record:
             rewrite = await rewrite_question(
                 rewriter, request.history, request.message, settings.ai_query_count, settings.ai_rewrite_max_output_tokens
+            )
+            rewrite_record.record(
+                input=rewrite_messages(request.history, request.message, settings.ai_query_count),
+                output={"standalone": rewrite.standalone, "alternates": rewrite.alternates},
+                usage=rewrite.usage,
             )
         rewritten = clock()
         excerpts, stages = await self._retrieve(context, rewrite.queries, rewrite.standalone)
@@ -119,13 +130,15 @@ class KnowledgeAgent:
         ]
         chat = context.clients.get(Role.chat)
         reply: StreamedReply | None = None
-        with context.tracer.stage("generate", "generation", model=chat.model):
+        with context.tracer.stage("generate", "generation", model=chat.model) as generate_record:
             stream = await chat.stream(messages, max_tokens=settings.ai_chat_max_output_tokens)
             async for item in stream_reply(stream, clock, generation_started):
                 if isinstance(item, Token):
                     yield item
                 else:
                     reply = item
+            if reply is not None:
+                generate_record.record(input=messages, output=reply_output(reply), usage=reply.usage)
         if reply is None:
             raise RuntimeError("the chat stream ended without a reply")
         finished = clock()

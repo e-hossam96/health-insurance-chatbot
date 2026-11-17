@@ -156,3 +156,40 @@ async def test_F7_a_knowledge_turn_has_spans_for_every_pipeline_stage(
     assert root.context is not None
     stage_spans = [span for span in spans if span.name in {"classify", "rewrite", "embed", "search", "rerank", "generate"}]
     assert all(span.parent is not None and span.parent.trace_id == root.context.trace_id for span in stage_spans)
+
+
+def _by_name(spans: list[ReadableSpan], name: str) -> list[dict[str, object]]:
+    return [_attributes(span) for span in spans if span.name == name]
+
+
+@pytest.mark.anyio()
+async def test_F7_spans_carry_input_output_and_token_usage(
+    fake_openai: FakeOpenAI, langfuse_client: Langfuse, exporter: InMemorySpanExporter
+) -> None:
+    settings = settings_for(fake_openai.base_url)
+    fake_openai.queue(json_reply({"intent": "visit.book"}), model="router-model")
+    fake_openai.queue(tool_reply(ToolCallSpec("list_specialties", {})), text_reply("We have dermatology."), model="chat-model")
+    await _run(settings, LangfuseTracer(langfuse_client), "I need a dermatologist", 9)
+    langfuse_client.flush()
+    spans = list(exporter.get_finished_spans())
+
+    [root] = _by_name(spans, "chat turn")
+    assert "I need a dermatologist" in str(root["langfuse.observation.input"])
+    assert "We have dermatology." in str(root["langfuse.observation.output"])
+    assert next(span for span in spans if span.name == "chat turn").parent is None
+
+    [classify_span] = _by_name(spans, "classify")
+    assert "I need a dermatologist" in str(classify_span["langfuse.observation.input"])
+    assert "visit.book" in str(classify_span["langfuse.observation.output"])
+    assert "input" in str(classify_span["langfuse.observation.usage_details"])
+
+    generations = _by_name(spans, "generate")
+    assert len(generations) == 2
+    assert all("I need a dermatologist" in str(g["langfuse.observation.input"]) for g in generations)
+    assert "list_specialties" in str(generations[0]["langfuse.observation.output"])
+    assert "We have dermatology." in str(generations[1]["langfuse.observation.output"])
+    assert all("output" in str(g["langfuse.observation.usage_details"]) for g in generations)
+
+    [tool_span] = _by_name(spans, "list_specialties")
+    assert "langfuse.observation.input" in tool_span
+    assert tool_span["langfuse.observation.output"]

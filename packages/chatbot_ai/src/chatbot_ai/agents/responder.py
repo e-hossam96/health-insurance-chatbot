@@ -8,7 +8,7 @@ from chatbot_ai.agents.base import AgentContext, AgentEvent, AgentResult
 from chatbot_ai.context import to_openai_messages
 from chatbot_ai.intents import AgentName
 from chatbot_ai.interface import HistoryRow, Token
-from chatbot_ai.llm import StreamedReply, stream_reply
+from chatbot_ai.llm import StreamedReply, reply_output, stream_reply
 from chatbot_ai.prompts import agent_system_prompt
 from chatbot_ai.settings import Role
 
@@ -29,13 +29,16 @@ class ResponderAgent:
         chat = context.clients.get(Role.chat)
         started = context.clock()
         reply: StreamedReply | None = None
-        with context.tracer.stage("generate", "generation", model=chat.model):
-            stream = await chat.stream(agent_messages(context, self.name), max_tokens=context.settings.ai_chat_max_output_tokens)
+        messages = agent_messages(context, self.name)
+        with context.tracer.stage("generate", "generation", model=chat.model) as generate_record:
+            stream = await chat.stream(messages, max_tokens=context.settings.ai_chat_max_output_tokens)
             async for item in stream_reply(stream, context.clock, started):
                 if isinstance(item, Token):
                     yield item
                 else:
                     reply = item
+            if reply is not None:
+                generate_record.record(input=messages, output=reply_output(reply), usage=reply.usage)
         finished = context.clock()
         if reply is None:
             raise RuntimeError("the chat stream ended without a reply")

@@ -31,6 +31,13 @@ class _PartialCall:
     arguments: list[str] = field(default_factory=list)
 
 
+def reply_output(reply: StreamedReply) -> dict[str, object]:
+    output: dict[str, object] = {"role": "assistant", "content": reply.text}
+    if reply.tool_calls:
+        output["tool_calls"] = [{"id": call.id, "name": call.name, "arguments": call.arguments} for call in reply.tool_calls]
+    return output
+
+
 async def stream_reply(
     stream: AsyncStream[ChatCompletionChunk], clock: Callable[[], float], started: float
 ) -> AsyncIterator[Token | StreamedReply]:

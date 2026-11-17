@@ -13,7 +13,7 @@ from chatbot_ai.agents.base import AgentContext, AgentEvent, AgentResult
 from chatbot_ai.agents.responder import agent_messages
 from chatbot_ai.intents import AgentName
 from chatbot_ai.interface import Cards, HistoryRow, Token, Usage
-from chatbot_ai.llm import StreamedReply, StreamedToolCall, stream_reply
+from chatbot_ai.llm import StreamedReply, StreamedToolCall, reply_output, stream_reply
 from chatbot_ai.settings import Role
 from chatbot_ai.tools.ports import Ports
 from chatbot_ai.tools.registry import (
@@ -55,7 +55,7 @@ class ToolLoopAgent:
         for round_index in range(settings.ai_max_tool_rounds + 1):
             tools_offered = round_index < settings.ai_max_tool_rounds
             reply: StreamedReply | None = None
-            with context.tracer.stage("generate", "generation", model=chat.model):
+            with context.tracer.stage("generate", "generation", model=chat.model) as generate_record:
                 stream = await chat.stream(
                     messages, max_tokens=settings.ai_chat_max_output_tokens, tools=definitions if tools_offered else omit
                 )
@@ -64,6 +64,8 @@ class ToolLoopAgent:
                         yield item
                     else:
                         reply = item
+                if reply is not None:
+                    generate_record.record(input=list(messages), output=reply_output(reply), usage=reply.usage)
             if reply is None:
                 raise RuntimeError("the chat stream ended without a reply")
             usages.append(reply.usage)
@@ -80,8 +82,9 @@ class ToolLoopAgent:
             messages.append({"role": "assistant", "content": reply.text or None, "tool_calls": call_params})
             for call in reply.tool_calls:
                 tool_started = context.clock()
-                with context.tracer.stage(call.name, "tool"):
+                with context.tracer.stage(call.name, "tool") as tool_record:
                     outcome = await self._run_tool(call, context.ports)
+                    tool_record.record(input=call.arguments, output=outcome.content)
                 tool_timings.append((call.name, context.clock() - tool_started))
                 rows.append(HistoryRow(role="tool", content=outcome.content, tool_call_id=call.id, tool_name=call.name))
                 messages.append({"role": "tool", "tool_call_id": call.id, "content": outcome.content})
