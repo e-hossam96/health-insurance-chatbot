@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -8,17 +7,14 @@ from backend_routes import all_routes
 from httpx import ASGITransport, AsyncClient
 
 from backend.app import create_app
-from backend.config import Settings
+from backend.config import Settings, get_settings
 
-TEST_DB_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
-)
+TEST_DB_URL = get_settings().database_url
 
 
 @pytest.fixture()
 def app(_clean_database: None) -> object:
-    settings = Settings(database_url=TEST_DB_URL)  # type: ignore[call-arg]
+    settings = Settings()  # type: ignore[call-arg]
     return create_app(settings)
 
 

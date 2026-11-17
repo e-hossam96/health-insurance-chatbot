@@ -164,7 +164,7 @@ echo "OK: nginx takes the client address from Caddy only (via Caddy: $caddy_clie
 
 echo "Seeding a location and an admin..."
 SMOKE_ADMIN="smoke-admin-$(date +%s)"
-"${COMPOSE[@]}" exec -T -e SMOKE_ADMIN="$SMOKE_ADMIN" backend sh -c 'python scripts/create_admin.py --database-url "$DATABASE_URL" --username "$SMOKE_ADMIN" --password adminpass1 --name "Admin One" --location Cairo'
+"${COMPOSE[@]}" exec -T -e SMOKE_ADMIN="$SMOKE_ADMIN" backend sh -c 'python scripts/create_admin.py --username "$SMOKE_ADMIN" --password adminpass1 --name "Admin One" --location Cairo'
 
 echo "Testing a KB upload and ingestion as the non-root backend user..."
 SMOKE_ADMIN="$SMOKE_ADMIN" "$PYTHON" scripts/stack_kb_check.py
@@ -177,8 +177,8 @@ echo "Testing Prometheus targets and Grafana dashboards..."
 
 if [ "${STACK_E2E:-0}" = "1" ]; then
     echo "Seeding demo data and admin1 for the stack e2e tests..."
-    "${COMPOSE[@]}" exec -T backend sh -c 'python scripts/seed.py --database-url "$DATABASE_URL"'
-    "${COMPOSE[@]}" exec -T backend sh -c 'python scripts/create_admin.py --database-url "$DATABASE_URL" --username admin1 --password adminpass1 --name "Admin One" --location Cairo'         || echo "admin1 already exists"
+    "${COMPOSE[@]}" exec -T backend python scripts/seed.py
+    "${COMPOSE[@]}" exec -T backend python scripts/create_admin.py --username admin1 --password adminpass1 --name "Admin One" --location Cairo         || echo "admin1 already exists"
     echo "Running the Playwright stack e2e suite..."
     (cd frontend && npx playwright test -c playwright.stack.config.ts)
 fi

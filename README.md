@@ -181,8 +181,8 @@ cp .env.example .env
 |---|---|
 | `GRAFANA_ADMIN_PASSWORD` | Compose refuses to start without it |
 | `OPENAI_API_KEY` | needed for chat and KB ingestion. Without AI settings the app still runs, but chat turns and ingestion report that the AI is not configured |
-| `DATABASE_URL` | only for running the backend outside Docker. Compose sets it for the container |
-| `POSTGRES_PASSWORD` | production only. Letters and digits (for example `openssl rand -hex 24`). Set it before the first start: Postgres stores it when the volume is created. Locally it defaults to `chatbot` |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB` | the backend builds its database URL from these (there is no `DATABASE_URL`). Compose passes them to Postgres, the backend and the exporter, and sets the host and port itself; user and database default to `chatbot` |
+| `POSTGRES_PASSWORD` in production | letters and digits (for example `openssl rand -hex 24`). Set it, and the user and database name, before the first start: Postgres stores them when the volume is created. Locally the password defaults to `chatbot` |
 
 ### Models (one config per role)
 
@@ -242,8 +242,8 @@ Requirements: Docker with the Compose plugin. An OpenAI API key for the real ass
 3. **Create an admin and the demo data.**
 
    ```bash
-   docker compose exec backend sh -c 'python scripts/create_admin.py --database-url "$DATABASE_URL" --username admin1 --password <password> --name "Admin One" --location Cairo'
-   docker compose exec backend sh -c 'python scripts/seed.py --database-url "$DATABASE_URL"'
+   docker compose exec backend python scripts/create_admin.py --username admin1 --password <password> --name "Admin One" --location Cairo
+   docker compose exec backend python scripts/seed.py
    ```
 
    The seed adds three locations, five specialties, clinics, doctors, slots for the rest of the month and two sample members: `user1` / `userpass1` and `user2` / `userpass2`.
@@ -277,7 +277,7 @@ Requirements: [uv](https://docs.astral.sh/uv/) (it installs Python 3.14), Node.j
 ```bash
 uv sync --all-packages
 (cd frontend && npm ci && npx playwright install chromium)
-cp .env.example .env              # its DATABASE_URL and QDRANT_URL point at localhost
+cp .env.example .env              # its POSTGRES_HOST and QDRANT_URL point at localhost
 docker compose up -d postgres qdrant
 ```
 

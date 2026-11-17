@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -14,12 +13,10 @@ from backend.auth import (
     get_session,
     purge_expired,
 )
+from backend.config import get_settings
 from backend.models import Account, AccountRole, AuthSession
 
-TEST_DB_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
-)
+TEST_DB_URL = get_settings().database_url
 
 
 class FakeClock:

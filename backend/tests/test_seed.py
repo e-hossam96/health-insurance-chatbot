@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import os
-
 from sqlalchemy import create_engine, text
 
-TEST_DB_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
-)
+from backend.config import get_settings
+
+TEST_DB_URL = get_settings().database_url
 
 
 def _sync_url(url: str) -> str:

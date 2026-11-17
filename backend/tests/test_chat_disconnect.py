@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import threading
 import time
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -14,15 +13,12 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from backend.app import create_app
-from backend.config import Settings
+from backend.config import Settings, get_settings
 from chatbot_ai.interface import Done, HistoryRow, Token, TurnEvent, TurnRequest
 from testkit.live_server import serve_in_thread
 from testkit.metrics import metric_value
 
-TEST_DB_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
-)
+TEST_DB_URL = get_settings().database_url
 CANCEL_DEADLINE = 5.0
 
 
@@ -61,7 +57,7 @@ def hanging_turn() -> HangingTurn:
 
 @pytest.fixture()
 def live_server(_clean_database: None, hanging_turn: HangingTurn) -> Iterator[str]:
-    application = create_app(Settings(database_url=TEST_DB_URL))  # type: ignore[call-arg]
+    application = create_app(Settings())  # type: ignore[call-arg]
     application.state.clock = FixedClock()
     application.state.turn_runner = hanging_turn
     with serve_in_thread(application) as url:

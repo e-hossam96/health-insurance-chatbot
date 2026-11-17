@@ -210,14 +210,14 @@ def test_databases_are_local_only_in_development_and_need_a_real_password_in_pro
             f"{name} must bind to localhost only"
         )
     services = PROD["services"]
-    assert services["postgres"]["environment"]["POSTGRES_PASSWORD"].startswith(
-        "${POSTGRES_PASSWORD:?"
-    )
-    assert "${POSTGRES_PASSWORD:?" in services["backend"]["environment"]["DATABASE_URL"]
-    assert (
-        "${POSTGRES_PASSWORD:?"
-        in services["postgres-exporter"]["environment"]["DATA_SOURCE_NAME"]
-    )
+    for service, variable in (
+        ("postgres", "POSTGRES_PASSWORD"),
+        ("backend", "POSTGRES_PASSWORD"),
+        ("postgres-exporter", "DATA_SOURCE_PASS"),
+    ):
+        assert services[service]["environment"][variable].startswith(
+            "${POSTGRES_PASSWORD:?"
+        ), f"{service} must refuse to start without a real password"
     assert "chatbot:chatbot@" not in (ROOT / "docker-compose.prod.yml").read_text(
         encoding="utf-8"
     )

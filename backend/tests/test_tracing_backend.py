@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
@@ -12,12 +11,12 @@ from langfuse import Langfuse
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from backend.app import create_app
-from backend.config import Settings
+from backend.config import Settings, get_settings
 from chatbot_ai.tracing import LangfuseTracer
 from testkit.ai_settings import settings_for
 from testkit.fake_openai import FakeOpenAI, json_reply, run_fake_openai, text_reply
 
-TEST_DB_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot")
+TEST_DB_URL = get_settings().database_url
 
 
 @pytest.fixture()
@@ -36,7 +35,7 @@ async def traced(_clean_database: None, fake: FakeOpenAI, exporter: InMemorySpan
     from scripts.create_admin import create_admin
 
     create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "TestCity")
-    app = create_app(Settings(database_url=TEST_DB_URL, kb_storage_dir=str(tmp_path)), ai_settings=settings_for(fake.base_url), ai_from_env=False)  # type: ignore[call-arg]
+    app = create_app(Settings(kb_storage_dir=str(tmp_path)), ai_settings=settings_for(fake.base_url), ai_from_env=False)  # type: ignore[call-arg]
     langfuse = Langfuse(public_key=f"pk-{uuid.uuid4().hex}", secret_key="sk-test", host="http://127.0.0.1:9", span_exporter=exporter, flush_at=1)
     app.state.role_clients._tracer = LangfuseTracer(langfuse)
     async with app.router.lifespan_context(app), AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as client:

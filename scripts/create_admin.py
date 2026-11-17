@@ -5,6 +5,8 @@ import sys
 
 from sqlalchemy import create_engine, text
 
+from backend.config import get_settings
+
 
 def _sync_url(url: str) -> str:
     if url.startswith("postgresql+asyncpg://"):
@@ -62,7 +64,6 @@ def create_admin(
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Create an admin account")
-    parser.add_argument("--database-url", required=True)
     parser.add_argument("--username", required=True)
     parser.add_argument("--password", required=True)
     parser.add_argument("--name", required=True)
@@ -71,7 +72,7 @@ def main(argv: list[str] | None = None) -> None:
 
     try:
         create_admin(
-            database_url=args.database_url,
+            database_url=get_settings().database_url,
             username=args.username,
             password=args.password,
             name=args.name,

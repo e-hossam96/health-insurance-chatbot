@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from datetime import UTC, datetime
 
 import pytest
@@ -10,12 +9,9 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from backend.app import create_app
-from backend.config import Settings
+from backend.config import Settings, get_settings
 
-TEST_DB_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
-)
+TEST_DB_URL = get_settings().database_url
 
 
 class FakeClock:
@@ -28,7 +24,7 @@ class FakeClock:
 
 @pytest.fixture()
 def app(_clean_database: None) -> object:
-    settings = Settings(database_url=TEST_DB_URL)  # type: ignore[call-arg]
+    settings = Settings()  # type: ignore[call-arg]
     application = create_app(settings)
     application.state.clock = FakeClock(datetime(2026, 12, 1, 8, 0, tzinfo=UTC))  # type: ignore[union-attr]
     return application

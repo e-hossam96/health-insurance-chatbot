@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import os
-
 from sqlalchemy import text
 from sqlalchemy.engine import Engine, make_url
 
+from backend.config import get_settings
+
 
 def test_the_suite_runs_on_its_own_database_never_the_dev_one(db_engine: Engine) -> None:
-    database = make_url(os.environ["DATABASE_URL"]).database
+    database = make_url(get_settings().database_url).database
     assert database is not None and database.endswith("_test")
     with db_engine.connect() as conn:
         assert conn.execute(text("SELECT current_database()")).scalar() == database

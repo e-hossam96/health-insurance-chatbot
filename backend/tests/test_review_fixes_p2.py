@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
@@ -10,15 +8,10 @@ from sqlalchemy.engine import Engine
 from backend.app import create_app
 from backend.config import Settings
 
-TEST_DB_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
-)
-
 
 @pytest.fixture()
 def app(_clean_database: None) -> object:
-    settings = Settings(database_url=TEST_DB_URL)  # type: ignore[call-arg]
+    settings = Settings()  # type: ignore[call-arg]
     return create_app(settings)
 
 

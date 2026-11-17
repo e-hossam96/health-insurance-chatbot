@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -11,7 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from backend.app import create_app
-from backend.config import Settings
+from backend.config import Settings, get_settings
 from chatbot_ai.interface import (
     Done,
     HistoryRow,
@@ -26,7 +25,7 @@ from testkit.ai_settings import settings_for
 from testkit.fake_openai import FakeOpenAI, json_reply, run_fake_openai, text_reply
 from testkit.metrics import label_sets, metric_value
 
-TEST_DB_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot")
+TEST_DB_URL = get_settings().database_url
 ALLOWED_LABELS = {
     "outcome": {"ok", "error", "cancelled", "failed", "conflict", "rejected"},
     "agent": {"scheduling", "complaints", "knowledge", "responder", "unknown"},
@@ -59,7 +58,7 @@ async def client(_clean_database: None, fake: FakeOpenAI, tmp_path: Path) -> Asy
     from scripts.create_admin import create_admin
 
     create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "TestCity")
-    settings = Settings(database_url=TEST_DB_URL, kb_storage_dir=str(tmp_path))  # type: ignore[call-arg]
+    settings = Settings(kb_storage_dir=str(tmp_path))  # type: ignore[call-arg]
     app = create_app(settings, ai_settings=settings_for(fake.base_url), ai_from_env=False)
     app.state.clock = FixedClock()
     async with app.router.lifespan_context(app), AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as c:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
 
@@ -8,10 +7,6 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
-TEST_DB_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
-)
 
 EXPECTED_TABLES = {
     "account",
@@ -104,7 +99,6 @@ def test_migrate_down_then_up(db_engine: Engine) -> None:
         ["uv", "run", "alembic", "downgrade", "base"],
         check=True,
         cwd=str(BACKEND_DIR),
-        env={**os.environ, "DATABASE_URL": TEST_DB_URL},
         capture_output=True,
     )
     insp = inspect(db_engine)
@@ -116,7 +110,6 @@ def test_migrate_down_then_up(db_engine: Engine) -> None:
         ["uv", "run", "alembic", "upgrade", "head"],
         check=True,
         cwd=str(BACKEND_DIR),
-        env={**os.environ, "DATABASE_URL": TEST_DB_URL},
         capture_output=True,
     )
     insp = inspect(db_engine)

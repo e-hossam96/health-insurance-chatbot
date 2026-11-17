@@ -1,9 +1,9 @@
-import os
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from backend.config import get_settings
 from backend.models import Base
 
 config = context.config
@@ -13,11 +13,9 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-db_url = os.environ.get("DATABASE_URL", "")
-if db_url.startswith("postgresql+asyncpg://"):
-    db_url = db_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
-if db_url:
-    config.set_main_option("sqlalchemy.url", db_url)
+sync_db_url = get_settings().database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
+# alembic's ini parser treats % as interpolation
+config.set_main_option("sqlalchemy.url", sync_db_url.replace("%", "%%"))
 
 
 def run_migrations_offline() -> None:

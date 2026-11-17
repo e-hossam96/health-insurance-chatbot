@@ -37,7 +37,7 @@ services:
   backend:
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://chatbot:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/chatbot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
 
   prometheus:
     restart: unless-stopped
@@ -48,7 +48,7 @@ services:
   postgres-exporter:
     restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: postgresql://chatbot:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/chatbot?sslmode=disable
+      DATA_SOURCE_PASS: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
 
 networks:
   data:
