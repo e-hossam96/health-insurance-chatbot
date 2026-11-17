@@ -1,3 +1,4 @@
+import { AuthLayout } from '../components/AuthLayout';
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 import { errorMessage } from '../api/client';
 import { useNavigate } from 'react-router';
@@ -43,7 +44,7 @@ export function OnboardingPage(): ReactNode {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
+    <AuthLayout>
       <form onSubmit={handleSubmit} className="card rise w-full max-w-sm p-8">
         <h2 className="mb-6 text-xl font-bold">Complete your profile</h2>
         {error && <p className="alert error mb-4" role="alert">{error}</p>}
@@ -75,6 +76,6 @@ export function OnboardingPage(): ReactNode {
           Continue
         </button>
       </form>
-    </div>
+    </AuthLayout>
   );
 }
