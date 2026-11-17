@@ -62,8 +62,8 @@ Guards (UX only; the backend checks the role on every call, B8):
 - Display name: `profile.name`, or the username if there is no profile (admin in admin panel).
 - `[My visits & complaints]`: user view only. Opens the drawer (section 6).
 - Mode toggle: admins only. In the admin panel it reads `[User view]`, in user view it reads `[Admin panel]`. Calls POST /auth/mode, then goes to /chat or /admin/kb.
-- `[Log out]`.
-- Admin panel header has the same layout with the section nav below it (section 7).
+- Section menu: admin panel only, just before `[User view]`. See section 7.
+- `[Log out]`, then the theme switch (system, light, dark).
 - Desktop first. On narrow screens the chat sidebar collapses and the drawer goes full screen.
 
 ---
@@ -356,15 +356,32 @@ Complaints tab:
 
 ## 7. Admin panel
 
-Header as in section 3 plus a section nav:
+Header as in section 3, with a section menu next to the `[User view]` toggle so admins never type a path:
 
 ```
 +-------------------------------------------------------------------------+
-| HEADER (with [User view] toggle)                                        |
-+-------------------------------------------------------------------------+
-| [ KB documents ] [ Catalog ] [ Slots ] [ Visits ] [ Complaints ]        |
+| Health Insurance Chatbot   admin1  [KB documents v] [User view] [Log out] |
+|                                    +-----------------------------------+ |
+|                                    | KB documents                      | |
+|                                    |   Upload and index policy files   | |
+|                                    | Catalog                           | |
+|                                    |   Locations, specialties, clinics,| |
+|                                    |   doctors                         | |
+|                                    | Slots                             | |
+|                                    |   Open and remove appointment     | |
+|                                    |   slots                           | |
+|                                    | Visits                            | |
+|                                    |   Review and complete booked      | |
+|                                    |   visits                          | |
+|                                    | Complaints                        | |
+|                                    |   Reply to and close complaints   | |
+|                                    +-----------------------------------+ |
 +-------------------------------------------------------------------------+
 ```
+
+- The trigger shows the current section's name and icon. The menu lists the five sections in this order, each with an icon and a one-line hint, and highlights the current one.
+- Picking a section goes to its page and closes the menu. Escape or a click outside closes it; arrow keys move between sections.
+- Shown only in admin mode. In user view an admin sees `[Admin panel]`, which lands on /admin/kb.
 
 ### AP1. KB documents (/admin/kb)
 

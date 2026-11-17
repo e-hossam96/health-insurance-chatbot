@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { logout, setMode } from '../api/auth';
 import { useAuth } from '../api/AuthContext';
+import { AdminNav } from './AdminNav';
 import { ThemeToggle } from './ThemeToggle';
 
 export function Header({ onVisitsClick }: { onVisitsClick?: () => void } = {}): ReactNode {
@@ -35,6 +36,7 @@ export function Header({ onVisitsClick }: { onVisitsClick?: () => void } = {}): 
             My visits &amp; complaints
           </button>
         )}
+        {user.role === 'admin' && user.mode === 'admin' && <AdminNav />}
         {user.role === 'admin' && (
           <button type="button" onClick={handleModeToggle} className="btn btn-secondary btn-sm" data-testid="mode-toggle">
             {user.mode === 'admin' ? 'User view' : 'Admin panel'}

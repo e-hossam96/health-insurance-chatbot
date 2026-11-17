@@ -39,6 +39,7 @@ flowchart LR
 |---|---|
 | `src/api/` | typed fetch clients per area (`auth`, `chat`, `visits`, `admin`, `kb`) and `AuthContext` |
 | `src/pages/` | one component per screen |
+| `src/components/` | header with the admin section menu (`AdminNav`, sections in `adminSections.tsx`), theme switch, dialog, visits drawer, icons |
 | `src/components/chat/` | sidebar, cards, Markdown renderer |
 | `e2e/` | Playwright specs against mocked APIs |
 | `e2e-stack/` | Playwright specs against the full Docker stack |
