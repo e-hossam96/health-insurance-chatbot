@@ -9,5 +9,6 @@ export default defineConfig({
     setupFiles: './src/test-setup.ts',
     exclude: ['e2e/**', 'e2e-stack/**', 'node_modules/**'],
     env: { TZ: 'Asia/Tokyo' },
+    css: { include: [/index\.css/] },
   },
 })

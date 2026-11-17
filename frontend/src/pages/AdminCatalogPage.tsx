@@ -79,32 +79,34 @@ function CatalogSection({
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h3 className="font-semibold">{title}</h3>
-        <button className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm" onClick={onAdd}>{addLabel}</button>
+        <h3 className="text-lg font-semibold">{title}</h3>
+        <button type="button" className="btn btn-sm" onClick={onAdd}>{addLabel}</button>
       </div>
-      <table className="w-full text-sm" data-testid={tableTestId}>
+      <div className="table-wrap">
+      <table className="table" data-testid={tableTestId}>
         <thead>
-          <tr className="border-b">
-            {headers.map((h) => <th key={h} className="text-left py-1">{h}</th>)}
-            <th className="text-right py-1">Actions</th>
+          <tr>
+            {headers.map((h) => <th key={h}>{h}</th>)}
+            <th className="text-right!">Actions</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id} className="border-b">
-              {row.cells.map((cell, index) => <td key={index} className="py-1">{cell}</td>)}
-              <td className="py-1 text-right"><button className="text-red-600 text-sm" onClick={() => onDelete(row.id)}>Delete</button></td>
+            <tr key={row.id}>
+              {row.cells.map((cell, index) => <td key={index}>{cell}</td>)}
+              <td className="text-right!"><button type="button" className="link-btn danger" onClick={() => onDelete(row.id)}>Delete</button></td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
       <Dialog open={dialogOpen} title={dialogTitle} onClose={onCloseDialog} panelClassName="min-w-80 max-w-md">
         <form onSubmit={onSubmit}>
           {children}
-          {formError && <p className="text-red-600 text-sm mb-2" data-testid="form-error">{formError}</p>}
-          <div className="flex gap-2 justify-end">
-            <button type="button" className="px-3 py-1 border rounded text-sm" onClick={onCloseDialog}>Cancel</button>
-            <button type="submit" className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm">Add</button>
+          {formError && <p className="alert error mb-4" data-testid="form-error">{formError}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onCloseDialog}>Cancel</button>
+            <button type="submit" className="btn btn-sm">Add</button>
           </div>
         </form>
       </Dialog>
@@ -114,7 +116,7 @@ function CatalogSection({
 
 function NameInput({ value, onChange, testId }: { value: string; onChange: (v: string) => void; testId: string }): ReactNode {
   return (
-    <input className="border rounded w-full p-2 mb-2" placeholder="Name" value={value} onChange={(e) => onChange(e.target.value)} data-testid={testId} required />
+    <input className="input mb-3" placeholder="Name" value={value} onChange={(e) => onChange(e.target.value)} data-testid={testId} required />
   );
 }
 
@@ -193,7 +195,7 @@ function ClinicsTab(): ReactNode {
       formError={actions.formError}
     >
       <NameInput value={name} onChange={setName} testId="clinic-name-input" />
-      <select className="border rounded w-full p-2 mb-2" value={locationId} onChange={(e) => setLocationId(Number(e.target.value))} data-testid="clinic-location-select" required>
+      <select className="input mb-3" value={locationId} onChange={(e) => setLocationId(Number(e.target.value))} data-testid="clinic-location-select" required>
         <option value="">Select location</option>
         {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
       </select>
@@ -234,7 +236,7 @@ function DoctorsTab(): ReactNode {
       formError={actions.formError}
     >
       <NameInput value={name} onChange={setName} testId="doctor-name-input" />
-      <input className="border rounded w-full p-2 mb-2" placeholder="Clinic-Specialty ID" type="number" value={clinicSpecialtyId} onChange={(e) => setClinicSpecialtyId(Number(e.target.value))} data-testid="doctor-cs-input" required />
+      <input className="input mb-3" placeholder="Clinic-Specialty ID" type="number" value={clinicSpecialtyId} onChange={(e) => setClinicSpecialtyId(Number(e.target.value))} data-testid="doctor-cs-input" required />
     </CatalogSection>
   );
 }
@@ -252,13 +254,14 @@ export function AdminCatalogPage(): ReactNode {
   return (
     <div>
       <Header />
-      <div className="max-w-4xl mx-auto p-4">
-        <h2 className="text-xl font-bold mb-4">Catalog</h2>
-        <div className="flex gap-1 border-b mb-4" data-testid="catalog-tabs">
+      <div className="page">
+        <h2 className="page-title">Catalog</h2>
+        <div className="segmented mb-6" data-testid="catalog-tabs">
           {TABS.map((t) => (
             <button
               key={t.key}
-              className={`px-4 py-2 text-sm font-medium ${tab === t.key ? 'border-b-2 border-brand-400 text-brand-700' : 'text-gray-500'}`}
+              type="button"
+              aria-pressed={tab === t.key}
               onClick={() => setTab(t.key)}
               data-testid={`tab-${t.key}`}
             >

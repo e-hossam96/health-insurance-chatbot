@@ -44,32 +44,32 @@ export function SignupPage(): ReactNode {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-brand-50">
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded shadow-md w-full max-w-sm">
-        <h1 className="text-xl mb-2 flex justify-center">
-          <Logo size={32} />
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
+      <form onSubmit={handleSubmit} className="card rise w-full max-w-sm p-8">
+        <h1 className="mb-3 flex justify-center">
+          <Logo size={40} />
         </h1>
-        <h2 className="text-lg text-gray-600 mb-6 text-center">Create your account</h2>
-        {error && <p className="text-red-600 text-sm mb-4" role="alert">{error}</p>}
-        <label className="block text-sm font-medium mb-1">Username</label>
+        <h2 className="mb-6 text-center text-base font-medium text-muted">Create your account</h2>
+        {error && <p className="alert error mb-4" role="alert">{error}</p>}
+        <label className="field-label">Username</label>
         <input
-          className="w-full border rounded px-3 py-2 mb-3"
+          className="input mb-4"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
         />
-        <label className="block text-sm font-medium mb-1">Password</label>
+        <label className="field-label">Password</label>
         <input
           type="password"
-          className="w-full border rounded px-3 py-2 mb-3"
+          className="input mb-4"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="new-password"
         />
-        <label className="block text-sm font-medium mb-1">Confirm</label>
+        <label className="field-label">Confirm</label>
         <input
           type="password"
-          className="w-full border rounded px-3 py-2 mb-4"
+          className="input mb-6"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           autoComplete="new-password"
@@ -77,12 +77,12 @@ export function SignupPage(): ReactNode {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-brand-400 text-brand-900 rounded py-2 hover:bg-brand-500 disabled:opacity-50"
+          className="btn w-full"
         >
           Sign up
         </button>
-        <p className="text-sm text-center mt-4 text-gray-600">
-          Already have an account? <Link to="/login" className="text-brand-700 hover:underline">Log in</Link>
+        <p className="mt-5 text-center text-sm text-muted">
+          Already have an account? <Link to="/login" className="font-semibold text-accent hover:underline hover:underline-offset-3">Log in</Link>
         </p>
       </form>
     </div>

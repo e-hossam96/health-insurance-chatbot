@@ -103,14 +103,14 @@ export function AdminSlotsPage(): ReactNode {
   return (
     <div>
       <Header />
-      <div className="max-w-5xl mx-auto p-4">
-        <h2 className="text-xl font-bold mb-4">Slots</h2>
+      <div className="page">
+        <h2 className="page-title">Slots</h2>
 
-        <div className="flex flex-wrap gap-4 items-end mb-4">
+        <div className="card mb-4 flex flex-wrap items-end gap-4 p-4">
           <div>
-            <label className="text-sm font-medium block mb-1">Doctor</label>
+            <label className="field-label">Doctor</label>
             <select
-              className="border rounded p-2 text-sm"
+              className="input w-auto py-2 text-sm"
               value={doctorId}
               onChange={(e) => setDoctorId(Number(e.target.value))}
               data-testid="doctor-select"
@@ -121,43 +121,43 @@ export function AdminSlotsPage(): ReactNode {
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="border rounded px-2 py-1 text-sm" onClick={prevMonth}>&lt;</button>
-            <span className="font-medium text-sm" data-testid="month-label">{monthName} {year}</span>
-            <button className="border rounded px-2 py-1 text-sm" onClick={nextMonth}>&gt;</button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={prevMonth} aria-label="Previous month">&lt;</button>
+            <span className="min-w-32 text-center text-sm font-semibold" data-testid="month-label">{monthName} {year}</span>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={nextMonth} aria-label="Next month">&gt;</button>
           </div>
 
-          <button className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm" onClick={() => setShowAdd(true)} disabled={doctorId === ''}>Add slot</button>
-          <button className="bg-green-600 text-white px-3 py-1 rounded text-sm" onClick={() => void handleAutofill()} disabled={doctorId === ''} data-testid="autofill-btn">Auto-fill to end of month</button>
+          <button type="button" className="btn btn-sm" onClick={() => setShowAdd(true)} disabled={doctorId === ''}>Add slot</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => void handleAutofill()} disabled={doctorId === ''} data-testid="autofill-btn">Auto-fill to end of month</button>
         </div>
 
-        {message && <p className="mb-4 text-sm font-medium text-green-700" data-testid="autofill-message">{message}</p>}
+        {message && <p className="alert success mb-4" data-testid="autofill-message">{message}</p>}
 
-        {loading && <p>Loading slots...</p>}
+        {loading && <p className="text-sm text-muted">Loading slots...</p>}
 
         {doctorId !== '' && !loading && (
-          <div className="overflow-x-auto" data-testid="slot-grid">
-            <table className="w-full text-xs">
+          <div className="table-wrap" data-testid="slot-grid">
+            <table className="table compact text-xs">
               <thead>
-                <tr className="border-b">
-                  <th className="text-left py-1 pr-2">Day</th>
-                  {HOURS.map((h) => <th key={h} className="text-center py-1 px-1">{String(h).padStart(2, '0')}:00</th>)}
+                <tr>
+                  <th>Day</th>
+                  {HOURS.map((h) => <th key={h} className="text-center!">{String(h).padStart(2, '0')}:00</th>)}
                 </tr>
               </thead>
               <tbody>
                 {Array.from({ length: numDays }, (_, i) => i + 1).map((day) => (
-                  <tr key={day} className="border-b">
-                    <td className="py-1 pr-2 font-medium whitespace-nowrap">{formatDay(year, month, day)}</td>
+                  <tr key={day}>
+                    <td className="whitespace-nowrap font-medium">{formatDay(year, month, day)}</td>
                     {HOURS.map((h) => {
                       const slot = slotMap.get(`${day}-${h}`);
-                      if (!slot) return <td key={h} className="text-center py-1 px-1 text-gray-300">—</td>;
+                      if (!slot) return <td key={h} className="text-center! text-line-strong">—</td>;
                       if (slot.status === 'booked') {
-                        return <td key={h} className="text-center py-1 px-1"><span className="bg-yellow-200 text-yellow-800 px-1 rounded text-xs">booked</span></td>;
+                        return <td key={h} className="text-center!"><span className="badge warn">booked</span></td>;
                       }
                       return (
-                        <td key={h} className="text-center py-1 px-1">
-                          <span className="bg-green-100 text-green-800 px-1 rounded text-xs">
+                        <td key={h} className="text-center!">
+                          <span className="badge success pr-1">
                             free
-                            <button className="ml-1 text-red-500" onClick={() => void handleDeleteSlot(slot.id)} title="Remove">×</button>
+                            <button type="button" className="grid h-4 w-4 place-items-center rounded-full leading-none hover:bg-danger-soft hover:text-danger" onClick={() => void handleDeleteSlot(slot.id)} title="Remove" aria-label="Remove slot">×</button>
                           </span>
                         </td>
                       );
@@ -171,14 +171,14 @@ export function AdminSlotsPage(): ReactNode {
 
         <Dialog open={showAdd} title="Add Slot" onClose={() => setShowAdd(false)}>
           <form onSubmit={(e) => void handleAddSlot(e)}>
-            <input type="date" className="border rounded w-full p-2 mb-2" value={addDate} onChange={(e) => setAddDate(e.target.value)} data-testid="slot-date-input" required />
-            <select className="border rounded w-full p-2 mb-2" value={addHour} onChange={(e) => setAddHour(Number(e.target.value))} data-testid="slot-hour-select">
+            <input type="date" className="input mb-3" value={addDate} onChange={(e) => setAddDate(e.target.value)} data-testid="slot-date-input" required />
+            <select className="input mb-3" value={addHour} onChange={(e) => setAddHour(Number(e.target.value))} data-testid="slot-hour-select">
               {HOURS.map((h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}
             </select>
-            {addError && <p className="text-red-600 text-sm mb-2" data-testid="slot-form-error">{addError}</p>}
-            <div className="flex gap-2 justify-end">
-              <button type="button" className="px-3 py-1 border rounded text-sm" onClick={() => setShowAdd(false)}>Cancel</button>
-              <button type="submit" className="bg-brand-400 text-brand-900 px-3 py-1 rounded text-sm">Add</button>
+            {addError && <p className="alert error mb-4" data-testid="slot-form-error">{addError}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowAdd(false)}>Cancel</button>
+              <button type="submit" className="btn btn-sm">Add</button>
             </div>
           </form>
         </Dialog>

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { type ChatSession, intentLabel, relativeTime } from '../../api/chat';
+import { PlusIcon } from '../icons';
 
 const PREVIEW_LENGTH = 40;
 
@@ -21,23 +22,25 @@ export function ChatSidebar({
   onNewChat: () => void;
 }): ReactNode {
   return (
-    <aside className="w-64 shrink-0 border-r border-gray-200 bg-gray-50 flex flex-col" data-testid="chat-sidebar">
+    <aside className="flex w-64 shrink-0 flex-col border-r border-line bg-card/60" data-testid="chat-sidebar">
       <button
         type="button"
         onClick={onNewChat}
-        className="m-2 p-2 text-sm bg-brand-400 text-brand-900 rounded hover:bg-brand-500"
+        className="btn btn-sm m-3 py-2"
         data-testid="new-chat-btn"
       >
-        + New chat
+        <PlusIcon />
+        New chat
       </button>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 space-y-1 overflow-y-auto px-2 pb-3">
         {sessions.map(s => (
           <button
             type="button"
             key={s.id}
             onClick={() => onSelect(s.id)}
-            className={`w-full text-left p-3 border-b border-gray-200 hover:bg-gray-100 ${
-              s.id === activeSessionId ? 'bg-brand-50' : ''
+            aria-current={s.id === activeSessionId ? 'true' : undefined}
+            className={`w-full rounded-control px-3 py-2.5 text-left transition-colors ${
+              s.id === activeSessionId ? 'bg-accent-soft text-accent' : 'hover:bg-surface'
             }`}
             data-testid="session-item"
           >
@@ -45,9 +48,9 @@ export function ChatSidebar({
               {intentLabel(s.intent)}
             </div>
             {s.first_user_message && (
-              <div className="text-xs text-gray-500 truncate">{preview(s.first_user_message)}</div>
+              <div className="truncate text-xs text-muted">{preview(s.first_user_message)}</div>
             )}
-            <div className="text-xs text-gray-400">{relativeTime(s.last_message_at, now)}</div>
+            <div className="text-xs text-muted">{relativeTime(s.last_message_at, now)}</div>
           </button>
         ))}
       </div>

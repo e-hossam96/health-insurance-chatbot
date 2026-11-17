@@ -34,11 +34,11 @@ export function AdminVisitsPage(): ReactNode {
   return (
     <div>
       <Header />
-      <div className="max-w-4xl mx-auto p-4">
-        <h2 className="text-xl font-bold mb-4">Visits</h2>
-        <div className="flex gap-4 items-center mb-4">
+      <div className="page">
+        <h2 className="page-title">Visits</h2>
+        <div className="mb-4 flex items-center gap-4">
           <select
-            className="border rounded p-2 text-sm"
+            className="input w-auto py-2 text-sm"
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setOffset(0); }}
             data-testid="status-filter"
@@ -48,33 +48,35 @@ export function AdminVisitsPage(): ReactNode {
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
           </select>
-          <span className="text-sm text-gray-500">Total: {total}</span>
+          <span className="text-sm text-muted">Total: {total}</span>
         </div>
-        <table className="w-full text-sm" data-testid="admin-visits-table">
+        <div className="table-wrap">
+        <table className="table" data-testid="admin-visits-table">
           <thead>
-            <tr className="border-b">
-              <th className="text-left py-1">ID</th>
-              <th className="text-left py-1">Status</th>
-              <th className="text-right py-1">Actions</th>
+            <tr>
+              <th>ID</th>
+              <th>Status</th>
+              <th className="text-right!">Actions</th>
             </tr>
           </thead>
           <tbody>
             {visits.map((v) => (
-              <tr key={v.id} className="border-b">
-                <td className="py-1">{v.id}</td>
-                <td className="py-1">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    v.status === 'scheduled' ? 'bg-brand-100 text-brand-800' :
-                    v.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    'bg-gray-100 text-gray-600'
+              <tr key={v.id}>
+                <td>{v.id}</td>
+                <td>
+                  <span className={`badge capitalize ${
+                    v.status === 'scheduled' ? 'accent' :
+                    v.status === 'completed' ? 'success' :
+                    ''
                   }`} data-testid="visit-status-badge">
                     {v.status}
                   </span>
                 </td>
-                <td className="py-1 text-right">
+                <td className="text-right!">
                   {v.status === 'scheduled' && (
                     <button
-                      className="text-green-600 text-sm"
+                      type="button"
+                      className="btn btn-secondary btn-sm"
                       onClick={() => void handleComplete(v.id)}
                       data-testid="complete-btn"
                     >
@@ -86,9 +88,10 @@ export function AdminVisitsPage(): ReactNode {
             ))}
           </tbody>
         </table>
-        <div className="flex gap-2 mt-4">
-          <button className="border rounded px-3 py-1 text-sm" disabled={offset === 0} onClick={() => setOffset((o) => Math.max(0, o - limit))}>Prev</button>
-          <button className="border rounded px-3 py-1 text-sm" disabled={offset + limit >= total} onClick={() => setOffset((o) => o + limit)}>Next</button>
+        </div>
+        <div className="mt-4 flex gap-2">
+          <button type="button" className="btn btn-secondary btn-sm" disabled={offset === 0} onClick={() => setOffset((o) => Math.max(0, o - limit))}>Prev</button>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={offset + limit >= total} onClick={() => setOffset((o) => o + limit)}>Next</button>
         </div>
       </div>
     </div>

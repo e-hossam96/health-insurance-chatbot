@@ -1,17 +1,18 @@
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { formatUtc } from '../api/chat';
+import { CloseIcon } from './icons';
 import { type VisitItem, type ComplaintItem, getMyVisits, getMyComplaints, cancelVisit } from '../api/visits';
 
 function statusBadge(status: string): ReactNode {
   const colors: Record<string, string> = {
-    scheduled: 'bg-brand-100 text-brand-800',
-    completed: 'bg-green-100 text-green-800',
-    cancelled: 'bg-gray-100 text-gray-600',
-    open: 'bg-yellow-100 text-yellow-800',
-    closed: 'bg-gray-100 text-gray-600',
+    scheduled: 'accent',
+    completed: 'success',
+    cancelled: '',
+    open: 'warn',
+    closed: '',
   };
   return (
-    <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[status] ?? 'bg-gray-100'}`} data-testid="status-badge">
+    <span className={`badge capitalize ${colors[status] ?? ''}`} data-testid="status-badge">
       {status}
     </span>
   );
@@ -45,24 +46,26 @@ export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => 
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="bg-black/40 flex-1" onClick={onClose} />
-      <div className="w-96 bg-white shadow-lg overflow-y-auto" data-testid="visits-drawer">
-        <div className="p-4">
+      <div className="flex-1 bg-overlay backdrop-blur-[2px]" onClick={onClose} />
+      <div className="w-96 max-w-full overflow-y-auto border-l border-line bg-card shadow-raised" data-testid="visits-drawer">
+        <div className="p-5">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold">My visits & complaints</h2>
-            <button onClick={onClose} className="text-gray-500">&times;</button>
+            <h2 className="text-lg font-semibold">My visits & complaints</h2>
+            <button type="button" onClick={onClose} className="btn btn-ghost btn-sm px-2" aria-label="Close"><CloseIcon /></button>
           </div>
 
-          <div className="flex gap-2 mb-4">
+          <div className="segmented mb-4">
             <button
-              className={`px-3 py-1 text-sm rounded ${tab === 'visits' ? 'bg-brand-400 text-brand-900' : 'border'}`}
+              type="button"
+              aria-pressed={tab === 'visits'}
               onClick={() => setTab('visits')}
               data-testid="drawer-tab-visits"
             >
               Visits
             </button>
             <button
-              className={`px-3 py-1 text-sm rounded ${tab === 'complaints' ? 'bg-brand-400 text-brand-900' : 'border'}`}
+              type="button"
+              aria-pressed={tab === 'complaints'}
               onClick={() => setTab('complaints')}
               data-testid="drawer-tab-complaints"
             >
@@ -72,20 +75,21 @@ export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => 
 
           {tab === 'visits' && (
             <div data-testid="visits-list">
-              {visits.length === 0 && <p className="text-sm text-gray-500">No visits yet.</p>}
+              {visits.length === 0 && <p className="text-sm text-muted">No visits yet.</p>}
               {visits.map((v) => (
-                <div key={v.id} className="border rounded p-3 mb-2">
+                <div key={v.id} className="mb-3 rounded-card border border-line bg-surface p-4">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-medium text-sm">{v.doctor_name}</p>
-                      <p className="text-xs text-gray-500">{v.specialty} · {v.clinic} · {v.location}</p>
-                      <p className="text-xs text-gray-400">{formatUtc(v.start_at)}</p>
+                      <p className="text-sm font-semibold">{v.doctor_name}</p>
+                      <p className="text-xs text-muted">{v.specialty} · {v.clinic} · {v.location}</p>
+                      <p className="mt-1 text-xs font-medium text-accent">{formatUtc(v.start_at)}</p>
                     </div>
                     {statusBadge(v.status)}
                   </div>
                   {v.status === 'scheduled' && (
                     <button
-                      className="mt-2 text-xs text-red-600"
+                      type="button"
+                      className="link-btn danger mt-3 text-xs"
                       onClick={() => void handleCancel(v.id)}
                       data-testid="cancel-visit-btn"
                     >
@@ -99,19 +103,19 @@ export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => 
 
           {tab === 'complaints' && (
             <div data-testid="complaints-list">
-              {complaints.length === 0 && <p className="text-sm text-gray-500">No complaints yet.</p>}
+              {complaints.length === 0 && <p className="text-sm text-muted">No complaints yet.</p>}
               {complaints.map((c) => (
-                <div key={c.id} className="border rounded p-3 mb-2">
+                <div key={c.id} className="mb-3 rounded-card border border-line bg-surface p-4">
                   <div className="flex justify-between items-start mb-1">
-                    <p className="text-sm font-medium">Visit #{c.visit_id}</p>
+                    <p className="text-sm font-semibold">Visit #{c.visit_id}</p>
                     {statusBadge(c.status)}
                   </div>
                   <p className="text-sm">{c.description}</p>
                   {c.replies.length > 0 && (
-                    <div className="mt-2 pl-3 border-l-2 border-gray-200">
+                    <div className="mt-3 border-l-2 border-accent-soft pl-3">
                       {c.replies.map((r) => (
-                        <p key={r.id} className="text-xs text-gray-600 mb-1">
-                          <span className="font-medium">Support team:</span> {r.body}
+                        <p key={r.id} className="mb-1 text-xs text-muted">
+                          <span className="font-semibold text-fg">Support team:</span> {r.body}
                         </p>
                       ))}
                     </div>

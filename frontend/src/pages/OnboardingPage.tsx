@@ -43,19 +43,19 @@ export function OnboardingPage(): ReactNode {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded shadow-md w-full max-w-sm">
-        <h2 className="text-lg font-semibold mb-6">Complete your profile</h2>
-        {error && <p className="text-red-600 text-sm mb-4" role="alert">{error}</p>}
-        <label className="block text-sm font-medium mb-1">Full name</label>
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
+      <form onSubmit={handleSubmit} className="card rise w-full max-w-sm p-8">
+        <h2 className="mb-6 text-xl font-bold">Complete your profile</h2>
+        {error && <p className="alert error mb-4" role="alert">{error}</p>}
+        <label className="field-label">Full name</label>
         <input
-          className="w-full border rounded px-3 py-2 mb-3"
+          className="input mb-4"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <label className="block text-sm font-medium mb-1">Location</label>
+        <label className="field-label">Location</label>
         <select
-          className="w-full border rounded px-3 py-2 mb-3"
+          className="input mb-4"
           value={locationId}
           onChange={(e) => setLocationId(e.target.value ? Number(e.target.value) : '')}
         >
@@ -64,13 +64,13 @@ export function OnboardingPage(): ReactNode {
             <option key={loc.id} value={loc.id}>{loc.name}</option>
           ))}
         </select>
-        <p className="text-xs text-gray-500 mb-4">
+        <p className="mb-6 text-xs text-muted">
           Name and location can&apos;t be changed after you submit.
         </p>
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-brand-400 text-brand-900 rounded py-2 hover:bg-brand-500 disabled:opacity-50"
+          className="btn w-full"
         >
           Continue
         </button>

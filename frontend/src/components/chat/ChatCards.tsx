@@ -11,17 +11,18 @@ function statusFor(state: CardSetState, id: number): CardStatus {
   return 'default';
 }
 
-const BUTTON = 'mt-2 text-xs px-3 py-1 rounded disabled:opacity-50';
-const LINK_BUTTON = 'ml-1 text-xs text-brand-700 underline disabled:opacity-50';
+const BUTTON = 'btn btn-sm mt-3';
+const LINK_BUTTON = 'link-btn ml-1 text-xs';
+const CARD = 'card rise p-4 text-sm';
 
 function Spinner(): ReactNode {
-  return <span className="inline-block h-3 w-3 mr-1 align-middle animate-spin rounded-full border-2 border-brand-900 border-t-transparent" />;
+  return <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />;
 }
 
 function Badge({ text, tone, testId }: { text: string; tone: 'green' | 'red'; testId: string }): ReactNode {
-  const colors = tone === 'green' ? 'text-green-700 bg-green-100' : 'text-red-700 bg-red-100';
+  const colors = tone === 'green' ? 'success' : 'danger';
   return (
-    <span className={`inline-block mt-2 text-xs px-2 py-1 rounded ${colors}`} data-testid={testId}>
+    <span className={`badge mt-3 ${colors}`} data-testid={testId}>
       {text}
     </span>
   );
@@ -35,8 +36,8 @@ function FailureLine({ text, actionLabel, disabled, onAction, testId }: {
   testId: string;
 }): ReactNode {
   return (
-    <div className="mt-2" data-testid={testId}>
-      <span className="text-xs text-red-600">{text}</span>
+    <div className="mt-3" data-testid={testId}>
+      <span className="text-xs text-danger">{text}</span>
       {actionLabel && onAction && (
         <button type="button" onClick={onAction} disabled={disabled} className={LINK_BUTTON} data-testid="card-retry-btn">
           {actionLabel}
@@ -54,15 +55,15 @@ function DoctorCard({ item, status, disabled, onBook, onShowOther }: {
   onShowOther: () => void;
 }): ReactNode {
   return (
-    <div className="border border-gray-200 rounded-lg p-3 w-56 bg-white" data-testid="doctor-card">
-      <div className="font-medium text-sm">{item.doctor_name}</div>
-      <div className="text-xs text-gray-500">{item.specialty}</div>
-      <div className="text-xs text-gray-500">{item.clinic}, {item.location}</div>
-      <div className="text-xs text-gray-600 mt-1">{formatUtc(item.start_at)}</div>
+    <div className={`${CARD} w-60`} data-testid="doctor-card">
+      <div className="font-semibold">{item.doctor_name}</div>
+      <div className="text-xs text-muted">{item.specialty}</div>
+      <div className="text-xs text-muted">{item.clinic}, {item.location}</div>
+      <div className="mt-2 text-xs font-medium text-accent">{formatUtc(item.start_at)}</div>
       {status === 'done' && <Badge text="Booked" tone="green" testId="booked-badge" />}
       {status === 'slot_taken' && (
-        <div className="mt-2" data-testid="slot-taken">
-          <span className="text-xs text-red-600">This slot was just taken</span>
+        <div className="mt-3" data-testid="slot-taken">
+          <span className="text-xs text-danger">This slot was just taken</span>
           <button type="button" onClick={onShowOther} disabled={disabled} className={LINK_BUTTON} data-testid="show-other-btn">
             Show other options
           </button>
@@ -72,7 +73,7 @@ function DoctorCard({ item, status, disabled, onBook, onShowOther }: {
         <FailureLine text="Could not book. Try again." actionLabel="Retry" disabled={disabled} onAction={onBook} testId="card-error" />
       )}
       {(status === 'default' || status === 'busy') && (
-        <button type="button" onClick={onBook} disabled={disabled} className={`${BUTTON} bg-brand-400 text-brand-900 hover:bg-brand-500`} data-testid="book-btn">
+        <button type="button" onClick={onBook} disabled={disabled} className={BUTTON} data-testid="book-btn">
           {status === 'busy' && <Spinner />}
           {status === 'busy' ? 'Booking…' : 'Book'}
         </button>
@@ -88,11 +89,11 @@ function CancelCard({ item, status, disabled, onCancel }: {
   onCancel: () => void;
 }): ReactNode {
   return (
-    <div className="border border-gray-200 rounded-lg p-3 w-56 bg-white" data-testid="cancel-card">
-      <div className="text-xs text-gray-600">{formatUtc(item.start_at)}</div>
-      <div className="font-medium text-sm">{item.doctor_name}</div>
-      <div className="text-xs text-gray-500">{item.specialty}</div>
-      <div className="text-xs text-gray-500">{item.clinic}</div>
+    <div className={`${CARD} w-60`} data-testid="cancel-card">
+      <div className="text-xs font-medium text-accent">{formatUtc(item.start_at)}</div>
+      <div className="font-semibold">{item.doctor_name}</div>
+      <div className="text-xs text-muted">{item.specialty}</div>
+      <div className="text-xs text-muted">{item.clinic}</div>
       {status === 'done' && <Badge text="Cancelled" tone="red" testId="cancelled-badge" />}
       {status === 'not_cancellable' && (
         <FailureLine text="This visit can no longer be cancelled" disabled={disabled} testId="not-cancellable" />
@@ -101,7 +102,7 @@ function CancelCard({ item, status, disabled, onCancel }: {
         <FailureLine text="Could not cancel. Try again." actionLabel="Retry" disabled={disabled} onAction={onCancel} testId="card-error" />
       )}
       {(status === 'default' || status === 'busy') && (
-        <button type="button" onClick={onCancel} disabled={disabled} className={`${BUTTON} bg-red-600 text-white hover:bg-red-700`} data-testid="cancel-confirm-btn">
+        <button type="button" onClick={onCancel} disabled={disabled} className={`${BUTTON} btn-danger`} data-testid="cancel-confirm-btn">
           {status === 'busy' && <Spinner />}
           {status === 'busy' ? 'Cancelling…' : 'Yes, cancel visit'}
         </button>
@@ -121,25 +122,25 @@ function ComplaintCard({ item, status, disabled, onFile }: {
   const canSubmit = !disabled && description.trim() !== '';
 
   return (
-    <div className="border border-gray-200 rounded-lg p-3 w-64 bg-white" data-testid="complaint-card">
-      <div className="text-xs text-gray-600">{formatUtc(item.start_at)}</div>
-      <div className="font-medium text-sm">{item.doctor_name}</div>
-      <div className="text-xs text-gray-500">{item.clinic}</div>
+    <div className={`${CARD} w-72`} data-testid="complaint-card">
+      <div className="text-xs font-medium text-accent">{formatUtc(item.start_at)}</div>
+      <div className="font-semibold">{item.doctor_name}</div>
+      <div className="text-xs text-muted">{item.clinic}</div>
       {status === 'done' && <Badge text="Complaint filed" tone="green" testId="filed-badge" />}
       {status !== 'done' && !expanded && (
-        <button type="button" onClick={() => setExpanded(true)} disabled={disabled} className={`${BUTTON} bg-brand-400 text-brand-900 hover:bg-brand-500`} data-testid="select-visit-btn">
+        <button type="button" onClick={() => setExpanded(true)} disabled={disabled} className={`${BUTTON} btn-secondary`} data-testid="select-visit-btn">
           Select
         </button>
       )}
       {status !== 'done' && expanded && (
-        <div className="mt-2">
-          <label className="text-xs text-gray-700" htmlFor={`complaint-${item.visit_id}`}>What happened?</label>
+        <div className="mt-3">
+          <label className="mb-1 block text-xs font-semibold" htmlFor={`complaint-${item.visit_id}`}>What happened?</label>
           <textarea
             id={`complaint-${item.visit_id}`}
             value={description}
             onChange={e => setDescription(e.target.value)}
             disabled={disabled}
-            className="w-full border border-gray-300 rounded p-1 text-sm"
+            className="input px-2.5 py-2 text-sm"
             rows={3}
             data-testid="complaint-desc"
           />
@@ -152,18 +153,18 @@ function ComplaintCard({ item, status, disabled, onFile }: {
               testId="card-error"
             />
           )}
-          <div className="flex gap-2 mt-1">
+          <div className="mt-2 flex items-center gap-2">
             <button
               type="button"
               onClick={() => onFile(description)}
               disabled={!canSubmit}
-              className="text-xs bg-brand-400 text-brand-900 px-3 py-1 rounded disabled:opacity-50"
+              className="btn btn-sm"
               data-testid="submit-complaint-btn"
             >
               {status === 'busy' && <Spinner />}
               {status === 'busy' ? 'Submitting…' : 'Submit complaint'}
             </button>
-            <button type="button" onClick={() => setExpanded(false)} disabled={disabled} className="text-xs text-gray-500 disabled:opacity-50">
+            <button type="button" onClick={() => setExpanded(false)} disabled={disabled} className="btn btn-ghost btn-sm">
               Cancel
             </button>
           </div>

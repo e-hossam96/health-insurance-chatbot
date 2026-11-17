@@ -15,7 +15,7 @@ Companion files: `schema.dbml` (tables; its A-items are migration notes), `rules
 - Auth: server-side session in an HTTP-only cookie (B10, B11). Contracts in `api.md`.
 - Time: everything is UTC and the UI says so (C8). No time zone conversion anywhere.
 - Frontend stack: Vite, TypeScript, React Router, TanStack Query, Tailwind with shadcn/ui. The chat stream is read with fetch (it is a POST), not EventSource.
-- Language: English only. Assistant text renders as Markdown with raw HTML disabled (F17). Branding: the product is "Health Insurance Chatbot" with a text logo (a chat-bubble mark); colors are the Midnight Sky palette (#001F3F, #002D55, #004B87, #6A9BD1, #F0F4F8) with #6A9BD1 as the accent and navy text on it.
+- Language: English only. Assistant text renders as Markdown with raw HTML disabled (F17). Branding: the product is "Health Insurance Chatbot" with a text logo (a chat-bubble mark); colors follow the system light or dark setting, and the header has a toggle to pin light, dark or system. The palette is an indigo accent (#2C4BD0 light, #8FA3FF dark) on cool neutrals (#F4F6FA / #0D1119 page, #FFFFFF / #151B27 cards), with soft 1px dividers, 10px control and 14px card radii, and soft shadows. Tokens live in `frontend/src/index.css`.
 - The chatbot is the primary way to do everything (book, cancel, complain, ask). The drawer is a convenience.
 - Out of scope for v1: password reset, profile editing, user replies in complaints, deleting chats, Excel upload, notifications.
 
