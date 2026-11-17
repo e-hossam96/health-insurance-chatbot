@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
-import { errorMessage } from '../api/client';
+import { useConfirm } from '../components/ConfirmDialog';
 import { Header } from '../components/Header';
 import { type AdminVisit, getAdminVisits, completeVisit } from '../api/admin';
 
@@ -9,6 +9,7 @@ export function AdminVisitsPage(): ReactNode {
   const [offset, setOffset] = useState(0);
   const [statusFilter, setStatusFilter] = useState('');
   const limit = 20;
+  const { confirm, confirmDialog } = useConfirm();
 
   const load = useCallback(() => {
     const params: { limit: number; offset: number; status?: string } = { limit, offset };
@@ -21,14 +22,18 @@ export function AdminVisitsPage(): ReactNode {
 
   useEffect(load, [load]);
 
-  async function handleComplete(visitId: number): Promise<void> {
-    if (!confirm('Mark this visit as completed?')) return;
-    try {
-      await completeVisit(visitId);
-      load();
-    } catch (err: unknown) {
-      alert(errorMessage(err, 'Failed'));
-    }
+  function askComplete(visitId: number): void {
+    confirm({
+      title: `Mark visit #${visitId} as completed?`,
+      message: 'Completed visits are final and can then receive complaints.',
+      confirmLabel: 'Mark completed',
+      tone: 'primary',
+      failureText: 'Could not complete the visit.',
+      run: async () => {
+        await completeVisit(visitId);
+        load();
+      },
+    });
   }
 
   return (
@@ -72,17 +77,19 @@ export function AdminVisitsPage(): ReactNode {
                     {v.status}
                   </span>
                 </td>
-                <td className="text-right!">
-                  {v.status === 'scheduled' && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => void handleComplete(v.id)}
-                      data-testid="complete-btn"
-                    >
-                      Complete
-                    </button>
-                  )}
+                <td>
+                  <div className="row-actions">
+                    {v.status === 'scheduled' && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => askComplete(v.id)}
+                        data-testid="complete-btn"
+                      >
+                        Mark completed
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -93,6 +100,7 @@ export function AdminVisitsPage(): ReactNode {
           <button type="button" className="btn btn-secondary btn-sm" disabled={offset === 0} onClick={() => setOffset((o) => Math.max(0, o - limit))}>Prev</button>
           <button type="button" className="btn btn-secondary btn-sm" disabled={offset + limit >= total} onClick={() => setOffset((o) => o + limit)}>Next</button>
         </div>
+        {confirmDialog}
       </div>
     </div>
   );

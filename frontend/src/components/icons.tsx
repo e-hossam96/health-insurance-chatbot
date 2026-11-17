@@ -59,6 +59,15 @@ export function SendIcon(): ReactNode {
   );
 }
 
+export function InfoIcon(): ReactNode {
+  return (
+    <Icon size={14}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 8v.01" />
+    </Icon>
+  );
+}
+
 export function ChevronDownIcon(): ReactNode {
   return (
     <Icon size={14}>

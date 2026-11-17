@@ -383,6 +383,15 @@ Header as in section 3, with a section menu next to the `[User view]` toggle so 
 - Picking a section goes to its page and closes the menu. Escape or a click outside closes it; arrow keys move between sections.
 - Shown only in admin mode. In user view an admin sees `[Admin panel]`, which lands on /admin/kb.
 
+Row actions and confirmations (all admin screens, and the member's visits drawer):
+
+- Actions that change data are buttons, never text links; links are only for going to another page. Row actions sit right-aligned in the last column.
+- Main row action (`[Re-index]`, `[Retry]`, `[Mark completed]`, `[Reply]`): small outlined accent button.
+- Destructive action (`[Delete]`, `[Close]`, the drawer's `[Cancel]`): small borderless red button that tints on hover, kept quieter than the main action.
+- Dense grids (the x on a free slot chip): icon-only button with a tooltip and an accessible label. Removing a free slot is not confirmed (it is easy to re-add).
+- Every delete, close, complete, cancel and auto-fill opens the same in-app confirm dialog, never the browser's `confirm()`: a title naming the item ("Delete Cairo?"), one line on what happens (including what cascades), `[Cancel]` (focused) and a confirm button labelled with the action (red for destructive, accent otherwise). Escape or a click outside cancels. While the request runs both buttons are disabled; on failure the dialog stays open and shows the server's message (for example A5's "Can't delete: it has visit history."); on success it closes and the list reloads.
+- Errors that are not tied to a confirmation (a rejected reply, a slot that cannot be removed) show inline next to the control, never in `alert()`.
+
 ### AP1. KB documents (/admin/kb)
 
 ```

@@ -13,7 +13,8 @@ import {
   uploadKbDocument,
 } from '../api/kb';
 import { Header } from '../components/Header';
-import { UploadIcon } from '../components/icons';
+import { useConfirm } from '../components/ConfirmDialog';
+import { InfoIcon, UploadIcon } from '../components/icons';
 
 const STATUS_LABELS: Record<KbStatus, string> = {
   uploaded: 'Uploaded',
@@ -43,10 +44,10 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
   const [documents, setDocuments] = useState<KbDocument[]>([]);
   const [maxBytes, setMaxBytes] = useState<number | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
-  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   const load = useCallback(async (): Promise<void> => {
     try {
@@ -96,15 +97,18 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
     await load();
   }
 
-  async function handleDelete(id: number): Promise<void> {
-    setConfirmDelete(null);
-    try {
-      await deleteKbDocument(id);
-      setErrors([]);
-    } catch (error: unknown) {
-      setErrors([error instanceof Error ? error.message : 'Delete failed.']);
-    }
-    await load();
+  function askDelete(doc: KbDocument): void {
+    confirm({
+      title: `Delete ${doc.filename}?`,
+      message: 'Its chunks are removed from search and the original file is deleted. This cannot be undone.',
+      confirmLabel: 'Delete document',
+      failureText: 'Delete failed.',
+      run: async () => {
+        await deleteKbDocument(doc.id);
+        setErrors([]);
+        await load();
+      },
+    });
   }
 
   function onDrop(event: DragEvent<HTMLDivElement>): void {
@@ -173,7 +177,7 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
               <th>Status</th>
               <th>Uploaded by</th>
               <th>Date</th>
-              <th>Actions</th>
+              <th className="text-right!">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -187,30 +191,25 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
                 key={doc.id}
                 doc={doc}
                 expanded={expanded === doc.id}
-                confirming={confirmDelete === doc.id}
                 onToggleError={() => setExpanded(expanded === doc.id ? null : doc.id)}
                 onReindex={() => void handleReindex(doc.id)}
-                onAskDelete={() => setConfirmDelete(doc.id)}
-                onCancelDelete={() => setConfirmDelete(null)}
-                onDelete={() => void handleDelete(doc.id)}
+                onDelete={() => askDelete(doc)}
               />
             ))}
           </tbody>
         </table>
         </div>
+        {confirmDialog}
       </main>
     </div>
   );
 }
 
-function KbRow({ doc, expanded, confirming, onToggleError, onReindex, onAskDelete, onCancelDelete, onDelete }: {
+function KbRow({ doc, expanded, onToggleError, onReindex, onDelete }: {
   doc: KbDocument;
   expanded: boolean;
-  confirming: boolean;
   onToggleError: () => void;
   onReindex: () => void;
-  onAskDelete: () => void;
-  onCancelDelete: () => void;
   onDelete: () => void;
 }): ReactNode {
   return (
@@ -224,39 +223,37 @@ function KbRow({ doc, expanded, confirming, onToggleError, onReindex, onAskDelet
             {STATUS_LABELS[doc.status]}
           </span>
           {doc.status === 'failed' && doc.error_message && (
-            <button type="button" onClick={onToggleError} className="link-btn quiet ml-1 text-xs" aria-label="Show error" data-testid="kb-error-toggle">
-              (i)
+            <button
+              type="button"
+              onClick={onToggleError}
+              className="btn btn-ghost btn-sm ml-1 px-1.5 py-1 align-middle"
+              aria-label={expanded ? 'Hide error' : 'Show error'}
+              aria-expanded={expanded}
+              title={expanded ? 'Hide error' : 'Show error'}
+              data-testid="kb-error-toggle"
+            >
+              <InfoIcon />
             </button>
           )}
         </td>
         <td>{doc.uploaded_by}</td>
         <td>{formatUtcDay(doc.created_at)}</td>
-        <td className="space-x-3 whitespace-nowrap">
-          {doc.status === 'ready' && (
-            <button type="button" onClick={onReindex} className="link-btn" data-testid="kb-reindex">
-              Re-index
-            </button>
-          )}
-          {doc.status === 'failed' && (
-            <button type="button" onClick={onReindex} className="link-btn" data-testid="kb-retry">
-              Retry
-            </button>
-          )}
-          {confirming ? (
-            <span data-testid="kb-confirm">
-              Delete?{' '}
-              <button type="button" onClick={onDelete} className="link-btn danger" data-testid="kb-confirm-yes">
-                Yes
-              </button>{' '}
-              <button type="button" onClick={onCancelDelete} className="link-btn quiet">
-                No
+        <td>
+          <div className="row-actions">
+            {doc.status === 'ready' && (
+              <button type="button" onClick={onReindex} className="btn btn-secondary btn-sm" data-testid="kb-reindex">
+                Re-index
               </button>
-            </span>
-          ) : (
-            <button type="button" onClick={onAskDelete} className="link-btn danger" data-testid="kb-delete">
+            )}
+            {doc.status === 'failed' && (
+              <button type="button" onClick={onReindex} className="btn btn-secondary btn-sm" data-testid="kb-retry">
+                Retry
+              </button>
+            )}
+            <button type="button" onClick={onDelete} className="btn btn-danger-ghost btn-sm" data-testid="kb-delete">
               Delete
             </button>
-          )}
+          </div>
         </td>
       </tr>
       {expanded && doc.error_message && (

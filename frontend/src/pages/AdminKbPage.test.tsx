@@ -167,11 +167,14 @@ describe('AdminKbPage', () => {
     renderPage();
     fireEvent.click(await screen.findByTestId('kb-delete'));
     expect(deleteKbDocument).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByText('No'));
-    expect(screen.queryByTestId('kb-confirm')).toBeNull();
+    expect(screen.getByRole('dialog')).toHaveTextContent(`Delete ${doc({ id: 9 }).filename}?`);
+    fireEvent.click(screen.getByTestId('confirm-cancel'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(deleteKbDocument).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId('kb-delete'));
-    fireEvent.click(screen.getByTestId('kb-confirm-yes'));
+    fireEvent.click(screen.getByTestId('confirm-yes'));
     await waitFor(() => expect(deleteKbDocument).toHaveBeenCalledWith(9));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('G9: a failed delete shows why and keeps the row', async () => {
@@ -179,8 +182,9 @@ describe('AdminKbPage', () => {
     deleteKbDocument.mockRejectedValue(new Error('The search index is unavailable. The document was kept.'));
     renderPage();
     fireEvent.click(await screen.findByTestId('kb-delete'));
-    fireEvent.click(screen.getByTestId('kb-confirm-yes'));
-    expect((await screen.findByTestId('kb-errors')).textContent).toBe('The search index is unavailable. The document was kept.');
+    fireEvent.click(screen.getByTestId('confirm-yes'));
+    expect((await screen.findByTestId('confirm-error')).textContent).toBe('The search index is unavailable. The document was kept.');
+    expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getAllByTestId('kb-row')).toHaveLength(1);
   });
 });

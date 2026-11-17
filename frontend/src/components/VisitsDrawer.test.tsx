@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { VisitsDrawer } from './VisitsDrawer';
+import { cancelVisit } from '../api/visits';
 
 vi.mock('../api/visits', () => ({
   getMyVisits: () => Promise.resolve([
@@ -17,7 +18,6 @@ vi.mock('../api/visits', () => ({
 describe('VisitsDrawer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    window.confirm = vi.fn(() => true);
   });
 
   it('F14: shows visits list when open', async () => {
@@ -64,7 +64,10 @@ describe('VisitsDrawer', () => {
       expect(screen.getByTestId('cancel-visit-btn')).toBeTruthy();
     });
     fireEvent.click(screen.getByTestId('cancel-visit-btn'));
-    expect(window.confirm).toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toHaveTextContent('Dr. Sara, Tue 15 Dec, 10:00 UTC');
+    expect(cancelVisit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('confirm-yes'));
+    await waitFor(() => expect(cancelVisit).toHaveBeenCalledWith(1));
   });
 
   it('F14: complaints tab shows replies with Support team label', async () => {

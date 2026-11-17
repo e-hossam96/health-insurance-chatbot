@@ -1,5 +1,6 @@
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Dialog } from '../components/Dialog';
+import { useConfirm } from '../components/ConfirmDialog';
 import { errorMessage } from '../api/client';
 import { Header } from '../components/Header';
 import * as api from '../api/admin';
@@ -24,6 +25,8 @@ export function AdminSlotsPage(): ReactNode {
   const [slots, setSlots] = useState<api.Slot[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [gridError, setGridError] = useState('');
+  const { confirm, confirmDialog } = useConfirm();
 
   const [showAdd, setShowAdd] = useState(false);
   const [addDate, setAddDate] = useState('');
@@ -79,25 +82,32 @@ export function AdminSlotsPage(): ReactNode {
   }
 
   async function handleDeleteSlot(slotId: number): Promise<void> {
+    setGridError('');
     try {
       await api.deleteSlot(slotId);
       loadSlots();
     } catch (err: unknown) {
-      alert(errorMessage(err, 'Cannot remove slot'));
+      setGridError(errorMessage(err, 'Cannot remove slot'));
     }
   }
 
-  async function handleAutofill(): Promise<void> {
+  function askAutofill(): void {
     if (doctorId === '') return;
-    if (!confirm('Create all missing slots for this doctor until end of month?')) return;
-    setMessage('');
-    try {
-      const result = await api.autofillSlots(doctorId);
-      setMessage(result.message);
-      loadSlots();
-    } catch {
-      setMessage('Auto-fill failed');
-    }
+    const selectedDoctor = doctorId;
+    const doctorName = doctors.find((d) => d.id === selectedDoctor)?.name ?? 'this doctor';
+    confirm({
+      title: 'Auto-fill to end of month?',
+      message: `Create all missing slots for ${doctorName} from now to the end of this month. Existing slots are kept.`,
+      confirmLabel: 'Create slots',
+      tone: 'primary',
+      failureText: 'Auto-fill failed',
+      run: async () => {
+        setMessage('');
+        const result = await api.autofillSlots(selectedDoctor);
+        setMessage(result.message);
+        loadSlots();
+      },
+    });
   }
 
   return (
@@ -127,10 +137,12 @@ export function AdminSlotsPage(): ReactNode {
           </div>
 
           <button type="button" className="btn btn-sm" onClick={() => setShowAdd(true)} disabled={doctorId === ''}>Add slot</button>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => void handleAutofill()} disabled={doctorId === ''} data-testid="autofill-btn">Auto-fill to end of month</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={askAutofill} disabled={doctorId === ''} data-testid="autofill-btn">Auto-fill to end of month</button>
         </div>
 
         {message && <p className="alert success mb-4" data-testid="autofill-message">{message}</p>}
+
+        {gridError && <p className="alert error mb-4" role="alert" data-testid="slot-grid-error">{gridError}</p>}
 
         {loading && <p className="text-sm text-muted">Loading slots...</p>}
 
@@ -182,6 +194,7 @@ export function AdminSlotsPage(): ReactNode {
             </div>
           </form>
         </Dialog>
+        {confirmDialog}
       </div>
     </div>
   );

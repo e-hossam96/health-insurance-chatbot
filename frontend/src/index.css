@@ -195,6 +195,26 @@
     color: var(--accent);
   }
 
+  .btn-danger-ghost,
+  .btn-danger-ghost:not(:disabled):hover {
+    background: transparent;
+    border-color: transparent;
+    color: var(--danger);
+  }
+
+  .btn-danger-ghost:not(:disabled):hover {
+    background: var(--danger-bg);
+    color: var(--danger-text);
+  }
+
+  .row-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
   .link-btn {
     padding: 0;
     border: none;

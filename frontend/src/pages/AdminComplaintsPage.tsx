@@ -1,5 +1,6 @@
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Dialog } from '../components/Dialog';
+import { useConfirm } from '../components/ConfirmDialog';
 import { errorMessage } from '../api/client';
 import { Header } from '../components/Header';
 import { type AdminComplaint, getAdminComplaints, replyToComplaint, closeComplaint } from '../api/admin';
@@ -11,6 +12,8 @@ export function AdminComplaintsPage(): ReactNode {
   const [statusFilter, setStatusFilter] = useState('');
   const [replyTarget, setReplyTarget] = useState<number | null>(null);
   const [replyBody, setReplyBody] = useState('');
+  const [replyError, setReplyError] = useState('');
+  const { confirm, confirmDialog } = useConfirm();
   const limit = 20;
 
   const load = useCallback(() => {
@@ -27,24 +30,33 @@ export function AdminComplaintsPage(): ReactNode {
   async function handleReply(e: FormEvent): Promise<void> {
     e.preventDefault();
     if (replyTarget === null) return;
+    setReplyError('');
     try {
       await replyToComplaint(replyTarget, replyBody);
       setReplyTarget(null);
       setReplyBody('');
       load();
     } catch (err: unknown) {
-      alert(errorMessage(err, 'Failed'));
+      setReplyError(errorMessage(err, 'Could not send the reply.'));
     }
   }
 
-  async function handleClose(id: number): Promise<void> {
-    if (!confirm('Close this complaint?')) return;
-    try {
-      await closeComplaint(id);
-      load();
-    } catch (err: unknown) {
-      alert(errorMessage(err, 'Failed'));
-    }
+  function openReply(id: number): void {
+    setReplyError('');
+    setReplyTarget(id);
+  }
+
+  function askClose(id: number): void {
+    confirm({
+      title: `Close complaint #${id}?`,
+      message: 'Closed complaints can no longer receive replies.',
+      confirmLabel: 'Close complaint',
+      failureText: 'Could not close the complaint.',
+      run: async () => {
+        await closeComplaint(id);
+        load();
+      },
+    });
   }
 
   return (
@@ -87,13 +99,15 @@ export function AdminComplaintsPage(): ReactNode {
                     {c.status}
                   </span>
                 </td>
-                <td className="space-x-3 whitespace-nowrap text-right!">
-                  {c.status === 'open' && (
-                    <>
-                      <button type="button" className="link-btn" onClick={() => setReplyTarget(c.id)} data-testid="reply-btn">Reply</button>
-                      <button type="button" className="link-btn danger" onClick={() => void handleClose(c.id)} data-testid="close-btn">Close</button>
-                    </>
-                  )}
+                <td>
+                  <div className="row-actions">
+                    {c.status === 'open' && (
+                      <>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openReply(c.id)} data-testid="reply-btn">Reply</button>
+                        <button type="button" className="btn btn-danger-ghost btn-sm" onClick={() => askClose(c.id)} data-testid="close-btn">Close</button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -108,12 +122,14 @@ export function AdminComplaintsPage(): ReactNode {
         <Dialog open={replyTarget !== null} title={`Reply to Complaint #${replyTarget ?? ''}`} onClose={() => setReplyTarget(null)}>
           <form onSubmit={(e) => void handleReply(e)}>
             <textarea className="input mb-4" rows={3} value={replyBody} onChange={(e) => setReplyBody(e.target.value)} data-testid="reply-body" required />
+            {replyError && <p className="alert error mb-4" role="alert" data-testid="reply-error">{replyError}</p>}
             <div className="flex justify-end gap-2">
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => setReplyTarget(null)}>Cancel</button>
               <button type="submit" className="btn btn-sm">Send</button>
             </div>
           </form>
         </Dialog>
+        {confirmDialog}
       </div>
     </div>
   );

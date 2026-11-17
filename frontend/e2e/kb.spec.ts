@@ -75,9 +75,10 @@ test.describe('AP1 KB documents', () => {
     await expect(page.getByTestId('kb-row')).toHaveCount(1);
 
     await page.getByTestId('kb-delete').click();
-    await expect(page.getByTestId('kb-confirm')).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Delete handbook.pdf?' })).toBeVisible();
     expect(deleted).toBeNull();
-    await page.getByTestId('kb-confirm-yes').click();
+    await page.getByTestId('confirm-yes').click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.getByText('No documents yet.')).toBeVisible();
     expect(deleted).toBe(1);
   });

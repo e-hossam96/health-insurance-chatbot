@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { formatUtc } from '../api/chat';
 import { CloseIcon } from './icons';
+import { useConfirm } from './ConfirmDialog';
 import { type VisitItem, type ComplaintItem, getMyVisits, getMyComplaints, cancelVisit } from '../api/visits';
 
 function statusBadge(status: string): ReactNode {
@@ -22,6 +23,7 @@ export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => 
   const [visits, setVisits] = useState<VisitItem[]>([]);
   const [complaints, setComplaints] = useState<ComplaintItem[]>([]);
   const [tab, setTab] = useState<'visits' | 'complaints'>('visits');
+  const { confirm, confirmDialog } = useConfirm();
 
   const load = useCallback(() => {
     getMyVisits().then(setVisits).catch(() => {});
@@ -32,14 +34,17 @@ export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => 
     if (open) load();
   }, [open, load]);
 
-  async function handleCancel(visitId: number): Promise<void> {
-    if (!confirm('Cancel this visit?')) return;
-    try {
-      await cancelVisit(visitId);
-      load();
-    } catch {
-      alert('Cannot cancel this visit.');
-    }
+  function askCancel(visit: VisitItem): void {
+    confirm({
+      title: 'Cancel this visit?',
+      message: `${visit.doctor_name}, ${formatUtc(visit.start_at)}. The slot is released for other members.`,
+      confirmLabel: 'Cancel visit',
+      failureText: 'Cannot cancel this visit.',
+      run: async () => {
+        await cancelVisit(visit.id);
+        load();
+      },
+    });
   }
 
   if (!open) return null;
@@ -89,8 +94,8 @@ export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => 
                   {v.status === 'scheduled' && (
                     <button
                       type="button"
-                      className="link-btn danger mt-3 text-xs"
-                      onClick={() => void handleCancel(v.id)}
+                      className="btn btn-danger-ghost btn-sm -ml-3 mt-2"
+                      onClick={() => askCancel(v)}
                       data-testid="cancel-visit-btn"
                     >
                       Cancel visit
@@ -126,6 +131,7 @@ export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => 
           )}
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 }

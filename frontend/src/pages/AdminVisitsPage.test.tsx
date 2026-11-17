@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { AdminVisitsPage } from './AdminVisitsPage';
+import { completeVisit } from '../api/admin';
 
 vi.mock('../api/AuthContext', () => ({
   useAuth: () => ({
@@ -39,6 +40,19 @@ describe('AdminVisitsPage', () => {
       const badges = screen.getAllByTestId('visit-status-badge');
       expect(badges.length).toBe(2);
     });
+  });
+
+  it('D3: Mark completed asks for confirmation before completing', async () => {
+    render(
+      <MemoryRouter>
+        <AdminVisitsPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByTestId('complete-btn'));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Mark visit #1 as completed?');
+    expect(completeVisit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('confirm-yes'));
+    await waitFor(() => expect(completeVisit).toHaveBeenCalledWith(1));
   });
 
   it('AP4: shows complete button for scheduled', async () => {

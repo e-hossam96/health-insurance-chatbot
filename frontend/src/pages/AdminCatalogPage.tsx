@@ -1,23 +1,26 @@
 import { type FormEvent, type ReactNode, useState } from 'react';
 import { Header } from '../components/Header';
 import { Dialog } from '../components/Dialog';
+import { useConfirm } from '../components/ConfirmDialog';
 import { useApiList } from '../hooks/useApiList';
 import { errorMessage } from '../api/client';
 import * as api from '../api/admin';
 
 type Tab = 'locations' | 'specialties' | 'clinics' | 'doctors';
 
-type CatalogRow = { id: number; cells: ReactNode[] };
+type CatalogRow = { id: number; name: string; cells: ReactNode[] };
 
 function useCatalogActions(reload: () => void): {
   showAdd: boolean;
   setShowAdd: (open: boolean) => void;
   formError: string;
   submitAdd: (e: FormEvent, create: () => Promise<unknown> | null, resetForm: () => void) => Promise<void>;
-  remove: (confirmText: string, del: () => Promise<unknown>) => Promise<void>;
+  remove: (title: string, message: string, del: () => Promise<unknown>) => void;
+  confirmDialog: ReactNode;
 } {
   const [showAdd, setShowAdd] = useState(false);
   const [formError, setFormError] = useState('');
+  const { confirm, confirmDialog } = useConfirm();
 
   async function submitAdd(e: FormEvent, create: () => Promise<unknown> | null, resetForm: () => void): Promise<void> {
     e.preventDefault();
@@ -34,17 +37,20 @@ function useCatalogActions(reload: () => void): {
     }
   }
 
-  async function remove(confirmText: string, del: () => Promise<unknown>): Promise<void> {
-    if (!confirm(confirmText)) return;
-    try {
-      await del();
-      reload();
-    } catch (err: unknown) {
-      alert(errorMessage(err, 'Failed to delete'));
-    }
+  function remove(title: string, message: string, del: () => Promise<unknown>): void {
+    confirm({
+      title,
+      message,
+      confirmLabel: 'Delete',
+      failureText: 'Failed to delete',
+      run: async () => {
+        await del();
+        reload();
+      },
+    });
   }
 
-  return { showAdd, setShowAdd, formError, submitAdd, remove };
+  return { showAdd, setShowAdd, formError, submitAdd, remove, confirmDialog };
 }
 
 function CatalogSection({
@@ -60,6 +66,7 @@ function CatalogSection({
   onCloseDialog,
   onSubmit,
   formError,
+  confirmDialog,
   children,
 }: {
   title: string;
@@ -68,12 +75,13 @@ function CatalogSection({
   headers: string[];
   rows: CatalogRow[];
   onAdd: () => void;
-  onDelete: (id: number) => void;
+  onDelete: (row: CatalogRow) => void;
   dialogTitle: string;
   dialogOpen: boolean;
   onCloseDialog: () => void;
   onSubmit: (e: FormEvent) => void;
   formError: string;
+  confirmDialog: ReactNode;
   children: ReactNode;
 }): ReactNode {
   return (
@@ -94,7 +102,7 @@ function CatalogSection({
           {rows.map((row) => (
             <tr key={row.id}>
               {row.cells.map((cell, index) => <td key={index}>{cell}</td>)}
-              <td className="text-right!"><button type="button" className="link-btn danger" onClick={() => onDelete(row.id)}>Delete</button></td>
+              <td><div className="row-actions"><button type="button" className="btn btn-danger-ghost btn-sm" onClick={() => onDelete(row)} data-testid="catalog-delete">Delete</button></div></td>
             </tr>
           ))}
         </tbody>
@@ -110,6 +118,7 @@ function CatalogSection({
           </div>
         </form>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }
@@ -145,14 +154,15 @@ function NamedTab({
       addLabel={`+ Add ${kind}`}
       tableTestId={`${title.toLowerCase()}-table`}
       headers={['Name']}
-      rows={items.map((item) => ({ id: item.id, cells: [item.name] }))}
+      rows={items.map((item) => ({ id: item.id, name: item.name, cells: [item.name] }))}
       onAdd={() => actions.setShowAdd(true)}
-      onDelete={(id) => void actions.remove(`Delete this ${kind}?`, () => del(id))}
+      onDelete={(row) => actions.remove(`Delete ${row.name}?`, `This ${kind} is removed from the catalog. This cannot be undone.`, () => del(row.id))}
       dialogTitle={`Add ${label}`}
       dialogOpen={actions.showAdd}
       onCloseDialog={() => actions.setShowAdd(false)}
       onSubmit={(e) => void actions.submitAdd(e, () => create(name), () => setName(''))}
       formError={actions.formError}
+      confirmDialog={actions.confirmDialog}
     >
       <NameInput value={name} onChange={setName} testId={`${kind}-name-input`} />
     </CatalogSection>
@@ -176,9 +186,9 @@ function ClinicsTab(): ReactNode {
       addLabel="+ Add clinic"
       tableTestId="clinics-table"
       headers={['Name', 'Location']}
-      rows={clinics.map((c) => ({ id: c.id, cells: [c.name, locationNames.get(c.location_id) ?? '—'] }))}
+      rows={clinics.map((c) => ({ id: c.id, name: c.name, cells: [c.name, locationNames.get(c.location_id) ?? '—'] }))}
       onAdd={() => actions.setShowAdd(true)}
-      onDelete={(id) => void actions.remove('Delete this clinic and its linked specialties and doctors?', () => api.deleteClinic(id))}
+      onDelete={(row) => actions.remove(`Delete ${row.name}?`, 'This also deletes its linked specialties and doctors. This cannot be undone.', () => api.deleteClinic(row.id))}
       dialogTitle="Add Clinic"
       dialogOpen={actions.showAdd}
       onCloseDialog={() => actions.setShowAdd(false)}
@@ -193,6 +203,7 @@ function ClinicsTab(): ReactNode {
         )
       }
       formError={actions.formError}
+      confirmDialog={actions.confirmDialog}
     >
       <NameInput value={name} onChange={setName} testId="clinic-name-input" />
       <select className="input mb-3" value={locationId} onChange={(e) => setLocationId(Number(e.target.value))} data-testid="clinic-location-select" required>
@@ -217,9 +228,9 @@ function DoctorsTab(): ReactNode {
       addLabel="+ Add doctor"
       tableTestId="doctors-table"
       headers={['Name', 'Clinic-Specialty ID']}
-      rows={doctors.map((d) => ({ id: d.id, cells: [d.name, d.clinic_specialty_id] }))}
+      rows={doctors.map((d) => ({ id: d.id, name: d.name, cells: [d.name, d.clinic_specialty_id] }))}
       onAdd={() => actions.setShowAdd(true)}
-      onDelete={(id) => void actions.remove('Delete this doctor and their slots?', () => api.deleteDoctor(id))}
+      onDelete={(row) => actions.remove(`Delete ${row.name}?`, 'This also deletes their slots. This cannot be undone.', () => api.deleteDoctor(row.id))}
       dialogTitle="Add Doctor"
       dialogOpen={actions.showAdd}
       onCloseDialog={() => actions.setShowAdd(false)}
@@ -234,6 +245,7 @@ function DoctorsTab(): ReactNode {
         )
       }
       formError={actions.formError}
+      confirmDialog={actions.confirmDialog}
     >
       <NameInput value={name} onChange={setName} testId="doctor-name-input" />
       <input className="input mb-3" placeholder="Clinic-Specialty ID" type="number" value={clinicSpecialtyId} onChange={(e) => setClinicSpecialtyId(Number(e.target.value))} data-testid="doctor-cs-input" required />

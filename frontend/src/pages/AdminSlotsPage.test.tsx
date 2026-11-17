@@ -38,7 +38,6 @@ function renderPage(): void {
 describe('AdminSlotsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    window.confirm = vi.fn(() => true);
   });
 
   it('AP3: shows doctor select', async () => {
@@ -64,6 +63,8 @@ describe('AdminSlotsPage', () => {
     fireEvent.change(screen.getByTestId('doctor-select'), { target: { value: '1' } });
     await waitFor(() => expect(screen.getByTestId('autofill-btn')).toBeTruthy());
     fireEvent.click(screen.getByTestId('autofill-btn'));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Create all missing slots for Dr. Sara');
+    fireEvent.click(screen.getByTestId('confirm-yes'));
     await waitFor(() => {
       expect(screen.getByTestId('autofill-message').textContent).toContain('Created 120');
     });
