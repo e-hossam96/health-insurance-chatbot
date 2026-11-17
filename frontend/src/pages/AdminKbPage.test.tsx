@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import type { KbDocument, KbDocumentList } from '../api/kb';
@@ -175,6 +175,32 @@ describe('AdminKbPage', () => {
     fireEvent.click(screen.getByTestId('confirm-yes'));
     await waitFor(() => expect(deleteKbDocument).toHaveBeenCalledWith(9));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('G9: actions are buttons and only the matching status offers Re-index or Retry', async () => {
+    getKbDocuments.mockResolvedValue(list([
+      doc({ id: 1, status: 'ready' }),
+      doc({ id: 2, filename: 'b.pdf', status: 'processing' }),
+      doc({ id: 3, filename: 'c.pdf', status: 'failed', error_message: 'x' }),
+    ]));
+    renderPage();
+    const rows = await screen.findAllByTestId('kb-row');
+    expect(within(rows[0]).getByTestId('kb-reindex').tagName).toBe('BUTTON');
+    expect(within(rows[0]).queryByTestId('kb-retry')).toBeNull();
+    expect(within(rows[1]).queryByTestId('kb-reindex')).toBeNull();
+    expect(within(rows[1]).queryByTestId('kb-retry')).toBeNull();
+    expect(within(rows[2]).getByTestId('kb-retry').tagName).toBe('BUTTON');
+    for (const row of rows) expect(within(row).getByTestId('kb-delete').tagName).toBe('BUTTON');
+  });
+
+  it('G5: the error toggle says whether the message is shown', async () => {
+    getKbDocuments.mockResolvedValue(list([doc({ id: 3, status: 'failed', error_message: 'No extractable text' })]));
+    renderPage();
+    const toggle = await screen.findByRole('button', { name: 'Show error' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Hide error' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('kb-error-message').textContent).toBe('No extractable text');
   });
 
   it('G9: a failed delete shows why and keeps the row', async () => {

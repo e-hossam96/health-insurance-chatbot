@@ -84,6 +84,46 @@ describe('VisitsDrawer', () => {
     });
   });
 
+  it('F14: the tabs show which list is open', async () => {
+    render(
+      <MemoryRouter>
+        <VisitsDrawer open={true} onClose={() => {}} />
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('visits-list');
+    expect(screen.getByTestId('drawer-tab-visits')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('drawer-tab-complaints')).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByTestId('drawer-tab-complaints'));
+    expect(screen.getByTestId('drawer-tab-complaints')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('complaints-list')).toBeTruthy();
+    expect(screen.queryByTestId('visits-list')).toBeNull();
+  });
+
+  it('F14: the close button and the backdrop close the drawer', async () => {
+    const onClose = vi.fn();
+    render(
+      <MemoryRouter>
+        <VisitsDrawer open={true} onClose={onClose} />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByTestId('visits-drawer').previousElementSibling as HTMLElement);
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('F14: a refused cancel keeps the dialog open with the reason', async () => {
+    (cancelVisit as ReturnType<typeof vi.fn>).mockRejectedValueOnce({});
+    render(
+      <MemoryRouter>
+        <VisitsDrawer open={true} onClose={() => {}} />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByTestId('cancel-visit-btn'));
+    fireEvent.click(screen.getByTestId('confirm-yes'));
+    expect((await screen.findByTestId('confirm-error')).textContent).toBe('Cannot cancel this visit.');
+  });
+
   it('F14: hidden when not open', () => {
     const { container } = render(
       <MemoryRouter>

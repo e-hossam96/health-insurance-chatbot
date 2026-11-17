@@ -23,7 +23,7 @@ case "$cmd" in
     cd frontend && npx vitest run
     ;;
   test-e2e-mocked)
-    cd frontend && npx playwright test e2e/chat.spec.ts e2e/kb.spec.ts
+    cd frontend && npx playwright test e2e/chat.spec.ts e2e/kb.spec.ts e2e/admin.spec.ts
     ;;
   test)
     bash "$0" test-backend

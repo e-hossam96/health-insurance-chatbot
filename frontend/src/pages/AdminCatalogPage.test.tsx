@@ -66,6 +66,25 @@ describe('AdminCatalogPage', () => {
     expect((await screen.findByTestId('confirm-error')).textContent).toBe("Can't delete: it has visit history.");
   });
 
+  it('AP2: the tabs show which catalog list is open', async () => {
+    renderPage();
+    await screen.findByTestId('locations-table');
+    expect(screen.getByTestId('tab-locations')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByTestId('tab-doctors'));
+    expect(screen.getByTestId('tab-doctors')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('tab-locations')).toHaveAttribute('aria-pressed', 'false');
+    expect(await screen.findByTestId('doctors-table')).toBeTruthy();
+  });
+
+  it('A5: cancelling the confirmation deletes nothing', async () => {
+    renderPage();
+    fireEvent.click((await screen.findAllByTestId('catalog-delete'))[1]);
+    expect(screen.getByRole('dialog')).toHaveTextContent('Delete Giza?');
+    fireEvent.click(screen.getByTestId('confirm-cancel'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(deleteLocation).not.toHaveBeenCalled();
+  });
+
   it('AP2: shows catalog tabs', async () => {
     renderPage();
     await waitFor(() => {

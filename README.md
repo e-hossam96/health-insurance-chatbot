@@ -309,7 +309,7 @@ Tests use real Postgres and Qdrant (start them with `docker compose up -d postgr
 
 | Command | What it does | Costs money |
 |---|---|---|
-| `make check` | ruff, oxlint, mypy (strict), tsc, pytest, Vitest and the Playwright specs that mock the API | no |
+| `make check` | ruff, oxlint, mypy (strict), tsc, pytest, Vitest and the Playwright specs that mock the API (set `E2E_PORT` if Grafana already holds port 3000) | no |
 | `make lint` / `make typecheck` / `make test` | the parts of `make check` on their own | no |
 | `make smoke` | builds the compose stack with the fake model server and checks health, private `/metrics`, streaming through nginx, Prometheus targets and the Grafana dashboards | no |
 | `make e2e` | the smoke checks plus the full Playwright scenario on the stack | no |
