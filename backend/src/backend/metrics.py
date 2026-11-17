@@ -1,6 +1,6 @@
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import Literal
+from typing import Literal, get_args
 
 from fastapi import HTTPException
 from prometheus_client import (
@@ -29,6 +29,9 @@ TurnOutcome = Literal["ok", "error", "cancelled"]
 Stage = Literal["classify", "rewrite", "embed", "search", "rerank", "generate"]
 RateLimit = Literal["chat_minute", "chat_daily", "message_length", "signup", "login"]
 CardAction = Literal["book", "cancel", "complaint"]
+CardOutcome = Literal["ok", "conflict", "rejected", "error"]
+IngestOutcome = Literal["ok", "failed"]
+TokenKind = Literal["prompt", "completion"]
 STAGES: tuple[Stage, ...] = ("classify", "rewrite", "embed", "search", "rerank", "generate")
 LLM_BUCKETS = (0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0)
 GAP_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5)
@@ -47,6 +50,24 @@ kb_documents_processing = Gauge("kb_documents_processing", "KB documents current
 rate_limit_rejections_total = Counter("rate_limit_rejections_total", "Requests rejected by an abuse limit", ["limit"])
 signups_total = Counter("signups_total", "Accounts created through sign-up")
 card_actions_total = Counter("card_actions_total", "Card actions by action and outcome", ["action", "outcome"])
+
+
+# A series born at its first increment has no zero sample, so increase() misses that first event.
+def _expose_fixed_label_series_at_zero() -> None:
+    for action in get_args(CardAction):
+        for card_outcome in get_args(CardOutcome):
+            card_actions_total.labels(action=action, outcome=card_outcome)
+    for turn_outcome in get_args(TurnOutcome):
+        chat_turns_total.labels(outcome=turn_outcome)
+    for ingest_outcome in get_args(IngestOutcome):
+        kb_ingest_total.labels(outcome=ingest_outcome)
+    for limit in get_args(RateLimit):
+        rate_limit_rejections_total.labels(limit=limit)
+    for kind in get_args(TokenKind):
+        chat_tokens_total.labels(kind=kind)
+
+
+_expose_fixed_label_series_at_zero()
 
 
 def record_turn_outcome(outcome: TurnOutcome) -> None:
@@ -71,7 +92,7 @@ def record_rate_limit(limit: RateLimit) -> None:
 
 def card_action(action: CardAction) -> Callable[[], AsyncIterator[None]]:
     async def track() -> AsyncIterator[None]:
-        outcome = "ok"
+        outcome: CardOutcome = "ok"
         try:
             yield
         except HTTPException as error:
