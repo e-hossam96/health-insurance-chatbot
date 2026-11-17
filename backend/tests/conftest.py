@@ -1,47 +1,74 @@
 from __future__ import annotations
 
 import os
-import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, text
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import Engine, make_url
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
+# 127.0.0.1, not localhost: on Windows a refused ::1 attempt costs about 2 s per new connection
 TEST_DB_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://chatbot:chatbot@127.0.0.1:5432/chatbot_test",
 )
+# test modules read DATABASE_URL at import; never let them fall back to the dev database
+os.environ["DATABASE_URL"] = TEST_DB_URL
 SYNC_DB_URL = TEST_DB_URL.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
 
 
+def _create_test_database() -> None:
+    target = make_url(SYNC_DB_URL)
+    admin = create_engine(target.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    with admin.connect() as conn:
+        exists = conn.execute(
+            text("SELECT 1 FROM pg_database WHERE datname = :name"), {"name": target.database}
+        ).scalar()
+        if not exists:
+            conn.execute(text(f'CREATE DATABASE "{target.database}"'))
+    admin.dispose()
+
+
+def _upgrade_to_head() -> None:
+    config = Config()
+    config.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
+    command.upgrade(config, "head")
+
+
 @pytest.fixture(scope="session")
-def db_engine():  # type: ignore[no-untyped-def]
+def db_engine() -> Iterator[Engine]:
+    _create_test_database()
     engine = create_engine(SYNC_DB_URL)
+    with engine.connect() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+        conn.commit()
+    _upgrade_to_head()
     yield engine
     engine.dispose()
 
 
+@pytest.fixture(scope="session")
+def _data_tables(db_engine: Engine) -> str:
+    tables = sorted(set(inspect(db_engine).get_table_names()) - {"alembic_version"})
+    return ", ".join(f'"{table}"' for table in tables)
+
+
 @pytest.fixture(autouse=True)
-def _reset_rate_limiters():  # type: ignore[no-untyped-def]
+def _reset_rate_limiters() -> None:
     from backend.rate_limit import reset_all
 
     reset_all()
 
 
 @pytest.fixture(autouse=True)
-def _migrate_fresh(db_engine):  # type: ignore[no-untyped-def]
-    with db_engine.connect() as conn:
-        conn.execute(text("DROP SCHEMA public CASCADE"))
-        conn.execute(text("CREATE SCHEMA public"))
-        conn.commit()
-    subprocess.run(
-        ["uv", "run", "alembic", "upgrade", "head"],
-        check=True,
-        cwd=str(BACKEND_DIR),
-        env={**os.environ, "DATABASE_URL": TEST_DB_URL},
-        capture_output=True,
-    )
+def _clean_database(db_engine: Engine, _data_tables: str) -> None:
+    with db_engine.begin() as conn:
+        conn.execute(text(f"TRUNCATE TABLE {_data_tables} RESTART IDENTITY CASCADE"))
 
 
 @pytest.fixture(autouse=True)

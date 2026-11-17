@@ -37,7 +37,7 @@ def _routes(app: FastAPI) -> set[tuple[str, str]]:
 
 
 @pytest.fixture()
-def app(_migrate_fresh: None) -> FastAPI:
+def app(_clean_database: None) -> FastAPI:
     return create_app(Settings(database_url=TEST_DB_URL), ai_from_env=False)  # type: ignore[call-arg]
 
 

@@ -65,7 +65,7 @@ def test_routing_eval_runs_on_the_draft_dataset_and_writes_reports(fake_openai: 
             "--set", "openai_api_key=test-key",
             "--set", "ai_max_retries=0",
             "--set", "ai_embedding_dimensions=64",
-            "--set", "qdrant_url=http://localhost:6333",
+            "--set", "qdrant_url=http://127.0.0.1:6333",
         ],
         out_dir=tmp_path,
     )

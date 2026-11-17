@@ -101,7 +101,7 @@ def _seed(engine: Engine) -> Seed:
 
 
 @pytest.fixture()
-def seed(_migrate_fresh: None, db_engine: Engine) -> Seed:
+def seed(_clean_database: None, db_engine: Engine) -> Seed:
     return _seed(db_engine)
 
 

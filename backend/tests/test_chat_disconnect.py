@@ -60,7 +60,7 @@ def hanging_turn() -> HangingTurn:
 
 
 @pytest.fixture()
-def live_server(_migrate_fresh: None, hanging_turn: HangingTurn) -> Iterator[str]:
+def live_server(_clean_database: None, hanging_turn: HangingTurn) -> Iterator[str]:
     application = create_app(Settings(database_url=TEST_DB_URL))  # type: ignore[call-arg]
     application.state.clock = FixedClock()
     application.state.turn_runner = hanging_turn

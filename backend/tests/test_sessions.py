@@ -35,7 +35,7 @@ class FakeClock:
 
 @pytest.fixture()
 async def async_db(
-    _migrate_fresh: None,
+    _clean_database: None,
 ) -> AsyncSession:
     engine = create_async_engine(TEST_DB_URL)
     factory = async_sessionmaker(engine, expire_on_commit=False)

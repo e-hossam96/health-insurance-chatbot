@@ -62,8 +62,8 @@ async def _setup_doctor(client: AsyncClient) -> int:
 
 
 @pytest.mark.anyio()
-async def test_C5_autofill_expected_counts(_migrate_fresh: None) -> None:
-    app = _make_app(datetime(2026, 12, 1, 0, 0, tzinfo=UTC), _migrate_fresh)
+async def test_C5_autofill_expected_counts(_clean_database: None) -> None:
+    app = _make_app(datetime(2026, 12, 1, 0, 0, tzinfo=UTC), _clean_database)
     client = await _make_admin_client(app)
     doctor_id = await _setup_doctor(client)
 
@@ -74,8 +74,8 @@ async def test_C5_autofill_expected_counts(_migrate_fresh: None) -> None:
 
 
 @pytest.mark.anyio()
-async def test_C5_autofill_skips_past_hours(_migrate_fresh: None) -> None:
-    app = _make_app(datetime(2026, 12, 15, 12, 0, tzinfo=UTC), _migrate_fresh)
+async def test_C5_autofill_skips_past_hours(_clean_database: None) -> None:
+    app = _make_app(datetime(2026, 12, 15, 12, 0, tzinfo=UTC), _clean_database)
     client = await _make_admin_client(app)
     doctor_id = await _setup_doctor(client)
 
@@ -89,8 +89,8 @@ async def test_C5_autofill_skips_past_hours(_migrate_fresh: None) -> None:
 
 
 @pytest.mark.anyio()
-async def test_C5_autofill_idempotent(_migrate_fresh: None) -> None:
-    app = _make_app(datetime(2026, 12, 1, 0, 0, tzinfo=UTC), _migrate_fresh)
+async def test_C5_autofill_idempotent(_clean_database: None) -> None:
+    app = _make_app(datetime(2026, 12, 1, 0, 0, tzinfo=UTC), _clean_database)
     client = await _make_admin_client(app)
     doctor_id = await _setup_doctor(client)
 
@@ -103,8 +103,8 @@ async def test_C5_autofill_idempotent(_migrate_fresh: None) -> None:
 
 
 @pytest.mark.anyio()
-async def test_C5_autofill_current_month_only_last_day(_migrate_fresh: None) -> None:
-    app = _make_app(datetime(2026, 12, 31, 0, 0, tzinfo=UTC), _migrate_fresh)
+async def test_C5_autofill_current_month_only_last_day(_clean_database: None) -> None:
+    app = _make_app(datetime(2026, 12, 31, 0, 0, tzinfo=UTC), _clean_database)
     client = await _make_admin_client(app)
     doctor_id = await _setup_doctor(client)
 
@@ -115,8 +115,8 @@ async def test_C5_autofill_current_month_only_last_day(_migrate_fresh: None) -> 
 
 
 @pytest.mark.anyio()
-async def test_C5_autofill_nothing_to_create(_migrate_fresh: None) -> None:
-    app = _make_app(datetime(2026, 12, 31, 17, 30, tzinfo=UTC), _migrate_fresh)
+async def test_C5_autofill_nothing_to_create(_clean_database: None) -> None:
+    app = _make_app(datetime(2026, 12, 31, 17, 30, tzinfo=UTC), _clean_database)
     client = await _make_admin_client(app)
     doctor_id = await _setup_doctor(client)
 
@@ -128,8 +128,8 @@ async def test_C5_autofill_nothing_to_create(_migrate_fresh: None) -> None:
 
 
 @pytest.mark.anyio()
-async def test_C5_autofill_nonexistent_doctor(_migrate_fresh: None) -> None:
-    app = _make_app(datetime(2026, 12, 1, 0, 0, tzinfo=UTC), _migrate_fresh)
+async def test_C5_autofill_nonexistent_doctor(_clean_database: None) -> None:
+    app = _make_app(datetime(2026, 12, 1, 0, 0, tzinfo=UTC), _clean_database)
     client = await _make_admin_client(app)
 
     resp = await client.post("/admin/slots/autofill", json={"doctor_id": 99999})

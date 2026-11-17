@@ -32,7 +32,7 @@ def exporter() -> InMemorySpanExporter:
 
 
 @pytest.fixture()
-async def traced(_migrate_fresh: None, fake: FakeOpenAI, exporter: InMemorySpanExporter, tmp_path: Path) -> AsyncIterator[tuple[AsyncClient, Langfuse]]:
+async def traced(_clean_database: None, fake: FakeOpenAI, exporter: InMemorySpanExporter, tmp_path: Path) -> AsyncIterator[tuple[AsyncClient, Langfuse]]:
     from scripts.create_admin import create_admin
 
     create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "TestCity")

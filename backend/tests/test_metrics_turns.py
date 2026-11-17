@@ -55,7 +55,7 @@ def fake() -> Iterator[FakeOpenAI]:
 
 
 @pytest.fixture()
-async def client(_migrate_fresh: None, fake: FakeOpenAI, tmp_path: Path) -> AsyncIterator[AsyncClient]:
+async def client(_clean_database: None, fake: FakeOpenAI, tmp_path: Path) -> AsyncIterator[AsyncClient]:
     from scripts.create_admin import create_admin
 
     create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "TestCity")

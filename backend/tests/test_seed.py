@@ -16,7 +16,7 @@ def _sync_url(url: str) -> str:
     return url
 
 
-def test_seed_idempotent(_migrate_fresh: None) -> None:
+def test_seed_idempotent(_clean_database: None) -> None:
     from scripts.seed import seed
 
     counts1 = seed(TEST_DB_URL)
@@ -29,7 +29,7 @@ def test_seed_idempotent(_migrate_fresh: None) -> None:
     assert counts2["slots"] == 0
 
 
-def test_seed_slots_on_the_hour(_migrate_fresh: None) -> None:
+def test_seed_slots_on_the_hour(_clean_database: None) -> None:
     from scripts.seed import seed
 
     seed(TEST_DB_URL)
@@ -45,7 +45,7 @@ def test_seed_slots_on_the_hour(_migrate_fresh: None) -> None:
         assert bad == 0
 
 
-def test_seed_slots_within_working_hours(_migrate_fresh: None) -> None:
+def test_seed_slots_within_working_hours(_clean_database: None) -> None:
     from scripts.seed import seed
 
     seed(TEST_DB_URL)
