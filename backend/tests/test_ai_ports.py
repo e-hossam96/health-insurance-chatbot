@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -16,7 +15,6 @@ from backend.database import create_engine
 from chatbot_ai.tools.models import InvalidArgument
 from chatbot_ai.tools.ports import ComplaintsPort, Ports, SchedulingPort
 
-TEST_DB_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot")
 NOW = datetime(2026, 12, 1, 8, 0, tzinfo=UTC)
 
 
@@ -107,7 +105,7 @@ def seed(_clean_database: None, db_engine: Engine) -> Seed:
 
 @pytest.fixture()
 async def session() -> AsyncIterator[AsyncSession]:
-    engine, factory = create_engine(Settings(database_url=TEST_DB_URL))  # type: ignore[call-arg]
+    engine, factory = create_engine(Settings())  # type: ignore[call-arg]
     async with factory() as db:
         yield db
     await engine.dispose()

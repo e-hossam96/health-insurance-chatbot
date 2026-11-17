@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
@@ -11,11 +10,9 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from backend.app import create_app
-from backend.config import Settings
+from backend.config import Settings, get_settings
 
-TEST_DB_URL = os.environ.get(
-    "DATABASE_URL", "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot"
-)
+TEST_DB_URL = get_settings().database_url
 MISSING = 987654
 
 
@@ -31,7 +28,7 @@ class OtherMember:
 
 @pytest.fixture()
 def app(_clean_database: None) -> FastAPI:
-    return create_app(Settings(database_url=TEST_DB_URL), ai_from_env=False)  # type: ignore[call-arg]
+    return create_app(Settings(), ai_from_env=False)  # type: ignore[call-arg]
 
 
 async def _member(app: FastAPI, username: str) -> AsyncClient:

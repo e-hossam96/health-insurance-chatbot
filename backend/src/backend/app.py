@@ -89,7 +89,6 @@ def create_app(
     return application
 
 
-if not os.environ.get("DATABASE_URL"):
-    os.environ["DATABASE_URL"] = "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot"
+os.environ.setdefault("POSTGRES_PASSWORD", "chatbot")
 
 app = create_app()

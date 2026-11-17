@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from backend.app import create_app
-from backend.config import Settings
+from backend.config import Settings, get_settings
 from backend.kb_jobs import AI_NOT_CONFIGURED, IngestFunction, KbJobRunner
 from chatbot_ai.ingest import NO_TEXT_MESSAGE
 from chatbot_ai.ingest.index import collection_name, document_filter, make_qdrant
@@ -32,7 +32,7 @@ from testkit.kb_ingest import (
 )
 from testkit.metrics import metric_value
 
-TEST_DB_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot")
+TEST_DB_URL = get_settings().database_url
 LIMIT = 4096
 PDF = b"%PDF-1.4 fake body for upload tests"
 
@@ -71,7 +71,7 @@ async def kb_harness(
 
     if create_admin_account:
         create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "TestCity")
-    settings = Settings(database_url=TEST_DB_URL, kb_storage_dir=str(storage), kb_max_upload_bytes=LIMIT)  # type: ignore[call-arg]
+    settings = Settings(kb_storage_dir=str(storage), kb_max_upload_bytes=LIMIT)  # type: ignore[call-arg]
     app = create_app(settings, ai_settings=ai_settings, ingest_function=ingest, ai_from_env=False)
     async with app.router.lifespan_context(app), AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as admin:
         await admin.post("/auth/login", json={"username": "admin1", "password": "adminpass1"})

@@ -5,15 +5,15 @@ services:
       - data
     image: postgres:18.7
     environment:
-      POSTGRES_USER: chatbot
+      POSTGRES_USER: ${POSTGRES_USER:-chatbot}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chatbot}
-      POSTGRES_DB: chatbot
+      POSTGRES_DB: ${POSTGRES_DB:-chatbot}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U chatbot"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -49,7 +49,11 @@ services:
       - path: .env
         required: false
     environment:
-      DATABASE_URL: postgresql+asyncpg://chatbot:${POSTGRES_PASSWORD:-chatbot}@postgres:5432/chatbot
+      POSTGRES_USER: ${POSTGRES_USER:-chatbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chatbot}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-chatbot}
       QDRANT_URL: http://qdrant:6333
       KB_STORAGE_DIR: /data/kb
     volumes:
@@ -110,7 +114,9 @@ services:
       - metrics
     image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1
     environment:
-      DATA_SOURCE_NAME: postgresql://chatbot:${POSTGRES_PASSWORD:-chatbot}@postgres:5432/chatbot?sslmode=disable
+      DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB:-chatbot}?sslmode=disable
+      DATA_SOURCE_USER: ${POSTGRES_USER:-chatbot}
+      DATA_SOURCE_PASS: ${POSTGRES_PASSWORD:-chatbot}
     depends_on:
       postgres:
         condition: service_healthy

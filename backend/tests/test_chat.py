@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -12,14 +11,11 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from backend.app import create_app
-from backend.config import Settings
+from backend.config import Settings, get_settings
 from chatbot_ai.interface import Done, HistoryRow, Token, TurnEvent, TurnRequest
 from chatbot_ai.stub import run_stub_turn
 
-TEST_DB_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
-)
+TEST_DB_URL = get_settings().database_url
 
 
 class FakeClock:
@@ -43,7 +39,7 @@ def clock() -> FakeClock:
 
 @pytest.fixture()
 def app(_clean_database: None, clock: FakeClock) -> object:
-    settings = Settings(database_url=TEST_DB_URL)  # type: ignore[call-arg]
+    settings = Settings()  # type: ignore[call-arg]
     application = create_app(settings)
     application.state.clock = clock  # type: ignore[union-attr]
     application.state.turn_runner = run_stub_turn  # type: ignore[union-attr]

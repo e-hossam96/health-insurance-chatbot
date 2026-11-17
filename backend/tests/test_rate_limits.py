@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -8,11 +7,6 @@ from httpx import ASGITransport, AsyncClient
 
 from backend.app import create_app
 from backend.config import Settings
-
-TEST_DB_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
-)
 
 
 class FakeClock:
@@ -33,7 +27,7 @@ def clock() -> FakeClock:
 
 @pytest.fixture()
 def app(_clean_database: None, clock: FakeClock) -> object:
-    settings = Settings(database_url=TEST_DB_URL)  # type: ignore[call-arg]
+    settings = Settings()  # type: ignore[call-arg]
     application = create_app(settings)
     application.state.clock = clock
     return application

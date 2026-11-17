@@ -6,6 +6,8 @@ from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import create_engine, text
 
+from backend.config import get_settings
+
 SLOT_START_HOUR = 9
 SLOT_END_HOUR = 16
 
@@ -221,10 +223,9 @@ def seed(database_url: str) -> dict[str, int]:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Seed the database with demo data")
-    parser.add_argument("--database-url", required=True)
-    args = parser.parse_args(argv)
+    parser.parse_args(argv)
 
-    counts = seed(database_url=args.database_url)
+    counts = seed(database_url=get_settings().database_url)
 
     print(f"Seed complete: {counts}")
 

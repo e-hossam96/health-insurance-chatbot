@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime
 
 import pytest
@@ -8,12 +7,9 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from backend.app import create_app
-from backend.config import Settings
+from backend.config import Settings, get_settings
 
-TEST_DB_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
-)
+TEST_DB_URL = get_settings().database_url
 
 
 class FakeClock:
@@ -25,7 +21,7 @@ class FakeClock:
 
 
 def _make_app(fake_now: datetime, migrate: None) -> FastAPI:
-    settings = Settings(database_url=TEST_DB_URL)  # type: ignore[call-arg]
+    settings = Settings()  # type: ignore[call-arg]
     application = create_app(settings)
     application.state.clock = FakeClock(fake_now)
     return application

@@ -47,8 +47,8 @@ Caddy is the only published service. It reaches the frontend nginx on the `edge`
 
 ```bash
 P="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
-$P exec backend sh -c 'python scripts/create_admin.py --database-url "$DATABASE_URL" --username admin1 --password <password> --name "Admin One" --location Cairo'
-$P exec backend sh -c 'python scripts/seed.py --database-url "$DATABASE_URL"'
+$P exec backend python scripts/create_admin.py --username admin1 --password <password> --name "Admin One" --location Cairo
+$P exec backend python scripts/seed.py
 ```
 
 Log in as the admin, open **KB documents** and upload the policy documents. The seed's sample members (`user1`, `user2`) have demo passwords; change or remove them before sharing the link widely.

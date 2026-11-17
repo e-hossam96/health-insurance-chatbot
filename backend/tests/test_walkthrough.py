@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
@@ -16,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from backend.app import create_app
-from backend.config import Settings
+from backend.config import Settings, get_settings
 from chatbot_ai.ingest import ingest
 from chatbot_ai.ingest.index import collection_name, make_qdrant
 from chatbot_ai.settings import AISettings
@@ -30,7 +29,7 @@ from testkit.fake_openai import (
     tool_reply,
 )
 
-TEST_DB_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot")
+TEST_DB_URL = get_settings().database_url
 POLICY_TEXT = (
     "Outpatient care. Dermatology and other specialist visits at network clinics are covered as outpatient visits "
     "with a co-pay of 50 EGP per visit.\n\nExclusions. Cosmetic dermatology is not covered."
@@ -126,7 +125,7 @@ async def app_and_world(
     kb_file.write_text(POLICY_TEXT, encoding="utf-8")
     world = _seed(db_engine, kb_file)
     await asyncio.to_thread(ingest, world.kb_document, str(kb_file), "txt", ai_settings)
-    settings = Settings(database_url=TEST_DB_URL, kb_storage_dir=str(tmp_path))  # type: ignore[call-arg]
+    settings = Settings(kb_storage_dir=str(tmp_path))  # type: ignore[call-arg]
     app = create_app(settings, ai_settings=ai_settings, ai_from_env=False)
     app.state.clock = FixedClock()
     async with app.router.lifespan_context(app):
@@ -216,7 +215,7 @@ async def test_without_ai_settings_a_turn_fails_cleanly(_clean_database: None, t
     from scripts.create_admin import create_admin
 
     create_admin(TEST_DB_URL, "admin1", "adminpass1", "Admin One", "TestCity")
-    settings = Settings(database_url=TEST_DB_URL, kb_storage_dir=str(tmp_path))  # type: ignore[call-arg]
+    settings = Settings(kb_storage_dir=str(tmp_path))  # type: ignore[call-arg]
     app = create_app(settings, ai_settings=None, ai_from_env=False)
     client = await _signed_in(app)
     try:

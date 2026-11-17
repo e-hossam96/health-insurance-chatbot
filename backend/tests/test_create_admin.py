@@ -1,18 +1,14 @@
 from __future__ import annotations
 
-import os
-
 import pytest
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 
+from backend.config import get_settings
 from scripts.create_admin import create_admin
 
-TEST_DB_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot",
-)
+TEST_DB_URL = get_settings().database_url
 
 
 def test_B13_creates_account_and_profile(db_engine: Engine) -> None:

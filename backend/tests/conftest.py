@@ -10,14 +10,22 @@ from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Engine, make_url
 
+from backend.config import get_settings
+
 BACKEND_DIR = Path(__file__).resolve().parent.parent
-# 127.0.0.1, not localhost: on Windows a refused ::1 attempt costs about 2 s per new connection
-TEST_DB_URL = os.environ.get(
-    "TEST_DATABASE_URL",
-    "postgresql+asyncpg://chatbot:chatbot@127.0.0.1:5432/chatbot_test",
-)
-# test modules read DATABASE_URL at import; never let them fall back to the dev database
-os.environ["DATABASE_URL"] = TEST_DB_URL
+TEST_DATABASE_DEFAULTS = {
+    "POSTGRES_USER": "chatbot",
+    "POSTGRES_PASSWORD": "chatbot",
+    # 127.0.0.1, not localhost: on Windows a refused ::1 attempt costs about 2 s per new connection
+    "POSTGRES_HOST": "127.0.0.1",
+    "POSTGRES_PORT": "5432",
+    "POSTGRES_DB": "chatbot_test",
+}
+# test modules build Settings at import; never let them fall back to the dev database from .env
+for name, default in TEST_DATABASE_DEFAULTS.items():
+    os.environ[name] = os.environ.get(f"TEST_{name}", default)
+
+TEST_DB_URL = get_settings().database_url
 SYNC_DB_URL = TEST_DB_URL.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
 
 
