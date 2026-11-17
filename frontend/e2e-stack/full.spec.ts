@@ -34,7 +34,7 @@ test.describe('full scenario on the compose stack', () => {
     expect(await cards.count()).toBeGreaterThan(1);
     const card = cards.first();
     await expect(card).toContainText('Dermatology');
-    const doctor = (await card.locator('.font-medium').textContent()) ?? '';
+    const doctor = (await card.getByTestId('doctor-name').textContent()) ?? '';
     expect(doctor).toMatch(/^Dr\. /);
     const cardTime = (await card.getByText(/UTC$/).textContent()) ?? '';
 
