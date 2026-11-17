@@ -6,7 +6,7 @@ PYTHON="$(command -v python3 || command -v python)"
 export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-smoke-$(date +%s)}"
 
 echo "Validating the Prometheus config with promtool..."
-MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W 2>/dev/null || pwd)/observability:/config:ro" --entrypoint promtool prom/prometheus:v3.0.1 check config /config/prometheus.yml
+MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W 2>/dev/null || pwd)/observability:/config:ro" --entrypoint promtool prom/prometheus:v3.16.0 check config /config/prometheus.yml
 
 cleanup() {
     echo "Tearing down..."
@@ -15,7 +15,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Validating the production nginx template with a throwaway certificate..."
-MSYS_NO_PATHCONV=1 docker run --rm --add-host backend:127.0.0.1 -e DOMAIN=example.test     -v "$(pwd -W 2>/dev/null || pwd)/frontend/nginx.prod.conf.template:/etc/nginx/templates/default.conf.template:ro"     nginx:1.27-alpine sh -c 'apk add --no-cache openssl >/dev/null && mkdir -p /etc/letsencrypt/live/example.test         && openssl req -x509 -nodes -newkey rsa:2048 -days 1 -subj /CN=example.test -keyout /etc/letsencrypt/live/example.test/privkey.pem -out /etc/letsencrypt/live/example.test/fullchain.pem 2>/dev/null         && /docker-entrypoint.sh nginx -t'
+MSYS_NO_PATHCONV=1 docker run --rm --add-host backend:127.0.0.1 -e DOMAIN=example.test     -v "$(pwd -W 2>/dev/null || pwd)/frontend/nginx.prod.conf.template:/etc/nginx/templates/default.conf.template:ro"     nginx:1.30-alpine sh -c 'apk add --no-cache openssl >/dev/null && mkdir -p /etc/letsencrypt/live/example.test         && openssl req -x509 -nodes -newkey rsa:2048 -days 1 -subj /CN=example.test -keyout /etc/letsencrypt/live/example.test/privkey.pem -out /etc/letsencrypt/live/example.test/fullchain.pem 2>/dev/null         && /docker-entrypoint.sh nginx -t'
 
 echo "Building and starting the stack (fake model server instead of real models)..."
 "${COMPOSE[@]}" up -d --build --wait --wait-timeout 300

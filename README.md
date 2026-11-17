@@ -108,7 +108,7 @@ flowchart TB
 | Backend | Python 3.14, FastAPI (built-in `fastapi.sse` for streaming), SQLAlchemy (async, asyncpg) + Alembic, Pydantic settings, argon2 password hashing, session cookies, one uvicorn worker |
 | AI | OpenAI Python SDK (Chat Completions and embeddings), one provider config per role, Docling (PDF and DOCX parsing), fastembed BM25 sparse vectors, Langfuse tracing |
 | Data | PostgreSQL 17, Qdrant 1.13 |
-| Observability | Prometheus 3, Grafana 11, postgres-exporter |
+| Observability | Prometheus 3, Grafana 13, postgres-exporter |
 | Tooling | uv workspace (one lockfile), npm, ruff, mypy `--strict`, oxlint, tsc, pytest + httpx, Vitest + Testing Library, Playwright |
 | Delivery | Docker Compose, Let's Encrypt via certbot, GitHub Actions CI |
 
@@ -120,12 +120,12 @@ All services are defined in [`docker-compose.yml`](docker-compose.yml). There is
 |---|---|---|---|
 | `frontend` | built from `frontend/Dockerfile` (nginx 1.27) | `80` (and `443` in production) | the web app, proxies `/api` to the backend |
 | `backend` | built from `backend/Dockerfile` (Python 3.14) | internal `8000` | API, chat stream, KB jobs, `/metrics`; runs migrations on start |
-| `postgres` | `postgres:17` | `127.0.0.1:5432` (not published in production) | relational data |
-| `qdrant` | `qdrant/qdrant:v1.13.6` | `127.0.0.1:6333` (not published in production) | vector and BM25 search |
-| `prometheus` | `prom/prometheus:v3.0.1` | `127.0.0.1:9090` | metrics, 15 days retention |
-| `grafana` | `grafana/grafana:11.4.0` | `127.0.0.1:3000` | dashboards (provisioned from `observability/`) |
-| `postgres-exporter` | `prometheuscommunity/postgres-exporter:v0.16.0` | internal | Postgres metrics |
-| `certbot` | `certbot/certbot:v3.0.1` | – | production only: certificate issue and renewal |
+| `postgres` | `postgres:18.7` | `127.0.0.1:5432` (not published in production) | relational data |
+| `qdrant` | `qdrant/qdrant:v1.20.2` | `127.0.0.1:6333` (not published in production) | vector and BM25 search |
+| `prometheus` | `prom/prometheus:v3.16.0` | `127.0.0.1:9090` | metrics, 15 days retention |
+| `grafana` | `grafana/grafana:13.3.1` | `127.0.0.1:3000` | dashboards (provisioned from `observability/`) |
+| `postgres-exporter` | `prometheuscommunity/postgres-exporter:v0.20.1` | internal | Postgres metrics |
+| `certbot` | `certbot/certbot:v5.10.0` | – | production only: certificate issue and renewal |
 
 Volumes: `pgdata`, `qdrant_data`, `kb_data` (uploaded originals), `prometheus_data`, `grafana_data`, and in production `certbot_conf` and `certbot_www`.
 

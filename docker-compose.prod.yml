@@ -13,7 +13,7 @@ services:
     restart: unless-stopped
 
   certbot:
-    image: certbot/certbot:v3.0.1
+    image: certbot/certbot:v5.10.0
     volumes:
       - certbot_conf:/etc/letsencrypt
       - certbot_www:/var/www/certbot

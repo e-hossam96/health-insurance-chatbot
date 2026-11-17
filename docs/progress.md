@@ -161,6 +161,8 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [5 review] The rule coverage scan now includes `frontend/e2e` and only counts an ID that is not part of a longer word (`UTF8` no longer covers F8).
 - [5 housekeeping] Added `.gitattributes` with `* text=auto eol=lf` - a Windows clone with `core.autocrlf=true` checked out `scripts/check.sh` with CRLF and bash failed (`set: pipefail: invalid option name`).
 - [5.5] HTTP errors from `POST /me/chat` (for example 429 `rate_limited`) show the server's message with Retry; stream `error` events always show "Something went wrong."
+- [fix] postgres-exporter v0.16.0's `stat_bgwriter` collector failed on Postgres 17 (`column "checkpoints_timed" does not exist`); v0.17.0+ reads those columns from `pg_stat_checkpointer` (#1072).
+- [upgrade 2026-11-17] Images moved to the latest stable releases: postgres 18.7 (the user chose 18 with a fresh volume; the volume now mounts at `/var/lib/postgresql` as the 18 image requires), qdrant v1.20.2 (matches qdrant-client 1.20.0), prometheus v3.16.0, postgres-exporter v0.20.1, grafana 13.3.1, certbot v5.10.0, node 26-alpine (current LTS) with `@types/node` ^26, nginx 1.30-alpine (stable branch, not mainline 1.31). CI uses the same service images, Node 26 and actions checkout v7.0.1, setup-uv v10.3.3, setup-node v7.1.0 pinned by SHA. Python stays on 3.14-slim (3.14.10): onnxruntime 1.32.0 (via fastembed) has no cp315 wheels. uv 0.13.8 is already the latest.
 
 ## Deviations from spec
 
