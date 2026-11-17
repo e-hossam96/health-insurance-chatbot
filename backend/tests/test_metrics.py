@@ -32,3 +32,19 @@ async def test_H4_unknown_urls_share_one_fixed_route_label() -> None:
     routes = {dict(labels).get("route") for labels in label_sets(exposition, ("http_",))["http_requests"]}
     assert "unmatched" in routes
     assert not any(route and ("nope" in route or "random" in route) for route in routes)
+
+
+@pytest.mark.anyio()
+async def test_H3_fixed_label_counters_are_exposed_at_zero_before_the_first_event() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        exposition = (await client.get("/metrics")).text
+    found = label_sets(exposition, ("card_actions", "chat_turns", "kb_ingest", "rate_limit_rejections", "chat_tokens"))
+    card_actions = found["card_actions"]
+    for action in ("book", "cancel", "complaint"):
+        for outcome in ("ok", "conflict", "rejected", "error"):
+            assert (("action", action), ("outcome", outcome)) in card_actions
+    assert {(("outcome", outcome),) for outcome in ("ok", "error", "cancelled")} <= found["chat_turns"]
+    assert {(("outcome", outcome),) for outcome in ("ok", "failed")} <= found["kb_ingest"]
+    limits = ("chat_minute", "chat_daily", "message_length", "signup", "login")
+    assert {(("limit", limit),) for limit in limits} <= found["rate_limit_rejections"]
+    assert {(("kind", kind),) for kind in ("prompt", "completion")} <= found["chat_tokens"]
