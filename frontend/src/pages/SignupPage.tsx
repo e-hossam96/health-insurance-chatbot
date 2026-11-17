@@ -1,3 +1,4 @@
+import { AuthLayout } from '../components/AuthLayout';
 import { Logo } from '../components/Logo';
 import { errorMessage } from '../api/client';
 import { type FormEvent, type ReactNode, useState } from 'react';
@@ -44,7 +45,7 @@ export function SignupPage(): ReactNode {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
+    <AuthLayout>
       <form onSubmit={handleSubmit} className="card rise w-full max-w-sm p-8">
         <h1 className="mb-3 flex justify-center">
           <Logo size={40} />
@@ -85,6 +86,6 @@ export function SignupPage(): ReactNode {
           Already have an account? <Link to="/login" className="font-semibold text-accent hover:underline hover:underline-offset-3">Log in</Link>
         </p>
       </form>
-    </div>
+    </AuthLayout>
   );
 }

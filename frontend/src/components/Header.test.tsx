@@ -56,4 +56,10 @@ describe('Header', () => {
     expect(screen.queryByTestId('mode-toggle')).toBeNull();
     expect(screen.queryByTestId('admin-nav-btn')).toBeNull();
   });
+
+  it.each([['admin', 'admin'], ['admin', 'user'], ['user', 'user']])('shows the theme switch for a %s in %s mode', (role, mode) => {
+    Object.assign(mockUser, { role, mode });
+    renderHeader();
+    expect(screen.getByRole('group', { name: 'Color theme' })).toBeInTheDocument();
+  });
 });
