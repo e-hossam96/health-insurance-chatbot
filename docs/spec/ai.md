@@ -208,7 +208,7 @@ Settings are one `AISettings` class (pydantic-settings) in the package. The back
 
 ## 6. Observability
 
-The package returns timings as plain values (H2): per-token `elapsed`, and in `Done` the stage timings, tool durations and token usage listed in section 1. The backend turns them into Prometheus metrics (H3). Langfuse gets one trace per turn with a span per stage (classify, rewrite, embed, search, rerank, generate, each tool call), with the session id from F7. When the Langfuse keys are absent, tracing is off.
+The package returns timings as plain values (H2): per-token `elapsed`, and in `Done` the stage timings, tool durations and token usage listed in section 1. The backend turns them into Prometheus metrics (H3). Langfuse gets one trace per turn with a span per stage (classify, rewrite, embed, search, rerank, generate, each tool call), with the session id from F7. The turn span is the trace root (it ignores any ambient OpenTelemetry span, such as FastAPI's request span). Each span records its input and output, and generations also record token usage, so Langfuse can show cost. When the Langfuse keys are absent, tracing is off.
 
 ---
 

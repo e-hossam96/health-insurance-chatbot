@@ -66,3 +66,5 @@ async def test_F7_a_chat_turn_through_the_api_is_traced_under_the_chat_session_i
     roots = [span for span in spans if span.name == "chat turn"]
     assert len(roots) == 2
     assert len({span.context.trace_id for span in roots if span.context}) == 2, "each turn is its own trace"
+    assert all(span.parent is None for span in roots), "the turn span is the trace root"
+    assert all("hi" in str((span.attributes or {}).get("langfuse.observation.input")) for span in roots[:1])

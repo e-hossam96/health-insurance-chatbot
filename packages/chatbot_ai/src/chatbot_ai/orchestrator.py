@@ -25,7 +25,7 @@ from chatbot_ai.interface import (
     TurnRequest,
     Usage,
 )
-from chatbot_ai.router import classify
+from chatbot_ai.router import classify, router_messages
 from chatbot_ai.settings import AISettings, Role
 
 
@@ -58,11 +58,17 @@ async def run_turn(
     registry = agents if agents is not None else default_agents()
     tracer = role_clients.tracer()
     try:
-        with tracer.turn(req.session_id):
+        with tracer.turn(req.session_id) as turn_record:
+            turn_record.record(input=req.message)
             started = clock()
-            with tracer.stage("classify", "generation", model=role_clients.get(Role.router).model):
+            with tracer.stage("classify", "generation", model=role_clients.get(Role.router).model) as classify_record:
                 classification = await classify(
                     role_clients.get(Role.router), req.history, req.message, settings.ai_router_history_rows, settings.ai_router_max_output_tokens
+                )
+                classify_record.record(
+                    input=router_messages(req.history, req.message, settings.ai_router_history_rows),
+                    output={"intent": classification.intent.value if classification.intent is not None else None},
+                    usage=classification.usage,
                 )
             classified = clock()
             if req.needs_label and classification.intent is not None:
@@ -83,6 +89,8 @@ async def run_turn(
             if result is None:
                 raise RuntimeError(f"{agent_name.value} agent finished without a result")
 
+            final_rows = [row for row in result.rows if row.role == "assistant" and row.content]
+            turn_record.record(output=final_rows[-1].content if final_rows else None)
             yield Done(
                 new_rows=[HistoryRow(role="user", content=req.message), *result.rows],
                 timings=Timings(
