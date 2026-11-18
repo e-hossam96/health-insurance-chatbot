@@ -32,3 +32,13 @@ def test_components_use_theme_tokens_not_raw_palette_classes_or_the_placeholder_
             if RAW_PALETTE_CLASS.search(text) or "Health Assistant" in text:
                 offenders.append(str(path.relative_to(FRONTEND)))
     assert offenders == []
+
+
+def test_the_page_carries_link_preview_tags_with_absolute_urls_to_existing_images() -> None:
+    html = (FRONTEND / "index.html").read_text(encoding="utf-8")
+    image_urls = re.findall(r'property="og:image" content="([^"]+)"', html)
+    assert image_urls == ["https://health-insurance-chatbot-demo.hossammostafa.ai/og-image.png"]
+    assert '<meta property="og:title" content="Health Insurance Chatbot" />' in html
+    assert '<meta name="twitter:card" content="summary_large_image" />' in html
+    for name in ("og-image.png", "apple-touch-icon.png"):
+        assert (FRONTEND / "public" / name).stat().st_size > 0
