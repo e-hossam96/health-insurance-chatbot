@@ -27,7 +27,7 @@ Fill in `.env`:
 | `AI_*_MODEL`, `AI_*_REASONING_EFFORT`, `AI_EMBEDDING_DIMENSIONS` | as in `.env.example` |
 | `GRAFANA_ADMIN_PASSWORD` | a long random password |
 | `POSTGRES_PASSWORD` | letters and digits only, for example `openssl rand -hex 24`. Set it before the first start: Postgres stores it when the volume is created |
-| `DOMAIN` | `health-insurance-chatbot-demo.hossammostafa.ai` |
+| `DOMAIN` | `health-insurance-chatbot-demo.hossammostafa.ai`. The link-preview tags in `frontend/index.html` hold this domain as absolute URLs, so change them too if it changes |
 | `LETSENCRYPT_EMAIL` | the address for certificate expiry notices |
 | `LANGFUSE_*` | optional, enables tracing |
 
