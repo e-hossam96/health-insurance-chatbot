@@ -35,7 +35,7 @@ jobs:
       TEST_POSTGRES_USER: chatbot
       TEST_POSTGRES_PASSWORD: chatbot
       TEST_POSTGRES_HOST: 127.0.0.1
-      TEST_POSTGRES_PORT: "5432"
+      TEST_POSTGRES_PORT: 5432
       TEST_POSTGRES_DB: chatbot_test
       QDRANT_URL: http://localhost:6333
 
