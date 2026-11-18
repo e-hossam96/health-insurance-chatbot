@@ -236,7 +236,7 @@ The runner uses its own Qdrant collection (created and dropped by the run) and f
 | ingest | fixture documents | no empty chunks; breadcrumbs present; small tables stay whole; split tables repeat the header; expected table chunk counts. No LLM calls |
 | routing | message, optional prior rows, expected intent code | accuracy, per-class recall, confusion matrix. Includes follow-ups, off-topic and mixed messages (I14), and the six starter-card messages |
 | retrieval | question, `expected_phrases`, expected document | hit@k, recall@k and MRR (k = 5, 10) after each stage, plus latency per stage. Phrases rather than chunk ids, because chunk ids change when chunking changes |
-| answers | question, `must_include` facts, `answerable` flag | judged by the JUDGE model: faithfulness to the retrieved excerpts, presence of the required facts, and correct refusal for unanswerable questions (I8) |
+| answers | question, `must_include` facts (each a phrase or a list of accepted wordings), `answerable` flag | judged by the JUDGE model: faithfulness to the retrieved excerpts, presence of the required facts, and correct refusal for unanswerable questions (I8) |
 | tools | scripted scenario on fake ports, expected tool calls (name and argument subset) | right tools called, a card emitted when expected, no write is possible (D9). Includes multi-turn scenarios across agents (scheduling, then knowledge, then scheduling) that assert no tool outside the current agent's set is called and no stale slot data is repeated; the knowledge steps use the run's fixture collection |
 
 Ablation table produced by the retrieval and answers suites:

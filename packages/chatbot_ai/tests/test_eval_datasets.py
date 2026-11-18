@@ -41,8 +41,8 @@ def test_answers_draft_mixes_answerable_and_unanswerable_questions() -> None:
     assert len(answerable) >= 8 and len(unanswerable) >= 4
     assert all(i.must_include for i in answerable) and not any(i.must_include for i in unanswerable)
     for item in answerable:
-        for fact in item.must_include:
-            assert fact in texts, f"{item.id}: {fact!r}"
+        for options in item.fact_alternatives():
+            assert any(option in texts for option in options), f"{item.id}: {options!r}"
 
 
 def test_tools_draft_uses_real_tools_and_card_types() -> None:
@@ -55,3 +55,12 @@ def test_tools_draft_uses_real_tools_and_card_types() -> None:
             assert turn.expected_cards is None or turn.expected_cards in CARD_TYPES
     cross = next(s for s in scenarios if s.id == "cross-agent")
     assert [t.expected_intent.value for t in cross.turns] == ["visit.book", "qa.kb", "visit.book"]
+
+
+def test_a_required_fact_passes_when_any_of_its_wordings_is_in_the_answer() -> None:
+    item = AnswerItem(id="x", question="q", answerable=True, must_include=["50 EGP", ["not cover", "excluded"]])
+    assert item.facts_in("Cosmetic surgery is Excluded; the co-pay is 50 egp.")
+    assert item.facts_in("The plan does not cover it. Co-pay: 50 EGP.")
+    assert not item.facts_in("Cosmetic surgery is excluded.")
+    assert not item.facts_in("The co-pay is 50 EGP and cosmetic surgery is covered.")
+    assert item.facts_in("The co-pay is **50** EGP and cosmetic surgery is **excluded**.")

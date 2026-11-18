@@ -18,7 +18,14 @@ class AnswerItem(BaseModel):
     id: str
     question: str
     answerable: bool
-    must_include: list[str] = Field(default_factory=list)
+    must_include: list[str | list[str]] = Field(default_factory=list)
+
+    def fact_alternatives(self) -> list[list[str]]:
+        return [[fact] if isinstance(fact, str) else fact for fact in self.must_include]
+
+    def facts_in(self, answer: str) -> bool:
+        text = answer.replace("*", "").lower()
+        return all(any(option.lower() in text for option in options) for options in self.fact_alternatives())
 
 
 class ExpectedToolCall(BaseModel):

@@ -310,7 +310,7 @@ async def run_answers_suite(settings: AISettings, items: list[AnswerItem]) -> An
                         id=item.id,
                         answerable=item.answerable,
                         answer=answer,
-                        facts_found=all(fact.lower() in answer.lower() for fact in item.must_include),
+                        facts_found=item.facts_in(answer),
                         judged_faithful=verdict[0] if verdict else None,
                         judged_facts_present=verdict[1] if verdict else None,
                         refused=refused,
