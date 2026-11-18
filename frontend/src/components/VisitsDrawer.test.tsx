@@ -10,7 +10,16 @@ vi.mock('../api/visits', () => ({
     { id: 2, slot_id: 11, status: 'completed', doctor_name: 'Dr. Omar', specialty: 'Cardio', clinic: 'Clinic B', location: 'Giza', start_at: '2026-12-10T09:00:00Z' },
   ]),
   getMyComplaints: () => Promise.resolve([
-    { id: 1, visit_id: 2, description: 'Bad service', status: 'open', replies: [{ id: 1, body: 'We apologize.' }] },
+    {
+      id: 1, visit_id: 2, description: 'Bad service', status: 'open',
+      created_at: '2026-12-11T08:00:00Z', visit_start_at: '2026-12-10T09:00:00Z', doctor_name: 'Dr. Omar',
+      replies: [{ id: 1, body: 'We apologize.', created_at: '2026-12-12T07:30:00Z' }],
+    },
+    {
+      id: 2, visit_id: 3, description: 'Late start', status: 'closed',
+      created_at: '2026-12-04T08:00:00Z', visit_start_at: '2026-12-03T14:00:00Z', doctor_name: 'Dr. Sara',
+      replies: [],
+    },
   ]),
   cancelVisit: vi.fn().mockResolvedValue({}),
 }));
@@ -79,9 +88,24 @@ describe('VisitsDrawer', () => {
     await waitFor(() => expect(screen.getByTestId('drawer-tab-complaints')).toBeTruthy());
     fireEvent.click(screen.getByTestId('drawer-tab-complaints'));
     await waitFor(() => {
-      expect(screen.getByText('Support team:')).toBeTruthy();
+      expect(screen.getByText('Reply (Sat 12 Dec, 07:30 UTC, Support team):')).toBeTruthy();
       expect(screen.getByText('We apologize.')).toBeTruthy();
     });
+  });
+
+  it('F14: each complaint names its visit, its filed date, and says when no reply came yet', async () => {
+    render(
+      <MemoryRouter>
+        <VisitsDrawer open={true} onClose={() => {}} />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByTestId('drawer-tab-complaints'));
+    const visits = await screen.findAllByTestId('complaint-visit');
+    expect(visits.map((v) => v.textContent)).toEqual(['Visit 10 Dec - Dr. Omar', 'Visit 3 Dec - Dr. Sara']);
+    expect(screen.getAllByTestId('complaint-filed').map((f) => f.textContent)).toEqual(['Filed 11 Dec', 'Filed 4 Dec']);
+    expect(screen.getAllByTestId('complaint-no-reply')).toHaveLength(1);
+    expect(screen.getByTestId('complaint-no-reply').textContent).toBe('No reply yet');
+    expect(screen.queryByText(/admin1/)).toBeNull();
   });
 
   it('F14: the tabs show which list is open', async () => {

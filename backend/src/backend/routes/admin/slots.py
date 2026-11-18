@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from backend.deps import ClockDep, Db, RequireAdmin
 from backend.errors import api_error, not_found
-from backend.models import Doctor, Slot, SlotStatus
+from backend.models import Doctor, Slot, SlotStatus, Visit, VisitStatus
 
 SLOT_START_HOUR = 9
 SLOT_END_HOUR = 16
@@ -28,10 +28,11 @@ class SlotOut(BaseModel):
     doctor_id: int
     start_at: datetime
     status: str
+    visit_id: int | None = None
 
     @classmethod
-    def from_row(cls, slot: Slot) -> SlotOut:
-        return cls(id=slot.id, doctor_id=slot.doctor_id, start_at=slot.start_at, status=slot.status.value)
+    def from_row(cls, slot: Slot, visit_id: int | None = None) -> SlotOut:
+        return cls(id=slot.id, doctor_id=slot.doctor_id, start_at=slot.start_at, status=slot.status.value, visit_id=visit_id)
 
 
 class AutofillRequest(BaseModel):
@@ -40,6 +41,7 @@ class AutofillRequest(BaseModel):
 
 class AutofillResponse(BaseModel):
     created: int
+    skipped: int
     message: str
 
 
@@ -84,7 +86,8 @@ async def list_slots(
     month: int = Query(..., ge=1, le=12),
 ) -> list[SlotOut]:
     result = await db.execute(
-        select(Slot)
+        select(Slot, Visit.id)
+        .outerjoin(Visit, (Visit.slot_id == Slot.id) & (Visit.status != VisitStatus.cancelled))
         .where(
             Slot.doctor_id == doctor_id,
             extract("year", Slot.start_at) == year,
@@ -92,7 +95,7 @@ async def list_slots(
         )
         .order_by(Slot.start_at)
     )
-    return [SlotOut.from_row(s) for s in result.scalars()]
+    return [SlotOut.from_row(slot, visit_id) for slot, visit_id in result.all()]
 
 
 @router.post("/slots", status_code=201)
@@ -117,7 +120,7 @@ async def delete_slot(slot_id: int, admin: RequireAdmin, db: Db) -> dict[str, ob
     if slot is None:
         raise not_found("Slot not found.")
     if slot.status != SlotStatus.available:
-        raise api_error("slot_booked", "Cannot remove a booked slot.", 409)
+        raise api_error("slot_booked", "This slot is booked. Cancel the visit first.", 409)
     await db.delete(slot)
     await db.commit()
     return {"deleted": True}
@@ -135,6 +138,15 @@ async def autofill_slots(body: AutofillRequest, admin: RequireAdmin, db: Db, clo
         await db.commit()
         created = int(result.rowcount)  # type: ignore[attr-defined]
 
+    skipped = len(rows) - created
     if created == 0:
-        return AutofillResponse(created=0, message="Nothing to create")
-    return AutofillResponse(created=created, message=f"Created {created} slot(s)")
+        return AutofillResponse(created=0, skipped=skipped, message="Nothing to create")
+    return AutofillResponse(
+        created=created,
+        skipped=skipped,
+        message=f"Created {created} {_slots_word(created)}, skipped {skipped} existing.",
+    )
+
+
+def _slots_word(count: int) -> str:
+    return "slot" if count == 1 else "slots"

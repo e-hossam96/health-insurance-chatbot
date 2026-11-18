@@ -8,6 +8,7 @@ export type ConfirmRequest = {
   confirmLabel: string;
   tone?: 'danger' | 'primary';
   failureText: string;
+  blocked?: string;
   run: () => Promise<unknown>;
 };
 
@@ -48,6 +49,11 @@ export function useConfirm(): { confirm: (request: ConfirmRequest) => void; conf
     <Dialog open={request !== null} title={request?.title ?? ''} onClose={cancel} panelClassName="w-full max-w-md">
       <div data-testid="confirm-dialog">
         {request?.message && <div className="mb-4 text-sm text-muted">{request.message}</div>}
+        {request?.blocked && (
+          <p className="alert error mb-4" role="alert" data-testid="confirm-blocked">
+            {request.blocked}
+          </p>
+        )}
         {error && (
           <p className="alert error mb-4" role="alert" data-testid="confirm-error">
             {error}
@@ -61,7 +67,7 @@ export function useConfirm(): { confirm: (request: ConfirmRequest) => void; conf
             type="button"
             className={`btn btn-sm ${tone === 'danger' ? 'btn-danger' : ''}`}
             onClick={() => void proceed()}
-            disabled={busy}
+            disabled={busy || request?.blocked !== undefined}
             data-testid="confirm-yes"
           >
             {busy && <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />}

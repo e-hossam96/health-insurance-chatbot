@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch, reportUnauthorized } from './client';
 
 const BASE = '/api';
 
@@ -44,6 +44,7 @@ export async function uploadKbDocument(file: File): Promise<KbDocument> {
     body: file,
   });
   if (!res.ok) {
+    reportUnauthorized(res.status, '/admin/kb-documents');
     const payload = (await res.json().catch(() => null)) as { detail?: { error?: { code?: string; message?: string } } } | null;
     const error = payload?.detail?.error;
     throw new KbUploadError(error?.code ?? 'upload_failed', error?.message ?? 'Upload failed.');
@@ -58,6 +59,7 @@ export function reindexKbDocument(id: number): Promise<KbDocument> {
 export async function deleteKbDocument(id: number): Promise<void> {
   const res = await fetch(`${BASE}/admin/kb-documents/${id}`, { method: 'DELETE', credentials: 'include' });
   if (!res.ok) {
+    reportUnauthorized(res.status, '/admin/kb-documents');
     const payload = (await res.json().catch(() => null)) as { detail?: { error?: { message?: string } } } | null;
     throw new Error(payload?.detail?.error?.message ?? 'Delete failed.');
   }

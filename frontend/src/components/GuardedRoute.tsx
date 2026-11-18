@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 import { useAuth } from '../api/AuthContext';
 
 function getRedirect(
@@ -40,6 +40,16 @@ function getRedirect(
 
 export { getRedirect };
 
+export type LoginRedirectState = { from: string };
+
+export function returnPathAfterLogin(state: unknown, role: string, hasProfile: boolean, mode: string): string | null {
+  const from = (state as Partial<LoginRedirectState> | null)?.from;
+  if (typeof from !== 'string' || !from.startsWith('/') || from.startsWith('//')) return null;
+  const pathname = from.split(/[?#]/)[0] ?? from;
+  if (pathname === '/login' || pathname === '/signup') return null;
+  return getRedirect('authenticated', role, hasProfile, mode, pathname) === null ? from : null;
+}
+
 export function GuardedRoute({
   children,
   path,
@@ -48,6 +58,7 @@ export function GuardedRoute({
   path: string;
 }): ReactNode {
   const auth = useAuth();
+  const location = useLocation();
 
   if (auth.status === 'loading') {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
@@ -61,6 +72,10 @@ export function GuardedRoute({
     path,
   );
 
+  if (redirect === '/login') {
+    const state: LoginRedirectState = { from: `${location.pathname}${location.search}` };
+    return <Navigate to={redirect} replace state={state} />;
+  }
   if (redirect) return <Navigate to={redirect} replace />;
   return <>{children}</>;
 }

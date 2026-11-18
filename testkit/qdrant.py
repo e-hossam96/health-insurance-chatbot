@@ -16,7 +16,7 @@ def qdrant_url() -> str:
 
 def make_test_client() -> AsyncQdrantClient:
     # the compose and CI image may lag the client by a few minor versions; the tests exercise the real server
-    return AsyncQdrantClient(url=qdrant_url(), check_compatibility=False)
+    return AsyncQdrantClient(url=qdrant_url())
 
 
 @asynccontextmanager

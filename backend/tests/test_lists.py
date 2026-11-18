@@ -254,3 +254,143 @@ async def test_D4_admin_complaints_list(
     data = resp.json()
     assert data["total"] == 2
     assert len(data["items"]) == 2
+
+
+@pytest.mark.anyio()
+async def test_D4_admin_visits_carry_patient_and_catalog_names(
+    admin_client: AsyncClient, db_engine: Engine, user_client: AsyncClient
+) -> None:
+    ids = _setup_visit_data(db_engine)
+
+    data = (await admin_client.get("/admin/visits")).json()
+
+    assert [v["id"] for v in data["items"]] == [ids["v3"], ids["v2"], ids["v1"]]
+    first = data["items"][0]
+    assert first["patient_name"] == "Test User"
+    assert first["location"] == "TestCity"
+    assert (first["clinic"], first["specialty"], first["doctor_name"]) == ("C", "S", "Dr")
+    assert first["start_at"] == "2026-12-15T10:00:00+00:00"
+
+
+@pytest.mark.anyio()
+async def test_D4_admin_visits_patient_search_and_visit_filter(
+    admin_client: AsyncClient, db_engine: Engine, user_client: AsyncClient
+) -> None:
+    ids = _setup_visit_data(db_engine)
+
+    found = (await admin_client.get("/admin/visits", params={"patient": "test us"})).json()
+    wildcard = (await admin_client.get("/admin/visits", params={"patient": "%"})).json()
+    one = (await admin_client.get("/admin/visits", params={"visit_id": ids["v2"]})).json()
+
+    assert found["total"] == 3
+    assert wildcard["total"] == 0
+    assert [v["id"] for v in one["items"]] == [ids["v2"]]
+
+
+@pytest.mark.anyio()
+async def test_D4_admin_lists_default_to_50_rows(
+    admin_client: AsyncClient, db_engine: Engine, user_client: AsyncClient
+) -> None:
+    _setup_visit_data(db_engine)
+    with db_engine.connect() as conn:
+        doctor_id = conn.execute(text("SELECT id FROM doctor LIMIT 1")).scalar_one()
+        profile_id = conn.execute(text("SELECT id FROM profile WHERE name = 'Test User'")).scalar_one()
+        for day in range(1, 26):
+            for hour in (9, 10):
+                slot_id = conn.execute(
+                    text("INSERT INTO slot (doctor_id, start_at, status) VALUES (:d, :t, 'booked') RETURNING id"),
+                    {"d": doctor_id, "t": datetime(2027, 1, day, hour, tzinfo=UTC)},
+                ).scalar_one()
+                conn.execute(
+                    text("INSERT INTO visit (profile_id, slot_id, status) VALUES (:p, :s, 'scheduled')"),
+                    {"p": profile_id, "s": slot_id},
+                )
+        conn.commit()
+
+    data = (await admin_client.get("/admin/visits")).json()
+
+    assert data["total"] == 53
+    assert len(data["items"]) == 50
+
+
+@pytest.mark.anyio()
+async def test_E4_admin_complaint_list_and_detail_show_patient_visit_and_replies(
+    user_client: AsyncClient, admin_client: AsyncClient, db_engine: Engine
+) -> None:
+    ids = _setup_visit_data(db_engine)
+    session_id = _get_chat_session_id(db_engine)
+    filed = await user_client.post(
+        "/me/complaints", json={"session_id": session_id, "visit_id": ids["v1"], "description": "Long wait"}
+    )
+    complaint_id = filed.json()["complaint"]["id"]
+    await admin_client.post(f"/admin/complaints/{complaint_id}/reply", json={"body": "We are sorry."})
+
+    item = (await admin_client.get("/admin/complaints")).json()["items"][0]
+    detail = (await admin_client.get(f"/admin/complaints/{complaint_id}")).json()
+
+    assert (item["patient_name"], item["reply_count"], item["status"]) == ("Test User", 1, "open")
+    assert item["created_at"]
+    assert detail["patient_name"] == "Test User"
+    assert detail["description"] == "Long wait"
+    assert detail["visit"] == {
+        "id": ids["v1"],
+        "start_at": "2026-12-10T10:00:00+00:00",
+        "doctor_name": "Dr",
+        "specialty": "S",
+        "clinic": "C",
+        "location": "TestCity",
+    }
+    assert [(r["body"], r["admin_username"]) for r in detail["replies"]] == [("We are sorry.", "admin1")]
+    assert detail["replies"][0]["created_at"]
+
+
+@pytest.mark.anyio()
+async def test_E4_reply_with_close_flag_closes_in_the_same_request(
+    user_client: AsyncClient, admin_client: AsyncClient, db_engine: Engine
+) -> None:
+    ids = _setup_visit_data(db_engine)
+    session_id = _get_chat_session_id(db_engine)
+    open_id = (
+        await user_client.post("/me/complaints", json={"session_id": session_id, "visit_id": ids["v1"], "description": "A"})
+    ).json()["complaint"]["id"]
+    closing_id = (
+        await user_client.post("/me/complaints", json={"session_id": session_id, "visit_id": ids["v2"], "description": "B"})
+    ).json()["complaint"]["id"]
+
+    kept = await admin_client.post(f"/admin/complaints/{open_id}/reply", json={"body": "Noted."})
+    closed = await admin_client.post(f"/admin/complaints/{closing_id}/reply", json={"body": "Done.", "close": True})
+    after_close = await admin_client.post(f"/admin/complaints/{closing_id}/reply", json={"body": "Again."})
+
+    assert kept.json()["complaint_status"] == "open"
+    assert closed.status_code == 201
+    assert closed.json()["complaint_status"] == "closed"
+    assert (await admin_client.get(f"/admin/complaints/{closing_id}")).json()["status"] == "closed"
+    assert after_close.status_code == 409
+    assert after_close.json()["detail"]["error"]["code"] == "complaint_closed"
+
+
+@pytest.mark.anyio()
+async def test_admin_complaint_detail_of_missing_id_is_404(admin_client: AsyncClient) -> None:
+    resp = await admin_client.get("/admin/complaints/999999")
+
+    assert resp.status_code == 404
+    assert "999999" not in resp.text
+
+
+@pytest.mark.anyio()
+async def test_F14_drawer_complaints_carry_dates_visit_and_reply_dates(
+    user_client: AsyncClient, admin_client: AsyncClient, db_engine: Engine
+) -> None:
+    ids = _setup_visit_data(db_engine)
+    session_id = _get_chat_session_id(db_engine)
+    filed = await user_client.post(
+        "/me/complaints", json={"session_id": session_id, "visit_id": ids["v1"], "description": "Bad"}
+    )
+    await admin_client.post(f"/admin/complaints/{filed.json()['complaint']['id']}/reply", json={"body": "Sorry."})
+
+    complaint = (await user_client.get("/me/complaints")).json()[0]
+
+    assert complaint["visit_start_at"] == "2026-12-10T10:00:00+00:00"
+    assert complaint["doctor_name"] == "Dr"
+    assert complaint["created_at"]
+    assert set(complaint["replies"][0]) == {"id", "body", "created_at"}

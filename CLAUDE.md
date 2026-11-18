@@ -18,7 +18,7 @@ Read the whole of items 1 to 2 at the start of a session. Read only the spec fil
 
 ## Stack
 
-- Frontend: React, Vite, TypeScript, React Router, TanStack Query, Tailwind with shadcn/ui. The chat stream is read with fetch because it is a POST. English only. Assistant text is Markdown without raw HTML.
+- Frontend: React, Vite, TypeScript, React Router, TanStack Query, Tailwind with the app's own component classes (no shadcn/ui). The chat stream is read with fetch because it is a POST. English only. Assistant text is Markdown without raw HTML.
 - Backend: Python, FastAPI (use the built-in `fastapi.sse` for streaming), Postgres, SQLAlchemy + Alembic, argon2 password hashing, session cookies.
 - AI package: OpenAI SDK against the OpenAI API shape (Chat Completions, embeddings), one provider config per role (I11). Closed-source OpenAI models first. Docling parses PDF and DOCX. Reranker sits behind a Protocol; the provider is a placeholder (`ai.md`).
 - Retrieval: Qdrant (dense + BM25, RRF fusion). Chunks live only in Qdrant.
@@ -65,7 +65,7 @@ Frontend, backend and `chatbot_ai` all start at version 0.1.0 (package.json, pyp
 - Commits: one per plan step. The message format is `[STAGE_NAME] short description`, where STAGE_NAME is the step id and title from `plan.md`, for example `[1.2 Database rules] add CHECK constraints and partial unique index`. The description is lowercase, imperative, with no trailing period.
 - Comments: keep them to a minimum. A single-line comment is allowed where the reason is not obvious. No docstrings, no multi-line comment blocks, no commented-out code. Function and variable names must be descriptive enough to need no comment.
 - Types: strict and complete. Python: annotate every parameter and return value, run the type checker in strict mode (mypy --strict or pyright strict), no `Any` without a one-line reason, Pydantic models at every boundary (API payloads, settings, tool arguments, events). TypeScript: `strict` on, no `any`, no non-null assertions, explicit return types on exported functions, and a type for every API payload described in `api.md`.
-- Scaffolding: use commands, not hand-written files. For example `uv init`, `uv add`, `uv add --dev`, `uv sync`, `npm create vite@latest`, `npm install`, `npx shadcn@latest init`, `alembic init`, `alembic revision --autogenerate`, `npx playwright install`. Never edit dependency lists or lockfiles by hand. Edit generated files minimally.
+- Scaffolding: use commands, not hand-written files. For example `uv init`, `uv add`, `uv add --dev`, `uv sync`, `npm create vite@latest`, `npm install`, `alembic init`, `alembic revision --autogenerate`, `npx playwright install`. Never edit dependency lists or lockfiles by hand. Edit generated files minimally.
 - CI: a GitHub Actions workflow in `.github/workflows/ci.yml` runs on pushes to `main` only. It runs every kind of test that costs no money and never the evals. When a step introduces a new kind of test, add it to the workflow in the same step.
 
 ## Working agreement (autonomous mode)
@@ -140,7 +140,3 @@ Gate 1 before any real model call (needs the API key in `.env`, model names per 
 
 - AI: reranker provider (implement `rerank/target.py`) and larger eval datasets and fixtures. See the last section of `ai.md`.
 - Decided: branding (`wireframes.md` section 1), deployment (`docs/deployment.md`), model names per role (`.env.example`), admin payloads (`api.md`).
-
-## Samples
-
-A streaming chat endpoint sample exists (`chat_core.py` standing in for the AI package, and `main.py` with the FastAPI endpoint and Prometheus timings). It was delivered earlier in the planning chat. Copy it under `samples/` for reference.

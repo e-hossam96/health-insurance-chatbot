@@ -35,7 +35,7 @@ def point_id(document_id: int, chunk_index: int) -> str:
 
 
 def make_qdrant(settings: AISettings) -> AsyncQdrantClient:
-    return AsyncQdrantClient(url=settings.qdrant_url, check_compatibility=False)
+    return AsyncQdrantClient(url=settings.qdrant_url)
 
 
 async def ensure_collection_async(client: AsyncQdrantClient, settings: AISettings) -> str:

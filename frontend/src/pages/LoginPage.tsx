@@ -2,7 +2,8 @@ import { AuthLayout } from '../components/AuthLayout';
 import { Logo } from '../components/Logo';
 import { errorMessage } from '../api/client';
 import { type FormEvent, type ReactNode, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
+import { returnPathAfterLogin } from '../components/GuardedRoute';
 import { login } from '../api/auth';
 import { useAuth } from '../api/AuthContext';
 
@@ -12,6 +13,7 @@ export function LoginPage(): ReactNode {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { refresh } = useAuth();
 
   const handleSubmit = async (e: FormEvent): Promise<void> => {
@@ -28,7 +30,10 @@ export function LoginPage(): ReactNode {
       await login(username.trim(), password);
       await refresh();
       const me = await import('../api/auth').then((m) => m.getMe());
-      if (me.role === 'admin') {
+      const back = returnPathAfterLogin(location.state, me.role, me.has_profile, me.mode);
+      if (back !== null) {
+        navigate(back, { replace: true });
+      } else if (me.role === 'admin') {
         navigate('/admin/kb');
       } else if (!me.has_profile) {
         navigate('/onboarding');

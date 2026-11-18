@@ -131,3 +131,17 @@ async def test_C5_autofill_nonexistent_doctor(_clean_database: None) -> None:
     resp = await client.post("/admin/slots/autofill", json={"doctor_id": 99999})
     assert resp.status_code == 404
     await client.aclose()
+
+
+@pytest.mark.anyio()
+async def test_C5_autofill_reports_created_and_skipped_counts(_clean_database: None) -> None:
+    app = _make_app(datetime(2026, 12, 31, 0, 0, tzinfo=UTC), _clean_database)
+    client = await _make_admin_client(app)
+    doctor_id = await _setup_doctor(client)
+    await client.post("/admin/slots", json={"doctor_id": doctor_id, "start_at": "2026-12-31T09:00:00Z"})
+    await client.post("/admin/slots", json={"doctor_id": doctor_id, "start_at": "2026-12-31T10:00:00Z"})
+
+    resp = await client.post("/admin/slots/autofill", json={"doctor_id": doctor_id})
+
+    assert resp.json() == {"created": 6, "skipped": 2, "message": "Created 6 slots, skipped 2 existing."}
+    await client.aclose()
