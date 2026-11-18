@@ -43,7 +43,7 @@ flowchart LR
 | `src/components/chat/` | sidebar, cards, Markdown renderer |
 | `e2e/` | Playwright specs against mocked APIs |
 | `e2e-stack/` | Playwright specs against the full Docker stack |
-| `nginx*.conf*` | dev and production nginx configs |
+| `nginx.conf` | the nginx config (development and production; Caddy adds HTTPS in front in production) |
 
 ## Sample
 
@@ -88,4 +88,4 @@ npm test             # Vitest
 npx playwright test e2e/chat.spec.ts e2e/kb.spec.ts e2e/admin.spec.ts
 ```
 
-The mocked Playwright specs start Vite on port 3000. Grafana uses the same port, so while the Docker stack is up run them (or `make check`) with another port, for example `E2E_PORT=3917`.
+The mocked Playwright specs start Vite on port 5199 (set `E2E_PORT` to change it). The stack-backed specs in `e2e-stack/` run with `make e2e`.

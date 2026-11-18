@@ -14,7 +14,7 @@ Companion files: `schema.dbml` (tables; its A-items are migration notes), `rules
 - Admins use one account for both panels and can toggle between them (B5).
 - Auth: server-side session in an HTTP-only cookie (B10, B11). Contracts in `api.md`.
 - Time: everything is UTC and the UI says so (C8). No time zone conversion anywhere.
-- Frontend stack: Vite, TypeScript, React Router, TanStack Query, Tailwind with shadcn/ui. The chat stream is read with fetch (it is a POST), not EventSource.
+- Frontend stack: Vite, TypeScript, React Router, TanStack Query, Tailwind with the app's own component classes (`btn`, `input`, `card`, `badge`, ... in `frontend/src/index.css`). The chat stream is read with fetch (it is a POST), not EventSource.
 - Language: English only. Assistant text renders as Markdown with raw HTML disabled (F17). Branding: the product is "Health Insurance Chatbot" with a text logo (a chat-bubble mark); colors follow the system light or dark setting, and every page has a toggle to pin light, dark or system: in the header on signed-in pages, and in the top-right corner on login, signup and onboarding. The palette is an indigo accent (#2C4BD0 light, #8FA3FF dark) on cool neutrals (#F4F6FA / #0D1119 page, #FFFFFF / #151B27 cards), with soft 1px dividers, 10px control and 14px card radii, and soft shadows. Tokens live in `frontend/src/index.css`.
 - The chatbot is the primary way to do everything (book, cancel, complain, ask). The drawer is a convenience.
 - Out of scope for v1: password reset, profile editing, user replies in complaints, deleting chats, Excel upload, notifications.
@@ -441,7 +441,7 @@ Tabs: Locations, Specialties, Clinics, Doctors. Each tab is a table with a `[+ A
 - Delete fails if anything below has visit history: friendly message "Can't delete: it has visit history." (A5).
 - Names are unique per table; duplicate -> inline error (A4).
 - v1: add and delete only. Renames are done in the DB.
-- Calls: GET/POST/DELETE /admin/locations, /admin/specialties, /admin/clinics, /admin/doctors; PUT /admin/clinics/:id/specialties
+- Calls: GET/POST/DELETE /admin/locations, /admin/specialties, /admin/clinics, /admin/doctors; GET /admin/{kind}/:id/cascade before each delete; PUT /admin/clinics/:id/specialties
 
 ### AP3. Slots (/admin/slots)
 
@@ -462,7 +462,7 @@ Tabs: Locations, Specialties, Clinics, Doctors. Each tab is a table with a `[+ A
 - `[ Add slot ]`: dialog with date and hour (09 to 16 only). Duplicate -> error (C3).
 - Remove: only free slots (C4). Booked slot -> "Cancel the visit first."
 - `[ Auto-fill to end of month ]`: confirm dialog ("Create all missing slots for Dr. Sara from now to 30 Nov?"), then a result message "Created 120 slots, skipped 16 existing." (C5). Safe to run twice. If nothing is missing it says "Nothing to create." Current month only, even on the last day; run it again on the 1st.
-- Calls: GET /admin/doctors/:id/slots?month=, POST /admin/doctors/:id/slots, DELETE /admin/slots/:id, POST /admin/doctors/:id/slots/autofill
+- Calls: GET /admin/clinics and GET /admin/doctors for the filters, GET /admin/slots?doctor_id&year&month, POST /admin/slots, DELETE /admin/slots/:id, POST /admin/slots/autofill
 
 ### AP4. Visits (/admin/visits)
 
@@ -479,7 +479,8 @@ Tabs: Locations, Specialties, Clinics, Doctors. Each tab is a table with a `[+ A
 - All visits of all patients. Default filter: Scheduled. Sort by date.
 - `[Mark completed]` only on Scheduled, with a confirm dialog (D3). Cancelled and Completed are final; admins cannot cancel.
 - Patient = `profile.name`. Other columns derived by joins (D4).
-- Calls: GET /admin/visits, POST /admin/visits/:id/complete
+- A booked slot chip in AP3 opens /admin/visits?visit=<id>, which shows only that visit (any status) with a button to show all again.
+- Calls: GET /admin/visits?status&patient&visit_id, POST /admin/visits/:id/complete
 
 ### AP5. Complaints (/admin/complaints)
 
@@ -507,7 +508,7 @@ Tabs: Locations, Specialties, Clinics, Doctors. Each tab is a table with a `[+ A
 - A reply does not change status (E4). Closing is separate: the checkbox on send, or `[ Close complaint ]` on its own.
 - Closed complaints: reply box disabled with "Closed complaints can't receive replies." (E5)
 - Replies show the admin username and date. Users see them as "Support team".
-- Calls: GET /admin/complaints, GET /admin/complaints/:id, POST /admin/complaints/:id/replies {body, close?}, POST /admin/complaints/:id/close
+- Calls: GET /admin/complaints, GET /admin/complaints/:id, POST /admin/complaints/:id/reply {body, close?}, POST /admin/complaints/:id/close
 
 ---
 
@@ -515,7 +516,7 @@ Tabs: Locations, Specialties, Clinics, Doctors. Each tab is a table with a `[+ A
 
 - Loading: skeleton rows for tables, spinner on buttons that call the backend.
 - Empty: every list has a one-line empty state with the next action ("No documents yet. Upload one above.").
-- Errors: toast for failed actions; inline messages for forms.
+- Errors: inline messages for forms and controls; a failed confirmed action shows its message in the confirm dialog (section 7, Row actions). No toasts and no `alert()`.
 - Session expired (401): redirect to /login, then back to the previous route.
 - Destructive actions (delete, mark completed, cancel visit, auto-fill) use a confirm dialog.
 - Times: always UTC (C8). Cards, drawer items and table cells carry the suffix "UTC", and a note under the chat input says "All times are UTC." Slot hours are always on the hour.
@@ -539,11 +540,12 @@ Decided:
 12. Case-insensitive uniqueness on usernames, location names and specialty names (A4). Login is case-insensitive.
 13. AI design is in `ai.md`: router plus agents with per-turn routing (I1 to I4), OpenAI-style providers per role (I11), no semantic cache (I10), no runtime self-evaluation (I9), an eval module in the AI package.
 
+14. Branding: section 1 (Gate 3, restyled after phase 8).
+15. Deployment: one VM behind Caddy with Let's Encrypt; size, domain and steps in `docs/deployment.md` (Gate 3).
+16. Seed data: `scripts/seed.py` (3 locations, 5 specialties, clinics, doctors, two sample members, slots by auto-fill).
+
 Still open:
-- Branding (later).
-- Deployment specifics: instance size, domain or subdomain, SSL.
-- Seed script design (later, with Claude Code).
-- AI open items are listed in `ai.md` (reranker provider, model names, eval datasets and fixtures).
+- AI open items are listed in `ai.md` (reranker provider, larger eval datasets and fixtures).
 
 ---
 

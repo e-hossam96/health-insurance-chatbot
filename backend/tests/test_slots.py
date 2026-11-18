@@ -214,3 +214,51 @@ async def test_month_view_lists_slots(admin_client: AsyncClient) -> None:
     slots = resp.json()
     assert len(slots) == 2
     assert all(s["doctor_id"] == doctor_id for s in slots)
+
+
+@pytest.mark.anyio()
+async def test_C4_booked_slot_removal_says_to_cancel_the_visit_first(
+    admin_client: AsyncClient, db_engine: Engine
+) -> None:
+    doctor_id, _ = await _setup_doctor(admin_client)
+    slot_id = (
+        await admin_client.post("/admin/slots", json={"doctor_id": doctor_id, "start_at": "2026-12-01T10:00:00Z"})
+    ).json()["id"]
+    with db_engine.connect() as conn:
+        conn.execute(text("UPDATE slot SET status = 'booked' WHERE id = :s"), {"s": slot_id})
+        conn.commit()
+
+    resp = await admin_client.delete(f"/admin/slots/{slot_id}")
+
+    assert resp.json()["detail"]["error"]["message"] == "This slot is booked. Cancel the visit first."
+
+
+@pytest.mark.anyio()
+async def test_month_view_links_booked_slots_to_their_active_visit(
+    admin_client: AsyncClient, db_engine: Engine
+) -> None:
+    doctor_id, _ = await _setup_doctor(admin_client)
+    free_id = (
+        await admin_client.post("/admin/slots", json={"doctor_id": doctor_id, "start_at": "2026-12-01T09:00:00Z"})
+    ).json()["id"]
+    booked_id = (
+        await admin_client.post("/admin/slots", json={"doctor_id": doctor_id, "start_at": "2026-12-01T10:00:00Z"})
+    ).json()["id"]
+    with db_engine.connect() as conn:
+        profile_id = conn.execute(text("SELECT id FROM profile LIMIT 1")).scalar_one()
+        conn.execute(
+            text("INSERT INTO visit (profile_id, slot_id, status) VALUES (:p, :s, 'cancelled')"),
+            {"p": profile_id, "s": booked_id},
+        )
+        active_id = conn.execute(
+            text("INSERT INTO visit (profile_id, slot_id, status) VALUES (:p, :s, 'scheduled') RETURNING id"),
+            {"p": profile_id, "s": booked_id},
+        ).scalar_one()
+        conn.execute(text("UPDATE slot SET status = 'booked' WHERE id = :s"), {"s": booked_id})
+        conn.commit()
+
+    slots = (
+        await admin_client.get("/admin/slots", params={"doctor_id": doctor_id, "year": 2026, "month": 12})
+    ).json()
+
+    assert [(s["id"], s["visit_id"]) for s in slots] == [(free_id, None), (booked_id, active_id)]

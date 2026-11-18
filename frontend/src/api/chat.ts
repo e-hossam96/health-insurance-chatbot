@@ -1,4 +1,4 @@
-import type { ApiError } from './client';
+import { type ApiError, reportUnauthorized } from './client';
 
 const BASE = '/api';
 
@@ -60,7 +60,10 @@ export class ChatRequestError extends Error {
 
 export async function getSessions(): Promise<ChatSession[]> {
   const res = await fetch(`${BASE}/me/sessions`, { credentials: 'include' });
-  if (!res.ok) throw new Error('Failed to load sessions');
+  if (!res.ok) {
+    reportUnauthorized(res.status, '/me/sessions');
+    throw new Error('Failed to load sessions');
+  }
   return res.json() as Promise<ChatSession[]>;
 }
 
@@ -68,7 +71,10 @@ export async function getMessages(sessionId: number): Promise<ChatMessage[]> {
   const res = await fetch(`${BASE}/me/sessions/${sessionId}/messages`, {
     credentials: 'include',
   });
-  if (!res.ok) throw new Error('Failed to load messages');
+  if (!res.ok) {
+    reportUnauthorized(res.status, '/me/sessions');
+    throw new Error('Failed to load messages');
+  }
   return res.json() as Promise<ChatMessage[]>;
 }
 
@@ -155,6 +161,7 @@ export async function streamChat(
   });
 
   if (!res.ok) {
+    reportUnauthorized(res.status, '/me/chat');
     const err = (await res.json().catch(() => null)) as { detail?: ApiError } | null;
     const detail = err?.detail?.error;
     throw new ChatRequestError(

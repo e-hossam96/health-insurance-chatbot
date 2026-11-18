@@ -1,5 +1,17 @@
 const BASE = '/api';
 
+const unauthorizedListeners = new Set<() => void>();
+
+export function onUnauthorized(listener: () => void): () => void {
+  unauthorizedListeners.add(listener);
+  return () => { unauthorizedListeners.delete(listener); };
+}
+
+export function reportUnauthorized(status: number, path: string): void {
+  if (status !== 401 || path.startsWith('/auth/')) return;
+  for (const listener of unauthorizedListeners) listener();
+}
+
 export type ApiError = {
   error: { code: string; message: string };
 };
@@ -14,6 +26,7 @@ export async function apiFetch<T>(
     ...options,
   });
   if (!res.ok) {
+    reportUnauthorized(res.status, path);
     const body = (await res.json()) as { detail: ApiError };
     throw { status: res.status, ...body.detail };
   }

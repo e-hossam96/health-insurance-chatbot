@@ -109,7 +109,7 @@ flowchart TB
 | Frontend | React, Vite, TypeScript (strict), React Router, TanStack Query, Tailwind CSS, served by nginx |
 | Backend | Python 3.14, FastAPI (built-in `fastapi.sse` for streaming), SQLAlchemy (async, asyncpg) + Alembic, Pydantic settings, argon2 password hashing, session cookies, one uvicorn worker |
 | AI | OpenAI Python SDK (Chat Completions and embeddings), one provider config per role, Docling (PDF and DOCX parsing), fastembed BM25 sparse vectors, Langfuse tracing |
-| Data | PostgreSQL 17, Qdrant 1.13 |
+| Data | PostgreSQL 18, Qdrant 1.20 |
 | Observability | Prometheus 3, Grafana 13, postgres-exporter |
 | Tooling | uv workspace (one lockfile), npm, ruff, mypy `--strict`, oxlint, tsc, pytest + httpx, Vitest + Testing Library, Playwright |
 | Delivery | Docker Compose, Caddy (automatic Let's Encrypt HTTPS), GitHub Actions CI |
@@ -150,9 +150,9 @@ Compose files:
 │   └── tests/
 ├── packages/chatbot_ai/     AI package: router, agents, RAG, ingestion, evals
 │   └── src/chatbot_ai/evals/kb_fixtures/   synthetic policy documents for demos
-├── frontend/                React app, nginx configs, Vitest and Playwright specs
+├── frontend/                React app, nginx config, Vitest and Playwright specs
 ├── observability/           prometheus.yml, Grafana provisioning and dashboards
-├── scripts/                 create_admin, seed, certificate, smoke and coverage tools
+├── scripts/                 create_admin, seed, smoke, eval-fixture and coverage tools
 ├── testkit/                 fake OpenAI-compatible server used by tests
 ├── tests/                   cross-cutting tests and rule coverage
 ├── docs/
@@ -194,11 +194,13 @@ Each role is `CHAT`, `ROUTER`, `REWRITE`, `EMBEDDING`, `RERANK` or `JUDGE`.
 | `AI_<ROLE>_BASE_URL` | `https://api.openai.com/v1` | any OpenAI-compatible endpoint |
 | `AI_<ROLE>_API_KEY` | falls back to `OPENAI_API_KEY` | per-role key |
 | `AI_<ROLE>_REASONING_EFFORT` | unset | chat, router, rewrite and judge |
+| `AI_<ROLE>_OUTPUT_TOKEN_PARAM` | `max_completion_tokens` | chat, router, rewrite and judge; `max_tokens` for servers that only know the older name |
+| `OPENAI_BASE_URL` | – | not read by the code; `.env.example` uses it as `${OPENAI_BASE_URL}` in every role's base URL |
 | `AI_EMBEDDING_DIMENSIONS` | – | required; must match the embedding model (1536 for `text-embedding-3-small`) |
 | `AI_RERANK_PROVIDER` | `none` | the reranker is a placeholder in v0.1.0 |
 | `AI_RERANK_MIN_SCORE` | unset | below this score the assistant replies that it couldn't find the answer |
 
-Retrieval and limits can be tuned too (`AI_QUERY_COUNT`, `AI_RETRIEVAL_MODE`, `AI_PREFETCH_K`, `AI_FUSED_K`, `AI_CONTEXT_K`, `AI_CHUNK_MAX_TOKENS`, `AI_MAX_TOOL_ROUNDS`, `AI_CHAT_MAX_OUTPUT_TOKENS`, `AI_TIMEOUT_S`, `AI_MAX_RETRIES`, `INGEST_TIMEOUT_S`). Their defaults are in [`packages/chatbot_ai/src/chatbot_ai/settings.py`](packages/chatbot_ai/src/chatbot_ai/settings.py).
+Retrieval and limits can be tuned too (`AI_QUERY_COUNT`, `AI_RETRIEVAL_MODE`, `AI_PREFETCH_K`, `AI_FUSED_K`, `AI_CONTEXT_K`, `AI_CHUNK_MAX_TOKENS`, `AI_EMBED_BATCH`, `AI_EMBEDDING_QUERY_PREFIX`, `AI_EMBEDDING_DOC_PREFIX`, `AI_MAX_TOOL_ROUNDS`, `AI_ROUTER_HISTORY_ROWS`, `AI_CHAT_MAX_OUTPUT_TOKENS`, `AI_ROUTER_MAX_OUTPUT_TOKENS`, `AI_REWRITE_MAX_OUTPUT_TOKENS`, `AI_TIMEOUT_S`, `AI_MAX_RETRIES`, `INGEST_TIMEOUT_S`, and `AI_QDRANT_COLLECTION`, which overrides the derived collection name and is used by the eval runs). Their defaults are in [`packages/chatbot_ai/src/chatbot_ai/settings.py`](packages/chatbot_ai/src/chatbot_ai/settings.py).
 
 ### Application
 
@@ -216,7 +218,7 @@ Retrieval and limits can be tuned too (`AI_QUERY_COUNT`, `AI_RETRIEVAL_MODE`, `A
 
 | Variable | Notes |
 |---|---|
-| `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST` | tracing turns on when all three are set. Each chat turn is one trace with session id `chat-<session id>` |
+| `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST` | tracing turns on when both keys are set; `LANGFUSE_HOST` is optional (the SDK default is Langfuse Cloud). Each chat turn is one trace with session id `chat-<session id>` |
 
 ### Production
 
@@ -272,7 +274,7 @@ Answers are canned, but booking, cards, streaming, ingestion and the dashboards 
 
 Run Postgres and Qdrant in Docker and the backend and frontend on the host for hot reload.
 
-Requirements: [uv](https://docs.astral.sh/uv/) (it installs Python 3.14), Node.js 22, Docker, and `make` with bash (on Windows use Git Bash or WSL).
+Requirements: [uv](https://docs.astral.sh/uv/) (it installs Python 3.14), Node.js 26, Docker, and `make` with bash (on Windows use Git Bash or WSL).
 
 ```bash
 uv sync --all-packages
@@ -294,11 +296,11 @@ Frontend on http://localhost:5173 (Vite proxies `/api` to port 8000):
 cd frontend && npm run dev
 ```
 
-Create the admin and seed data from the host with the same scripts:
+Create the admin and seed data from the host with the same scripts (they read the `POSTGRES_*` variables from `.env`):
 
 ```bash
-uv run python scripts/create_admin.py --database-url "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot" --username admin1 --password <password> --name "Admin One" --location Cairo
-uv run python scripts/seed.py --database-url "postgresql+asyncpg://chatbot:chatbot@localhost:5432/chatbot"
+uv run python scripts/create_admin.py --username admin1 --password <password> --name "Admin One" --location Cairo
+uv run python scripts/seed.py
 ```
 
 New migration after a model change:
@@ -364,7 +366,7 @@ In production only Caddy is published. Postgres and Qdrant are not published on 
 ## Observability
 
 - **Grafana** at http://localhost:3000 (user `admin`, password `GRAFANA_ADMIN_PASSWORD`) with four provisioned dashboards: **Demo overview**, **Chat and LLM**, **API health** and **KB ingestion**.
-- **Prometheus** at http://localhost:9090 scrapes the backend and the Postgres exporter.
+- **Prometheus** at http://localhost:9090 scrapes the backend, Qdrant and the Postgres exporter every 15 s.
 - Both listen on 127.0.0.1 only. From another machine use an SSH tunnel:
 
   ```bash

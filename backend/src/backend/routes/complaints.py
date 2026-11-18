@@ -15,7 +15,7 @@ from backend.card_messages import (
 from backend.deps import CurrentSession, Db, RequireUserMode
 from backend.errors import api_error, not_found
 from backend.metrics import card_action
-from backend.models import Complaint, ComplaintReply, Visit, VisitStatus
+from backend.models import Complaint, ComplaintReply, Doctor, Slot, Visit, VisitStatus
 from backend.ownership import require_owned_chat_session, require_profile
 
 router = APIRouter(prefix="/me", tags=["complaints"])
@@ -42,6 +42,7 @@ class FileComplaintResponse(BaseModel):
 class ReplyItem(BaseModel):
     id: int
     body: str
+    created_at: str
 
 
 class ComplaintListItem(BaseModel):
@@ -49,6 +50,9 @@ class ComplaintListItem(BaseModel):
     visit_id: int
     description: str
     status: str
+    created_at: str
+    visit_start_at: str
+    doctor_name: str
     replies: list[ReplyItem]
 
 
@@ -110,30 +114,35 @@ async def list_my_complaints(
     profile = await require_profile(db, session.account_id)
 
     complaints = list(
-        (
-            await db.execute(
-                select(Complaint)
-                .join(Visit, Complaint.visit_id == Visit.id)
-                .where(Visit.profile_id == profile.id)
-                .order_by(Complaint.created_at.desc())
-            )
-        ).scalars()
+        await db.execute(
+            select(Complaint, Slot.start_at, Doctor.name)
+            .join(Visit, Complaint.visit_id == Visit.id)
+            .join(Slot, Slot.id == Visit.slot_id)
+            .join(Doctor, Doctor.id == Slot.doctor_id)
+            .where(Visit.profile_id == profile.id)
+            .order_by(Complaint.created_at.desc(), Complaint.id.desc())
+        )
     )
     replies = await db.execute(
         select(ComplaintReply)
-        .where(ComplaintReply.complaint_id.in_([c.id for c in complaints]))
+        .where(ComplaintReply.complaint_id.in_([complaint.id for complaint, _, _ in complaints]))
         .order_by(ComplaintReply.created_at)
     )
     replies_by_complaint: dict[int, list[ReplyItem]] = {}
     for reply in replies.scalars():
-        replies_by_complaint.setdefault(reply.complaint_id, []).append(ReplyItem(id=reply.id, body=reply.body))
+        replies_by_complaint.setdefault(reply.complaint_id, []).append(
+            ReplyItem(id=reply.id, body=reply.body, created_at=reply.created_at.isoformat())
+        )
     return [
         ComplaintListItem(
-            id=c.id,
-            visit_id=c.visit_id,
-            description=c.description,
-            status=c.status.value,
-            replies=replies_by_complaint.get(c.id, []),
+            id=complaint.id,
+            visit_id=complaint.visit_id,
+            description=complaint.description,
+            status=complaint.status.value,
+            created_at=complaint.created_at.isoformat(),
+            visit_start_at=start_at.isoformat(),
+            doctor_name=doctor_name,
+            replies=replies_by_complaint.get(complaint.id, []),
         )
-        for c in complaints
+        for complaint, start_at, doctor_name in complaints
     ]

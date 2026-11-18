@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { formatUtc } from '../api/chat';
+import { formatUtcDay } from '../api/kb';
 import { CloseIcon } from './icons';
 import { useConfirm } from './ConfirmDialog';
 import { type VisitItem, type ComplaintItem, getMyVisits, getMyComplaints, cancelVisit } from '../api/visits';
@@ -112,18 +113,23 @@ export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => 
               {complaints.map((c) => (
                 <div key={c.id} className="mb-3 rounded-card border border-line bg-surface p-4">
                   <div className="flex justify-between items-start mb-1">
-                    <p className="text-sm font-semibold">Visit #{c.visit_id}</p>
+                    <p className="text-sm font-semibold" data-testid="complaint-visit">
+                      Visit {formatUtcDay(c.visit_start_at)} - {c.doctor_name}
+                    </p>
                     {statusBadge(c.status)}
                   </div>
+                  <p className="mb-1 text-xs text-muted" data-testid="complaint-filed">Filed {formatUtcDay(c.created_at)}</p>
                   <p className="text-sm">{c.description}</p>
-                  {c.replies.length > 0 && (
+                  {c.replies.length > 0 ? (
                     <div className="mt-3 border-l-2 border-accent-soft pl-3">
                       {c.replies.map((r) => (
-                        <p key={r.id} className="mb-1 text-xs text-muted">
-                          <span className="font-semibold text-fg">Support team:</span> {r.body}
+                        <p key={r.id} className="mb-1 text-xs text-muted" data-testid="complaint-reply">
+                          <span className="font-semibold text-fg">Reply ({formatUtc(r.created_at)}, Support team):</span> {r.body}
                         </p>
                       ))}
                     </div>
+                  ) : (
+                    <p className="mt-3 text-xs text-muted" data-testid="complaint-no-reply">No reply yet</p>
                   )}
                 </div>
               ))}

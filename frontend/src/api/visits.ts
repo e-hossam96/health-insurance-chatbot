@@ -14,6 +14,7 @@ export type VisitItem = {
 export type ReplyItem = {
   id: number;
   body: string;
+  created_at: string;
 };
 
 export type ComplaintItem = {
@@ -21,6 +22,9 @@ export type ComplaintItem = {
   visit_id: number;
   description: string;
   status: string;
+  created_at: string;
+  visit_start_at: string;
+  doctor_name: string;
   replies: ReplyItem[];
 };
 

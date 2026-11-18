@@ -2,13 +2,47 @@ import { apiFetch } from './client';
 
 // --- Types ---
 
-export type Location = { id: number; name: string };
+export type Location = { id: number; name: string; clinic_count: number };
 export type Specialty = { id: number; name: string };
-export type Clinic = { id: number; name: string; location_id: number };
+export type NamedItem = { id: number; name: string };
+export type ClinicSpecialtyName = { id: number; name: string; clinic_specialty_id: number };
+export type Clinic = { id: number; name: string; location_id: number; location_name: string; specialties: ClinicSpecialtyName[] };
 export type ClinicSpecialty = { id: number; clinic_id: number; specialty_id: number };
-export type Doctor = { id: number; name: string; clinic_specialty_id: number };
-export type Slot = { id: number; doctor_id: number; start_at: string; status: string };
-export type AutofillResult = { created: number; message: string };
+export type Doctor = {
+  id: number;
+  name: string;
+  clinic_specialty_id: number;
+  clinic_id: number;
+  clinic_name: string;
+  specialty_id: number;
+  specialty_name: string;
+};
+export type Slot = { id: number; doctor_id: number; start_at: string; status: string; visit_id: number | null };
+export type AutofillResult = { created: number; skipped: number; message: string };
+export type CascadeKind = 'locations' | 'specialties' | 'clinics' | 'doctors';
+export type CascadePreview = { cascade: Record<string, number>; blocked: string | null };
+export type DeleteResult = { deleted: boolean; cascade?: Record<string, number> };
+
+const CASCADE_ORDER = ['clinics', 'specialties', 'doctors', 'slots'] as const;
+const CASCADE_LABELS: Record<string, [string, string]> = {
+  clinics: ['clinic', 'clinics'],
+  specialties: ['specialty link', 'specialty links'],
+  doctors: ['doctor', 'doctors'],
+  slots: ['slot', 'slots'],
+};
+
+export function describeCascade(cascade: Record<string, number>): string {
+  const parts = CASCADE_ORDER.filter((key) => (cascade[key] ?? 0) > 0).map((key) => {
+    const count = cascade[key] ?? 0;
+    const [one, many] = CASCADE_LABELS[key] ?? [key, key];
+    return `${count} ${count === 1 ? one : many}`;
+  });
+  return parts.length === 0 ? 'Nothing else is deleted.' : `Also deletes ${parts.join(', ')}.`;
+}
+
+export function getCascadePreview(kind: CascadeKind, id: number): Promise<CascadePreview> {
+  return apiFetch(`/admin/${kind}/${id}/cascade`);
+}
 
 // --- Locations ---
 
@@ -16,14 +50,14 @@ export function getLocations(): Promise<Location[]> {
   return apiFetch('/admin/locations');
 }
 
-export function createLocation(name: string): Promise<Location> {
+export function createLocation(name: string): Promise<NamedItem> {
   return apiFetch('/admin/locations', {
     method: 'POST',
     body: JSON.stringify({ name }),
   });
 }
 
-export function deleteLocation(id: number): Promise<{ deleted: boolean; cascade: { clinics: number } }> {
+export function deleteLocation(id: number): Promise<DeleteResult> {
   return apiFetch(`/admin/locations/${id}`, { method: 'DELETE' });
 }
 
@@ -40,7 +74,7 @@ export function createSpecialty(name: string): Promise<Specialty> {
   });
 }
 
-export function deleteSpecialty(id: number): Promise<{ deleted: boolean }> {
+export function deleteSpecialty(id: number): Promise<DeleteResult> {
   return apiFetch(`/admin/specialties/${id}`, { method: 'DELETE' });
 }
 
@@ -50,14 +84,14 @@ export function getClinics(): Promise<Clinic[]> {
   return apiFetch('/admin/clinics');
 }
 
-export function createClinic(name: string, location_id: number): Promise<Clinic> {
+export function createClinic(name: string, location_id: number): Promise<{ id: number; name: string; location_id: number }> {
   return apiFetch('/admin/clinics', {
     method: 'POST',
     body: JSON.stringify({ name, location_id }),
   });
 }
 
-export function deleteClinic(id: number): Promise<{ deleted: boolean; cascade: { specialties: number; doctors: number } }> {
+export function deleteClinic(id: number): Promise<DeleteResult> {
   return apiFetch(`/admin/clinics/${id}`, { method: 'DELETE' });
 }
 
@@ -77,14 +111,14 @@ export function getDoctors(): Promise<Doctor[]> {
   return apiFetch('/admin/doctors');
 }
 
-export function createDoctor(name: string, clinic_specialty_id: number): Promise<Doctor> {
+export function createDoctor(name: string, clinic_specialty_id: number): Promise<{ id: number; name: string; clinic_specialty_id: number }> {
   return apiFetch('/admin/doctors', {
     method: 'POST',
     body: JSON.stringify({ name, clinic_specialty_id }),
   });
 }
 
-export function deleteDoctor(id: number): Promise<{ deleted: boolean; cascade: { slots: number } }> {
+export function deleteDoctor(id: number): Promise<DeleteResult> {
   return apiFetch(`/admin/doctors/${id}`, { method: 'DELETE' });
 }
 
@@ -114,14 +148,28 @@ export function autofillSlots(doctorId: number): Promise<AutofillResult> {
 
 // --- Admin Visits ---
 
-export type AdminVisit = { id: number; profile_id: number; slot_id: number; status: string };
+export type AdminVisit = {
+  id: number;
+  profile_id: number;
+  slot_id: number;
+  status: string;
+  patient_name: string;
+  location: string;
+  clinic: string;
+  specialty: string;
+  doctor_name: string;
+  start_at: string;
+};
 export type AdminVisitList = { items: AdminVisit[]; total: number };
+export type AdminVisitQuery = { limit?: number; offset?: number; status?: string; patient?: string; visitId?: number };
 
-export function getAdminVisits(params: { limit?: number; offset?: number; status?: string } = {}): Promise<AdminVisitList> {
+export function getAdminVisits(params: AdminVisitQuery = {}): Promise<AdminVisitList> {
   const search = new URLSearchParams();
   if (params.limit) search.set('limit', String(params.limit));
   if (params.offset) search.set('offset', String(params.offset));
   if (params.status) search.set('status', params.status);
+  if (params.patient) search.set('patient', params.patient);
+  if (params.visitId !== undefined) search.set('visit_id', String(params.visitId));
   return apiFetch(`/admin/visits?${search.toString()}`);
 }
 
@@ -131,8 +179,30 @@ export function completeVisit(visitId: number): Promise<{ id: number; status: st
 
 // --- Admin Complaints ---
 
-export type AdminComplaint = { id: number; visit_id: number; description: string; status: string };
+export type AdminComplaint = {
+  id: number;
+  visit_id: number;
+  description: string;
+  status: string;
+  created_at: string;
+  patient_name: string;
+  reply_count: number;
+};
 export type AdminComplaintList = { items: AdminComplaint[]; total: number };
+export type AdminComplaintReply = { id: number; body: string; created_at: string; admin_username: string };
+export type AdminComplaintDetail = {
+  id: number;
+  description: string;
+  status: string;
+  created_at: string;
+  patient_name: string;
+  visit: { id: number; start_at: string; doctor_name: string; specialty: string; clinic: string; location: string };
+  replies: AdminComplaintReply[];
+};
+
+export function getAdminComplaint(complaintId: number): Promise<AdminComplaintDetail> {
+  return apiFetch(`/admin/complaints/${complaintId}`);
+}
 
 export function getAdminComplaints(params: { limit?: number; offset?: number; status?: string } = {}): Promise<AdminComplaintList> {
   const search = new URLSearchParams();
@@ -142,10 +212,14 @@ export function getAdminComplaints(params: { limit?: number; offset?: number; st
   return apiFetch(`/admin/complaints?${search.toString()}`);
 }
 
-export function replyToComplaint(complaintId: number, body: string): Promise<{ id: number; body: string }> {
+export function replyToComplaint(
+  complaintId: number,
+  body: string,
+  close = false,
+): Promise<{ id: number; body: string; complaint_status: string }> {
   return apiFetch(`/admin/complaints/${complaintId}/reply`, {
     method: 'POST',
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({ body, close }),
   });
 }
 

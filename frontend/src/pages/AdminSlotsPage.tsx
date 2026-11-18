@@ -1,4 +1,5 @@
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { Dialog } from '../components/Dialog';
 import { useConfirm } from '../components/ConfirmDialog';
 import { errorMessage } from '../api/client';
@@ -7,22 +8,37 @@ import * as api from '../api/admin';
 
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16];
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
 function daysInMonth(year: number, month: number): number {
-  return new Date(year, month, 0).getDate();
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
 function formatDay(year: number, month: number, day: number): string {
-  const d = new Date(year, month - 1, day);
-  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
-  return `${weekday} ${day}`;
+  return `${WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()]} ${day}`;
+}
+
+function endOfCurrentMonthLabel(now: Date): string {
+  const last = daysInMonth(now.getUTCFullYear(), now.getUTCMonth() + 1);
+  return `${last} ${MONTH_NAMES[now.getUTCMonth()]?.slice(0, 3) ?? ''}`;
+}
+
+function uniqueById<T extends { id: number }>(items: T[]): T[] {
+  return [...new Map(items.map((item) => [item.id, item])).values()];
 }
 
 export function AdminSlotsPage(): ReactNode {
   const [doctors, setDoctors] = useState<api.Doctor[]>([]);
+  const [clinics, setClinics] = useState<api.Clinic[]>([]);
+  const [locationFilter, setLocationFilter] = useState<number | ''>('');
+  const [clinicFilter, setClinicFilter] = useState<number | ''>('');
+  const [specialtyFilter, setSpecialtyFilter] = useState<number | ''>('');
   const [doctorId, setDoctorId] = useState<number | ''>('');
-  const [year, setYear] = useState(() => new Date().getFullYear());
-  const [month, setMonth] = useState(() => new Date().getMonth() + 1);
+  const [year, setYear] = useState(() => new Date().getUTCFullYear());
+  const [month, setMonth] = useState(() => new Date().getUTCMonth() + 1);
   const [slots, setSlots] = useState<api.Slot[]>([]);
+  const [loadedAt, setLoadedAt] = useState(() => Date.now());
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [gridError, setGridError] = useState('');
@@ -35,13 +51,14 @@ export function AdminSlotsPage(): ReactNode {
 
   useEffect(() => {
     api.getDoctors().then(setDoctors).catch(() => {});
+    api.getClinics().then(setClinics).catch(() => {});
   }, []);
 
   const loadSlots = useCallback(() => {
     if (doctorId === '') return;
     setLoading(true);
     api.getSlots(doctorId, year, month)
-      .then(setSlots)
+      .then((data) => { setSlots(data); setLoadedAt(Date.now()); })
       .catch(() => setSlots([]))
       .finally(() => setLoading(false));
   }, [doctorId, year, month]);
@@ -57,14 +74,29 @@ export function AdminSlotsPage(): ReactNode {
     else setMonth((m) => m + 1);
   }
 
-  const monthName = new Date(year, month - 1).toLocaleString('en', { month: 'long' });
+  const monthName = MONTH_NAMES[month - 1] ?? '';
   const numDays = daysInMonth(year, month);
 
   const slotMap = new Map<string, api.Slot>();
   for (const s of slots) {
     const d = new Date(s.start_at);
-    const key = `${d.getUTCDate()}-${d.getUTCHours()}`;
-    slotMap.set(key, s);
+    if (d.getUTCFullYear() !== year || d.getUTCMonth() + 1 !== month) continue;
+    slotMap.set(`${d.getUTCDate()}-${d.getUTCHours()}`, s);
+  }
+
+  const clinicLocation = new Map(clinics.map((c) => [c.id, c.location_id]));
+  const locations = uniqueById(clinics.map((c) => ({ id: c.location_id, name: c.location_name })));
+  const clinicOptions = clinics.filter((c) => locationFilter === '' || c.location_id === locationFilter);
+  const doctorsInPlace = doctors.filter((d) =>
+    (locationFilter === '' || clinicLocation.get(d.clinic_id) === locationFilter) &&
+    (clinicFilter === '' || d.clinic_id === clinicFilter));
+  const specialtyOptions = uniqueById(doctorsInPlace.map((d) => ({ id: d.specialty_id, name: d.specialty_name })));
+  const doctorOptions = doctorsInPlace.filter((d) => specialtyFilter === '' || d.specialty_id === specialtyFilter);
+
+  function narrow(apply: () => void): void {
+    apply();
+    setDoctorId('');
+    setSlots([]);
   }
 
   async function handleAddSlot(e: FormEvent): Promise<void> {
@@ -97,7 +129,7 @@ export function AdminSlotsPage(): ReactNode {
     const doctorName = doctors.find((d) => d.id === selectedDoctor)?.name ?? 'this doctor';
     confirm({
       title: 'Auto-fill to end of month?',
-      message: `Create all missing slots for ${doctorName} from now to the end of this month. Existing slots are kept.`,
+      message: `Create all missing slots for ${doctorName} from now to ${endOfCurrentMonthLabel(new Date())}? Existing slots are kept.`,
       confirmLabel: 'Create slots',
       tone: 'primary',
       failureText: 'Auto-fill failed',
@@ -118,15 +150,40 @@ export function AdminSlotsPage(): ReactNode {
 
         <div className="card mb-4 flex flex-wrap items-end gap-4 p-4">
           <div>
-            <label className="field-label">Doctor</label>
+            <label className="field-label" htmlFor="slots-location">Location</label>
+            <select id="slots-location" className="input w-auto py-2 text-sm" value={locationFilter} data-testid="location-filter"
+              onChange={(e) => narrow(() => { setLocationFilter(e.target.value === '' ? '' : Number(e.target.value)); setClinicFilter(''); setSpecialtyFilter(''); })}>
+              <option value="">All locations</option>
+              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="field-label" htmlFor="slots-clinic">Clinic</label>
+            <select id="slots-clinic" className="input w-auto py-2 text-sm" value={clinicFilter} data-testid="clinic-filter"
+              onChange={(e) => narrow(() => { setClinicFilter(e.target.value === '' ? '' : Number(e.target.value)); setSpecialtyFilter(''); })}>
+              <option value="">All clinics</option>
+              {clinicOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="field-label" htmlFor="slots-specialty">Specialty</label>
+            <select id="slots-specialty" className="input w-auto py-2 text-sm" value={specialtyFilter} data-testid="specialty-filter"
+              onChange={(e) => narrow(() => setSpecialtyFilter(e.target.value === '' ? '' : Number(e.target.value)))}>
+              <option value="">All specialties</option>
+              {specialtyOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="field-label" htmlFor="slots-doctor">Doctor</label>
             <select
+              id="slots-doctor"
               className="input w-auto py-2 text-sm"
               value={doctorId}
-              onChange={(e) => setDoctorId(Number(e.target.value))}
+              onChange={(e) => setDoctorId(e.target.value === '' ? '' : Number(e.target.value))}
               data-testid="doctor-select"
             >
               <option value="">Select doctor</option>
-              {doctors.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              {doctorOptions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
 
@@ -163,7 +220,16 @@ export function AdminSlotsPage(): ReactNode {
                       const slot = slotMap.get(`${day}-${h}`);
                       if (!slot) return <td key={h} className="text-center! text-line-strong">—</td>;
                       if (slot.status === 'booked') {
-                        return <td key={h} className="text-center!"><span className="badge warn">booked</span></td>;
+                        return (
+                          <td key={h} className="text-center!">
+                            {slot.visit_id === null
+                              ? <span className="badge warn">booked</span>
+                              : <Link to={`/admin/visits?visit=${slot.visit_id}`} className="badge warn" title="Open the visit" data-testid="booked-slot-link">booked</Link>}
+                          </td>
+                        );
+                      }
+                      if (new Date(slot.start_at).getTime() <= loadedAt) {
+                        return <td key={h} className="text-center!"><span className="badge opacity-60" data-testid="past-slot">past</span></td>;
                       }
                       return (
                         <td key={h} className="text-center!">

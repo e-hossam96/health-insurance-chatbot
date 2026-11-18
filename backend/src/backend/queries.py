@@ -18,6 +18,6 @@ def join_doctor_catalog[*Columns](query: Select[*Columns]) -> Select[*Columns]:
 
 
 # Any: the counted statement may select any columns; only its rows are counted
-async def count_rows(db: AsyncSession, query: Select[Any]) -> int:
+async def count_rows(db: AsyncSession, query: Select[*tuple[Any, ...]]) -> int:
     result = await db.execute(select(func.count()).select_from(query.subquery()))
     return int(result.scalar_one())

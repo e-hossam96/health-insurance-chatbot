@@ -104,7 +104,7 @@ class RoleClients:
 
     def qdrant(self) -> AsyncQdrantClient:
         if self._qdrant is None:
-            self._qdrant = AsyncQdrantClient(url=self.settings.qdrant_url, check_compatibility=False)
+            self._qdrant = AsyncQdrantClient(url=self.settings.qdrant_url)
         return self._qdrant
 
     def get(self, role: Role) -> RoleClient:

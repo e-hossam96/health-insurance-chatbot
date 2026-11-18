@@ -6,7 +6,7 @@ Companion to `CLAUDE.md` (the working agreement), `rules.md`, `schema.dbml`, `wi
 
 ## How to read a step
 
-`N.M Title - what to build. Tests: what must be proven.` Rule IDs in a step or phase header are the rules in scope. Every in-scope rule needs at least one test whose name or docstring contains its ID (for example `test_D1_booking_is_atomic`), unless it is listed in `tests/rule_coverage_exemptions.md` with a reason.
+`N.M Title - what to build. Tests: what must be proven.` Rule IDs in a step or phase header are the rules in scope. Every in-scope rule needs at least one test whose name contains its ID (docstrings are not allowed, see `CLAUDE.md`) (for example `test_D1_booking_is_atomic`), unless it is listed in `tests/rule_coverage_exemptions.md` with a reason.
 
 ## Test conventions
 
@@ -27,7 +27,7 @@ Rules in scope: none (H3 and H4 are completed in phase 7).
 - **0.1 Workspace.** Scaffold with commands (`uv init`, `uv add`, `npm create vite@latest`), with no hand-written dependency files. uv workspace root, `backend/`, `packages/chatbot_ai/`, `frontend/` (Vite, TypeScript), `observability/`, `scripts/`, lockfile. Tests: `uv sync` succeeds; smoke tests import the backend app and `chatbot_ai`; the frontend test runner runs one trivial test; type checks run in strict mode (a deliberate type error fails `make check`, verified once and reverted).
 - **0.2 Compose.** Services postgres, qdrant, backend, frontend (nginx serving the build and proxying the API, with `client_max_body_size` from G2 and SSE buffering off). Tests: a smoke script brings the stack up, `GET /health` returns 200 through the frontend proxy, the index page loads, then the stack goes down.
 - **0.3 Commands.** The Makefile (or equivalent) targets above; `make evals` prints "not available before phase 6". Tests: each target runs on a clean checkout.
-- **0.4 Rule coverage tool.** `scripts/rule_coverage.py` reads rule IDs from `rules.md` (B to I) and `schema.dbml` (A), scans test files for IDs, and reads `tests/rule_scope.yaml` (phase to rule IDs, created from this plan) and the exemptions file. It fails if a completed phase has an uncovered, non-exempt ID. Tests: unit tests on fixture files for covered, uncovered, exempt and unknown IDs.
+- **0.4 Rule coverage tool.** `scripts/rule_coverage.py` reads rule IDs from `rules.md` (B to I) and `schema.dbml` (A), scans test names in test files for IDs (Python `def test_*`, Vitest and Playwright `it`/`test` titles), and reads `tests/rule_scope.yaml` (phase to rule IDs, created from this plan) and the exemptions file. It fails if a completed phase has an uncovered, non-exempt ID. Tests: unit tests on fixture files for covered, uncovered, exempt and unknown IDs.
 - **0.5 Config.** One settings module, `.env.example` (git-ignored `.env`), required values fail clearly. Tests: defaults load; a missing required value raises a readable error.
 - **0.6 HTTP metrics.** Prometheus middleware with the route template as label, never the raw path, and `/metrics` mounted. Tests: call a route with a path parameter, scrape `/metrics`, assert the label is the template.
 - **0.7 CI workflow.** `.github/workflows/ci.yml`, triggered by pushes to `main` only, with Postgres and Qdrant services, running `make check` and the Compose smoke script. Later steps add Playwright (step 2.6) and any other new kind of test. Tests: `actionlint` passes; a test parses the workflow and asserts the only trigger is a push to `main` and that no job runs `make evals`.
