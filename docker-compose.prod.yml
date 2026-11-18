@@ -3,9 +3,9 @@ services:
     container_name: health-chatbot-caddy
     image: caddy:2.11.9-alpine
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - 80:80
+      - 443:443
+      - 443:443/udp
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN in .env}
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:?set LETSENCRYPT_EMAIL in .env}

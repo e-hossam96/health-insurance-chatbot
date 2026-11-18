@@ -9,11 +9,13 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chatbot}
       POSTGRES_DB: ${POSTGRES_DB:-chatbot}
     ports:
-      - "127.0.0.1:5432:5432"
+      - 127.0.0.1:5432:5432
     volumes:
       - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
       interval: 5s
       timeout: 3s
       retries: 5
@@ -25,11 +27,13 @@ services:
       - metrics
     image: qdrant/qdrant:v1.20.2
     ports:
-      - "127.0.0.1:6333:6333"
+      - 127.0.0.1:6333:6333
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
+      test:
+        - CMD-SHELL
+        - bash -c 'echo > /dev/tcp/localhost/6333'
       interval: 5s
       timeout: 3s
       retries: 10
@@ -52,7 +56,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-chatbot}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chatbot}
       POSTGRES_HOST: postgres
-      POSTGRES_PORT: "5432"
+      POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-chatbot}
       QDRANT_URL: http://qdrant:6333
       KB_STORAGE_DIR: /data/kb
@@ -64,7 +68,9 @@ services:
       qdrant:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      test:
+        - CMD-SHELL
+        - python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
       interval: 5s
       timeout: 5s
       retries: 10
@@ -79,7 +85,7 @@ services:
       context: frontend
       dockerfile: Dockerfile
     ports:
-      - "80:8080"
+      - 80:8080
     depends_on:
       backend:
         condition: service_healthy
@@ -97,12 +103,16 @@ services:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports:
-      - "127.0.0.1:9090:9090"
+      - 127.0.0.1:9090:9090
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      test:
+        - CMD
+        - wget
+        - -qO-
+        - http://localhost:9090/-/ready
       interval: 5s
       timeout: 3s
       retries: 20
@@ -129,19 +139,23 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_AUTH_ANONYMOUS_ENABLED: false
     volumes:
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
     ports:
-      - "127.0.0.1:3000:3000"
+      - 127.0.0.1:3000:3000
     depends_on:
       prometheus:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      test:
+        - CMD
+        - wget
+        - -qO-
+        - http://localhost:3000/api/health
       interval: 5s
       timeout: 3s
       retries: 30

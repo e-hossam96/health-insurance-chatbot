@@ -4,13 +4,15 @@ services:
     networks:
       - egress
     image: health-insurance-chatbot-backend:local
-    command: ["python", "-m", "testkit.fake_openai", "--auto", "--token-delay", "0.3", "--port", "9000", "--embedding-dimensions", "64"]
+    command: python -m testkit.fake_openai --auto --token-delay 0.3 --port 9000 --embedding-dimensions 64
     environment:
       PYTHONPATH: /app
     volumes:
       - ./testkit:/app/testkit:ro
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9000/docs')\""]
+      test:
+        - CMD-SHELL
+        - python -c "import urllib.request; urllib.request.urlopen('http://localhost:9000/docs')"
       interval: 3s
       timeout: 3s
       retries: 20
@@ -26,7 +28,7 @@ services:
       AI_REWRITE_MODEL: stack-rewrite
       AI_EMBEDDING_MODEL: stack-embedding
       AI_JUDGE_MODEL: stack-judge
-      AI_EMBEDDING_DIMENSIONS: "64"
+      AI_EMBEDDING_DIMENSIONS: 64
       AI_CHAT_BASE_URL: http://fakeai:9000/v1
       AI_ROUTER_BASE_URL: http://fakeai:9000/v1
       AI_REWRITE_BASE_URL: http://fakeai:9000/v1
