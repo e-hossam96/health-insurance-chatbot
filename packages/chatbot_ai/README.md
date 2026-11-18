@@ -1,6 +1,15 @@
 # chatbot_ai
 
-The AI package: router, agents, RAG, KB ingestion and evals. It runs inside the backend process. It has no Postgres access and no web or Prometheus code. The backend gives it data through **Ports** and reads back plain events and timings. Full design: [`docs/spec/ai.md`](../../docs/spec/ai.md).
+The AI package. It contains the router, the agents, the RAG pipeline, KB ingestion and the evals.
+
+It runs inside the backend process, and it is kept deliberately small in what it touches:
+
+- **It has no** Postgres access, web-framework code or Prometheus code.
+- **It does** call the model providers and Qdrant.
+- **The backend gives it data** through **Ports**: small interfaces (Protocols) that this package defines and the backend implements.
+- **The backend reads back** plain events and timings.
+
+The full design is in [`docs/spec/ai.md`](../../docs/spec/ai.md). For setup and the model settings, see the [root README](../../README.md#2-models-one-config-per-role).
 
 ## How a turn works
 
@@ -27,10 +36,46 @@ flowchart LR
     linkStyle default stroke:#64748b,stroke-width:1.5px
 ```
 
-- `run_turn(request, ports, settings)` is an async generator. It yields `Intent` (only when `needs_label` is set), `Token` while the answer streams, `Cards` when a tool found slots or visits, and finally `Done` with the rows to store, timings and token usage.
-- The model only reads. Tools call the read-only `SchedulingPort`, `ComplaintsPort` and `KnowledgePort` that the backend implements. Bookings and complaints are written by endpoints when the user clicks a card.
-- `ingest(document_id, file_path, file_type, settings)` parses a PDF, DOCX or TXT file with Docling, chunks it and writes dense and BM25 vectors to Qdrant. `delete_document` removes them.
-- Each model role (chat, router, rewrite, embedding, judge) has its own `AI_<ROLE>_*` settings in `AISettings`.
+The same flow in words:
+
+1. A `TurnRequest` comes in, with the history, the new message and the member's profile.
+2. The router model picks one intent for the turn.
+3. Exactly one agent answers:
+   - **scheduling** or **complaints**: a tool loop that reads data through the Ports,
+   - **knowledge**: rewrites the question, runs hybrid search, reranks, then answers,
+   - **responder**: a plain answer with no tools.
+4. The agent's output comes back as events.
+
+## The public interface
+
+### `run_turn(request, ports, settings)`
+
+An async generator. It yields these events, in this order:
+
+| Event | When |
+|---|---|
+| `Intent` | only when `needs_label` is set on the request |
+| `Token` | repeatedly, while the answer streams |
+| `Cards` | when a tool found slots or visits |
+| `Done` | last; carries the rows to store, the timings and the token usage |
+
+### The Ports (read only)
+
+The model only reads. Its tools call three Ports that the backend implements:
+
+- `SchedulingPort`
+- `ComplaintsPort`
+- `KnowledgePort`
+
+Bookings and complaints are never written here. Endpoints in the backend write them when the user clicks a card.
+
+### `ingest(document_id, file_path, file_type, settings)`
+
+Parses a PDF, DOCX or TXT file with Docling, chunks it, and writes dense and BM25 vectors to Qdrant. `delete_document` removes a document's vectors again.
+
+### Settings
+
+Each model role (chat, router, rewrite, embedding, judge) has its own `AI_<ROLE>_*` settings in `AISettings`.
 
 ## Layout
 
@@ -38,17 +83,17 @@ flowchart LR
 |---|---|
 | `interface.py` | `TurnRequest`, the event types, `Ports` |
 | `orchestrator.py`, `router.py` | classify the turn and pick one agent |
-| `agents/` | tool loop, knowledge pipeline, responder |
+| `agents/` | the tool loop, the knowledge pipeline, the responder |
 | `tools/` | tool schemas, Port Protocols, return models |
-| `rag/`, `rerank/` | query rewrite, hybrid search, reranker Protocol |
+| `rag/`, `rerank/` | query rewrite, hybrid search, the reranker Protocol |
 | `ingest/` | parse, chunk, index |
-| `prompts/` | one Markdown prompt per agent plus shared blocks |
+| `prompts/` | one Markdown prompt per agent, plus shared blocks |
 | `evals/` | offline suites that call real models |
-| `stub.py` | canned turns for tests and demos, no models needed |
+| `stub.py` | canned turns for tests and demos; needs no models |
 
-## Sample
+## Sample: stream one turn without any services
 
-This sample streams one turn through the stub runner, which takes the same `TurnRequest` and yields the same events as `run_turn`. It needs no API key, Postgres or Qdrant:
+This sample uses the **stub runner**. It takes the same `TurnRequest` and yields the same events as `run_turn`, but needs no API key, no Postgres and no Qdrant.
 
 ```python
 import asyncio
@@ -88,9 +133,15 @@ Here are the available options for you.
 [done] 4 new row(s), total 0.000s
 ```
 
-To call the real models, set the `AI_*` variables in `.env` and swap in `run_turn(request, ports, AISettings())`. `ports` is a `Ports(scheduling=..., complaints=..., knowledge=...)` whose members implement the Protocols in `tools/ports.py`. The backend builds them in `backend/ai_ports.py`.
+### Using the real models instead
+
+1. Set the `AI_*` variables in `.env`.
+2. Replace `run_stub_turn(request)` with `run_turn(request, ports, AISettings())`.
+3. Build `ports` as `Ports(scheduling=..., complaints=..., knowledge=...)`. Each member must implement its Protocol in `tools/ports.py`. The backend's versions are in `backend/ai_ports.py`.
 
 ## Commands
+
+Run these from the repo root.
 
 ```bash
 uv run pytest packages/chatbot_ai/tests                 # unit and integration tests (fake models, real Qdrant)
