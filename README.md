@@ -52,6 +52,7 @@ Where to find more:
 - [Run in production](#run-in-production)
 - [Observability](#observability)
 - [Further reading](#further-reading)
+- [License](#license)
 
 ---
 
@@ -639,3 +640,9 @@ ssh -L 3000:127.0.0.1:3000 <host>
 | [`docs/deployment.md`](docs/deployment.md) | production deployment and operations |
 | [`docs/demo.md`](docs/demo.md) | the ten-minute demo script |
 | [`docs/progress.md`](docs/progress.md) | build log, decisions and deviations |
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE).
