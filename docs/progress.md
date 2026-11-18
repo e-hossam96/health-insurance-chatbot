@@ -26,6 +26,18 @@ All plan phases are done (v0.1.0). Open items: the questions under Needs confirm
 
 Questions for the user that do not block the current step. Format: `- [phase.step] question (options, your recommendation)`.
 
+- [docs audit] Code does not match the spec in these places (spec unchanged until you decide; my recommendation in brackets):
+  1. AP4 admin visits shows only the visit id and status; `GET /admin/visits` returns ids only. The wireframe wants patient, location, clinic, specialty, doctor, time, a patient search and date sort (D4). [extend the API and the page]
+  2. AP5 admin complaints is a table with a reply dialog, not the list and detail view: no `GET /admin/complaints/:id`, no patient, visit, date or reply thread, no "Close complaint after sending" checkbox. The path is `/reply {body}`, the wireframe says `/replies {body, close?}`. [build the detail view; keep `/reply` and update the wireframe's Calls line]
+  3. AP2 catalog: Locations has no clinic count, Clinics has no specialty chips, Doctors shows the raw `clinic_specialty_id` instead of clinic and specialty, and the delete dialog cannot list what cascades because the API returns the counts only after deleting (A5). [add the columns and a cascade-preview endpoint or counts in the list]
+  4. AP3 slots: paths are `/admin/slots?doctor_id&year&month`, `POST /admin/slots`, `/admin/slots/autofill`, not `/admin/doctors/:id/slots...`; past slots are not greyed; booked chips do not link to the visit; the auto-fill message has no "skipped N existing"; a booked slot says "Cannot remove a booked slot." instead of "Cancel the visit first.". [keep the paths and update the wireframe; fix the UI items]
+  5. A duplicate location or specialty name returns code `username_taken` (A4). [a new `name_taken` code]
+  6. Admin visits and complaints default to `limit` 20 (max 100); api.md's convention says 50, which KB documents follow. [use 50]
+  7. Drawer complaints show no filed date, visit date and doctor, reply dates or "No reply yet"; `GET /me/complaints` returns no dates or visit fields (F14). [add the fields and render them]
+  8. A 401 does not redirect to /login and back to the previous route (wireframes section 8). [add it in `apiFetch`]
+  9. CLAUDE.md and wireframes name shadcn/ui; the app uses Tailwind with its own component classes ([2.6]). [drop shadcn from the docs]
+  10. CLAUDE.md asks for the streaming sample under `samples/`; the folder does not exist and the sample is only in the planning chat. [drop the instruction, since the real chat route supersedes it, or paste the sample]
+  11. `check_compatibility=False` on the Qdrant clients was for the old 1.13 server; client and server are both 1.20 now. [remove it]
 - [8.3] The answers dataset item `u-abroad` is labelled unanswerable, but the policy's exclusions answer it (outside the network is not covered except in an emergency); every run answered that correctly. Options: relabel it answerable with `must_include: ["emergency"]` (recommended), or replace it with a truly unanswerable question. The dataset passed Gate 2, so this waits for approval.
 
 ## Gates
@@ -179,6 +191,8 @@ Choices made without asking. Format: `- [phase.step] decision - why`.
 - [post-8 Models] (user, 2026-11-18) The user moved the chat role to `gpt-6-luna` and the judge to `gpt-6.2-sol` (router and rewrite stay on `gpt-6-luna`, embedding on `text-embedding-3-small` at 1536); this supersedes the model choices in [6e] and [Gate 1]. `.env.example` now lists every variable read by `backend/config.py`, `chatbot_ai/settings.py` and the compose files, grouped by section, with role base URLs and keys written as `${OPENAI_BASE_URL}` and `${OPENAI_API_KEY}` (python-dotenv and compose both expand them; `OPENAI_BASE_URL` is only a reference, the code does not read it). Full verification on these models: `make check` green (pytest 444, Vitest 212, mocked Playwright 12), `make smoke-models` (routing 6/6, knowledge and booking turns correct), and every eval suite (results in `docs/evals/v0.1.0.md`, Rerun 2026-11-18). The first `make check` attempt crashed with an access violation inside Docling's threaded PDF pipeline during `test_rag.py` while the eval run parsed the same fixture in another process; the rerun alone passed, so it is logged as a load-related native crash, not a code fault.
 - [post-8 Eval facts] (user, 2026-11-18) The answers suite scored correct answers as missing facts when the wording differed ("30 hospital nights", "excluded", "35,000 EGP"). An `AnswerItem.must_include` entry can now be a list of accepted wordings (`AnswerItem.facts_in`), and Markdown `*` is ignored when matching. Dataset: `a-inpatient`, `a-cosmetic` and `a-maternity` list alternatives. `test_eval_datasets.py` requires at least one wording of each fact to be in the fixtures and covers the matching rule.
 
+- [docs audit] (user, 2026-11-18) Read `.env` (keys and secrets left unread), every doc and the code, and fixed the docs where they were stale or silent. Domain: `docs/deployment.md` now uses `health-insurance-chatbot-demo.hossammostafa.ai`, the `DOMAIN` in `.env`. README: Postgres 18 and Qdrant 1.20, Node 26, `create_admin.py`/`seed.py` without the removed `--database-url`, no certificate script, one nginx config, Prometheus also scrapes Qdrant, tracing needs only the two Langfuse keys, and the missing AI settings listed. Frontend README: mocked Playwright port 5199 and one `nginx.conf`. `plan.md`: coverage counts test names only (docstrings are banned). `ai.md`: three ports (with `KnowledgePort`) returning Pydantic models, the real `run_turn` signature and `Done.agent`, the actual package and evals layout, every setting in the config reference, and open items brought up to date. `api.md`: admin catalog, slots, visits and complaints payloads as built, member payloads, `/health` and `/metrics`, and the codes the code returns but the table missed (`slot_past`, `profile_exists`, `duplicate`, `slot_booked`, `invalid_transition`, `invalid_time`, `turn_error`). `wireframes.md`: decided items (branding, deployment, seed) moved out of Still open, and section 8 now matches section 7 (errors inline or in the confirm dialog, no toasts). `CLAUDE.md`: repo layout with `testkit/` and the deploy files, oxlint and mypy, and Still open reduced to the reranker and eval data. Code gaps found are under Needs confirmation; no code was changed.
+
 ## Deviations from spec
 
 Places where a spec file was changed because the code showed it was wrong or silent. Format: `- [phase.step] file, rule or section - what changed - why`.
@@ -204,10 +218,10 @@ Places where a spec file was changed because the code showed it was wrong or sil
 - mypy 2.4.x in strict mode for Python type checking
 - tsc with `strict: true` for TypeScript
 - prometheus-client 0.26.x for metrics
-- React Router v7 for frontend routing
+- React 19, React Router 8, Vite 8, TypeScript 7
 - TanStack Query v5 for data fetching
-- Tailwind CSS v4 for styling
+- Tailwind CSS v4 for styling (no shadcn/ui, see [2.6])
 - Playwright for e2e tests (mocked chat specs in `make check` and CI; stack-backed specs under `make e2e`)
 - react-markdown 10.x for assistant Markdown
-- openai 3.51 (Chat Completions and embeddings), qdrant-client 1.20 against Qdrant server 1.13.6
+- openai 3.51 (Chat Completions and embeddings), qdrant-client 1.20 against Qdrant server 1.20.2
 - Fake OpenAI-compatible server in `testkit/` (FastAPI + uvicorn in a thread) for every model call in tests

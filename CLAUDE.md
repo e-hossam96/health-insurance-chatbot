@@ -24,7 +24,7 @@ Read the whole of items 1 to 2 at the start of a session. Read only the spec fil
 - Retrieval: Qdrant (dense + BM25, RRF fusion). Chunks live only in Qdrant.
 - Tracing: Langfuse (use `chat-<session id>` as the session id). Metrics: Prometheus + Grafana.
 - Docker Compose services: postgres, qdrant, backend, frontend (nginx, non-root), prometheus, grafana, postgres exporter, and caddy in production only (HTTPS). Each service joins only the networks it needs (edge, app, data, metrics, egress). No Redis and no model containers. KB originals sit on a local Docker volume.
-- Testing: pytest and httpx with real Postgres and Qdrant; Vitest and Testing Library; Playwright; ruff and a type checker; eslint and tsc. Equivalent tools may be substituted. Log the choice in `docs/progress.md`.
+- Testing: pytest and httpx with real Postgres and Qdrant; Vitest and Testing Library; Playwright; ruff and mypy (strict); oxlint and tsc. Equivalent tools may be substituted. Log the choice in `docs/progress.md`.
 
 ## Repo layout (to create)
 
@@ -40,8 +40,11 @@ repo/
   packages/
     chatbot_ai/           # the AI package (agents, RAG, ingestion, evals); layout in ai.md
   observability/          # prometheus.yml, Grafana provisioning, dashboard JSON
-  scripts/                # create_admin, seed, rule_coverage
+  scripts/                # create_admin, seed, rule_coverage, smoke and stack checks, eval fixtures
+  testkit/                # fake OpenAI-compatible server, fake ports, Qdrant and embedding helpers for tests
   tests/                  # cross-cutting tests, rule_scope.yaml, rule_coverage_exemptions.md
+  docs/deployment.md, docs/demo.md, docs/evals/   # operations guide, demo script, eval reports
+  Caddyfile, docker-compose.yml, docker-compose.prod.yml, docker-compose.stack-test.yml
 ```
 
 Frontend, backend and `chatbot_ai` all start at version 0.1.0 (package.json, pyproject.toml). Docker builds use the repo root as the context so the backend image can include `packages/`. The AI package runs inside the backend container; there is no separate AI service.
@@ -135,10 +138,8 @@ Gate 1 before any real model call (needs the API key in `.env`, model names per 
 
 ## Still open
 
-- Branding (name, logo, colors). "Health Assistant" is a placeholder.
-- Deployment specifics: instance size, domain or subdomain, SSL.
-- AI: reranker provider (implement `rerank/target.py`), model names per role, eval datasets and synthetic KB fixtures. See the last section of `ai.md`.
-- Admin endpoint payloads in `api.md` (specified during plan steps 3.1 and 4.x).
+- AI: reranker provider (implement `rerank/target.py`) and larger eval datasets and fixtures. See the last section of `ai.md`.
+- Decided: branding (`wireframes.md` section 1), deployment (`docs/deployment.md`), model names per role (`.env.example`), admin payloads (`api.md`).
 
 ## Samples
 

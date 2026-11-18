@@ -1,6 +1,6 @@
 # Deployment
 
-The demo runs as one Docker Compose stack on a single VM, served at https://health-insurance-chatbot.hossammostafa.ai. Caddy terminates HTTPS and gets its Let's Encrypt certificate on its own.
+The demo runs as one Docker Compose stack on a single VM, served at https://health-insurance-chatbot-demo.hossammostafa.ai. Caddy terminates HTTPS and gets its Let's Encrypt certificate on its own.
 
 ## 1. The VM
 
@@ -10,7 +10,7 @@ The demo runs as one Docker Compose stack on a single VM, served at https://heal
 
 ## 2. DNS
 
-Create an `A` record (and `AAAA` if the VM has IPv6) for `health-insurance-chatbot.hossammostafa.ai` pointing at the VM. Wait until `dig +short health-insurance-chatbot.hossammostafa.ai` returns the VM's address; Let's Encrypt checks it over HTTP.
+Create an `A` record (and `AAAA` if the VM has IPv6) for `health-insurance-chatbot-demo.hossammostafa.ai` pointing at the VM. Wait until `dig +short health-insurance-chatbot-demo.hossammostafa.ai` returns the VM's address; Let's Encrypt checks it over HTTP.
 
 ## 3. Configure
 
@@ -27,7 +27,7 @@ Fill in `.env`:
 | `AI_*_MODEL`, `AI_*_REASONING_EFFORT`, `AI_EMBEDDING_DIMENSIONS` | as in `.env.example` |
 | `GRAFANA_ADMIN_PASSWORD` | a long random password |
 | `POSTGRES_PASSWORD` | letters and digits only, for example `openssl rand -hex 24`. Set it before the first start: Postgres stores it when the volume is created |
-| `DOMAIN` | `health-insurance-chatbot.hossammostafa.ai` |
+| `DOMAIN` | `health-insurance-chatbot-demo.hossammostafa.ai` |
 | `LETSENCRYPT_EMAIL` | the address for certificate expiry notices |
 | `LANGFUSE_*` | optional, enables tracing |
 

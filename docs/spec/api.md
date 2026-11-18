@@ -2,7 +2,7 @@
 
 Version: v0.1.0
 
-Per-screen endpoint paths are in the `Calls:` lines of `wireframes.md` (sections 4 to 7). Rule IDs (B10, D6, F16, ...) refer to `rules.md`; A-rules are in `schema.dbml`. The AI package behind the chat stream is described in `ai.md`. Admin endpoint payloads are still to be specified.
+Per-screen endpoint paths are in the `Calls:` lines of `wireframes.md` (sections 4 to 7). Rule IDs (B10, D6, F16, ...) refer to `rules.md`; A-rules are in `schema.dbml`. The AI package behind the chat stream is described in `ai.md`. Admin payloads are in the Admin sections below.
 
 ## Conventions
 
@@ -19,10 +19,10 @@ Per-screen endpoint paths are in the `Calls:` lines of `wireframes.md` (sections
 | 401 | not logged in | invalid_credentials, not_authenticated |
 | 403 | wrong role or mode | forbidden |
 | 404 | not found, or not yours (no leaking) | not_found |
-| 409 | conflict | slot_taken, username_taken, duplicate_document, has_history, visit_not_cancellable, visit_not_completed, complaint_exists, complaint_closed |
+| 409 | conflict | slot_taken, slot_past, username_taken, profile_exists, duplicate_document, duplicate, has_history, slot_booked, invalid_transition, visit_not_cancellable, visit_not_completed, complaint_exists, complaint_closed |
 | 413 | file too large | file_too_large |
 | 415 | unsupported file type | unsupported_type |
-| 422 | validation, including a chat message over the F15 length cap | validation_error |
+| 422 | validation, including a chat message over the F15 length cap; a slot off the hour or outside 9 to 16 UTC (C1, C2) | validation_error, invalid_time |
 | 429 | rate limit (F15), with Retry-After | rate_limited |
 | 503 | a dependency is down; nothing was changed | kb_index_unavailable |
 
@@ -46,7 +46,7 @@ Per-screen endpoint paths are in the `Calls:` lines of `wireframes.md` (sections
 | intent | {intent} | once, when the sidebar label is first set (usually the first turn, F6) |
 | cards | {type, items} | after the last token, only if the turn produced cards |
 | done | {} | end of turn |
-| error | {code, message} | turn failed; nothing is stored (F3) |
+| error | {code, message} | turn failed; nothing is stored (F3). The code is always `turn_error` and the message "Something went wrong." |
 
 Card payloads (not stored, F12):
 
@@ -77,7 +77,22 @@ Admin only (B11). Statuses and jobs follow G1 to G11.
 
 The upload is a raw body instead of multipart because the multipart parser reads the whole file before the handler runs, which would defeat the streaming size check in G2.
 
+## Admin catalog, slots, visits and complaints
+
+Admin only (B11). Delete responses report what cascaded (A5); a delete blocked by history returns 409 has_history.
+
+- GET /admin/locations, GET /admin/specialties -> [{id, name}], by name. POST {name} -> 201 {id, name}; a case-insensitive duplicate gives 409 (A4). DELETE /admin/locations/:id -> {deleted, cascade: {clinics}}; 409 has_history while a profile uses it. DELETE /admin/specialties/:id -> {deleted}; 409 has_history while a clinic links it.
+- GET /admin/clinics -> [{id, name, location_id}]. POST {name, location_id} -> 201 {id, name, location_id}. DELETE /admin/clinics/:id -> {deleted, cascade: {specialties, doctors}}; 409 has_history when its doctors have visits.
+- PUT /admin/clinics/:id/specialties [{specialty_id}, ...] replaces the clinic's links -> [{id, clinic_id, specialty_id}]. Removing a link that has doctors gives 409 has_history.
+- GET /admin/doctors -> [{id, name, clinic_specialty_id}]. POST {name, clinic_specialty_id} -> 201 {id, name, clinic_specialty_id}. DELETE /admin/doctors/:id -> {deleted, cascade: {slots}}; 409 has_history when it has visits.
+- GET /admin/slots?doctor_id&year&month -> [{id, doctor_id, start_at, status}], by start_at. POST /admin/slots {doctor_id, start_at} -> 201 slot; 422 invalid_time (C1, C2), 409 duplicate (C3). DELETE /admin/slots/:id -> {deleted}; 409 slot_booked unless 'available' (C4). POST /admin/slots/autofill {doctor_id} -> {created, message} (C5; message "Nothing to create" when created is 0).
+- GET /admin/visits?status&limit&offset -> {items: [{id, profile_id, slot_id, status}], total}, newest slot first (limit default 20, max 100). POST /admin/visits/:id/complete -> {id, status}; 409 invalid_transition unless 'scheduled' (D3).
+- GET /admin/complaints?status&limit&offset -> {items: [{id, visit_id, description, status}], total}, newest first (limit default 20, max 100). POST /admin/complaints/:id/reply {body} -> 201 {id, complaint_id, admin_account_id, body} (E3, E4). POST /admin/complaints/:id/close -> {id, status}. Both give 409 complaint_closed on a closed complaint (E5).
+
 ## Other
 
-- GET /me/sessions, GET /me/sessions/:id/messages (only user rows and final assistant rows, F11), GET /me/visits, GET /me/complaints, POST /me/profile, GET /locations.
-- Admin endpoints are listed per screen in section 7.
+- POST /me/profile {name, location_id} -> 201 {id, name, location_id, location_name}; 409 profile_exists (B2 to B4). GET /locations -> [{id, name}].
+- GET /me/sessions -> [{id, intent, created_at, last_message_at, first_user_message}], newest `last_message_at` first. GET /me/sessions/:id/messages -> [{id, session_id, role, content}], only user rows and final assistant rows (F11).
+- GET /me/visits -> [{id, slot_id, status, doctor_name, specialty, clinic, location, start_at}]. GET /me/complaints -> [{id, visit_id, description, status, replies: [{id, body}]}].
+- POST /me/visits also returns 409 slot_past for a slot that has started (C7).
+- GET /health -> {status: "ok"}, public. GET /metrics is Prometheus text, reached only on the internal network (H6); nginx answers /api/metrics with 404.

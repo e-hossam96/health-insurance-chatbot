@@ -10,10 +10,13 @@ The package lives in `packages/chatbot_ai/` and is deployed inside the backend i
 
 ## 1. Public interface
 
-The backend calls these four functions. Everything else is internal.
+The backend calls these four functions. Everything else is internal. `run_turn` lives in `orchestrator.py` and is exported from the package; the ingestion functions are in `chatbot_ai.ingest`, which also has async `delete_document_async` and `ensure_collection_once` for the API process.
 
 ```
-async def run_turn(req: TurnRequest, ports: Ports, settings: AISettings) -> AsyncIterator[TurnEvent]
+async def run_turn(req: TurnRequest, ports: Ports, settings: AISettings,
+                   clients: RoleClients | None = None,      # one per process, reused by the backend
+                   agents: Mapping[AgentName, Agent] | None = None,  # tests inject a registry
+                   clock: Clock = time.monotonic) -> AsyncIterator[TurnEvent]
 
 def ingest(document_id: int, file_path: str, file_type: str, settings: AISettings) -> IngestResult
 def delete_document(document_id: int, settings: AISettings) -> None
@@ -27,13 +30,13 @@ TurnRequest:
 - `needs_label`: bool. True when the session has no intent yet (F6).
 - `session_id`: used for the Langfuse session id (F7).
 
-Ports (Protocols the backend implements): `SchedulingPort` and `ComplaintsPort`. Each instance is built per request with the acting profile bound, so tool arguments never carry a profile id (B6, I4). Ports return plain dataclasses.
+Ports (Protocols the backend implements, in `tools/ports.py`): `Ports(scheduling, complaints, knowledge)` holds a `SchedulingPort`, a `ComplaintsPort` and a `KnowledgePort` (`ready_document_ids()`, G8). Each instance is built per request with the acting profile bound, so tool arguments never carry a profile id (B6, I4). Ports return Pydantic models from `tools/models.py` and never write (D9).
 
 TurnEvent (what the backend turns into SSE events and metrics):
 - `Intent(code)`: emitted only when `needs_label` is true and classification succeeded, before any token (F6). The backend stores it and sends the `intent` event.
 - `Token(text, elapsed)`: elapsed seconds since the LLM call started.
 - `Cards(type, items)`: emitted after the last token (F12).
-- `Done(new_rows, timings, usage)`: `new_rows` are all rows of the turn, including the new user message, to store in one transaction (F3). `timings` keys: classify, rewrite, embed, search, rerank, ttft, generate, total, plus a list of (tool name, seconds). `usage` has prompt and completion tokens (H2).
+- `Done(new_rows, timings, usage, agent)`: `agent` names the agent that answered (metrics by agent, H3). `new_rows` are all rows of the turn, including the new user message, to store in one transaction (F3). `timings` keys: classify, rewrite, embed, search, rerank, ttft, generate, total, plus a list of (tool name, seconds). `usage` has prompt and completion tokens (H2).
 
 Failures raise exceptions; the backend maps them to the `error` event (F3). If the client disconnects the backend closes the generator: the LLM call is cancelled, no `Done` is produced and nothing is stored (F16).
 
@@ -197,10 +200,20 @@ Files under `rerank/`:
 | AI_CHUNK_MAX_TOKENS | 512 | |
 | AI_EMBED_BATCH | 64 | |
 | AI_EMBEDDING_DIMENSIONS | required | |
+| AI_EMBEDDING_QUERY_PREFIX, AI_EMBEDDING_DOC_PREFIX | empty | |
 | AI_MAX_TOOL_ROUNDS | 4 | |
 | AI_CHAT_MAX_OUTPUT_TOKENS | 800 | matches F15 |
+| AI_ROUTER_MAX_OUTPUT_TOKENS | 512 | reasoning tokens count against the cap |
+| AI_REWRITE_MAX_OUTPUT_TOKENS | 1024 | reasoning tokens count against the cap |
+| AI_ROUTER_HISTORY_ROWS | 6 | the I1 window |
+| AI_<ROLE>_OUTPUT_TOKEN_PARAM | max_completion_tokens | chat, router, rewrite, judge; or max_tokens |
+| AI_<ROLE>_REASONING_EFFORT | unset | chat, router, rewrite, judge; omitted from requests when unset |
+| AI_TIMEOUT_S | 60 | per request, every role |
+| AI_MAX_RETRIES | 2 | every role |
 | INGEST_TIMEOUT_S | 600 | |
 | QDRANT_URL | required | |
+| AI_QDRANT_COLLECTION | unset | overrides the derived collection name; the eval runs set it |
+| LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_HOST | unset | tracing is on when both keys are set |
 
 Settings are one `AISettings` class (pydantic-settings) in the package. The backend builds it from the environment and passes it in.
 
@@ -214,14 +227,18 @@ The package returns timings as plain values (H2): per-token `elapsed`, and in `D
 
 ## 7. Eval module
 
-Lives in `packages/chatbot_ai/evals/`. It is offline only. The runtime never evaluates its own answers (I9); the judge model here scores results after the fact.
+Lives in `packages/chatbot_ai/src/chatbot_ai/evals/`. It is offline only. The runtime never evaluates its own answers (I9); the judge model here scores results after the fact.
 
 ```
 evals/
   datasets/       routing.jsonl, retrieval.jsonl, answers.jsonl, tools.jsonl
   kb_fixtures/    small synthetic insurance documents (pdf and docx, with tables)
   reports/        generated, git-ignored
+  catalog_ports.py  in-memory catalog ports (no Postgres)
+  suites.py, routing.py, report.py, schemas.py
 ```
+
+Reports of runs worth keeping are copied to `docs/evals/` (write-up per version in `docs/evals/v<version>.md`).
 
 Run: `uv run python -m chatbot_ai.evals <suite|all> [--set KEY=VALUE ...] [--smoke] [--langfuse]`
 - `--set` overrides config for one run (for example `AI_RETRIEVAL_MODE=dense`), which is how ablations work (I13).
@@ -260,14 +277,19 @@ packages/chatbot_ai/
   pyproject.toml
   src/chatbot_ai/
     settings.py          # AISettings
-    clients.py           # OpenAI client factory per role
-    interface.py         # TurnRequest, TurnEvent, Ports, run_turn, ingest, ...
-    orchestrator.py      # classify, route, handoff
-    agents/              # scheduling.py, complaints.py, knowledge.py, responder.py
-    tools/               # tool schemas and the Port Protocols
-    rag/                 # rewrite.py, search.py, merge.py, answer.py
+    clients.py           # OpenAI client factory per role, the Qdrant client and the tracer (RoleClients)
+    interface.py         # TurnRequest, TurnEvent, Ports (re-exported Protocols)
+    orchestrator.py      # run_turn: classify, route, handoff
+    router.py, intents.py  # the classifier and the F6 intent codes
+    context.py           # history rows to Chat Completions messages (F10)
+    llm.py, prompts.py   # streaming calls and prompt assembly
+    tracing.py           # Langfuse tracer, no-op without keys (F7)
+    stub.py              # scripted turns used by the phase-5 tests
+    agents/              # base.py, tool_loop.py (scheduling and complaints), knowledge.py, responder.py
+    tools/               # registry.py (tool schemas), ports.py (Port Protocols), models.py (port return models)
+    rag/                 # rewrite.py, search.py (embed, search, RRF merge, dedupe)
     rerank/              # base.py, passthrough.py, target.py (placeholder)
-    ingest/              # parse.py, chunk.py, index.py
+    ingest/              # api.py, parse.py, chunk.py, index.py
     prompts/             # one .md per agent plus shared blocks
     evals/
   tests/
@@ -277,8 +299,8 @@ packages/chatbot_ai/
 
 ## 9. Open items
 
-- Reranker provider and the `TargetReranker` implementation.
-- Model names per role, embedding dimensions, and the first `AI_RERANK_MIN_SCORE` (from evals).
-- Eval datasets and the synthetic KB fixtures (to be written).
+- Reranker provider and the `TargetReranker` implementation, then the first `AI_RERANK_MIN_SCORE` (from evals) and ablation runs D and E.
+- Larger eval datasets and harder KB fixtures: the approved v0.1.0 sets (routing 26, retrieval 16, answers 12, tools 7) are below the first targets in section 7 and too small to separate the retrieval configurations (`docs/evals/v0.1.0.md`).
+- Decided (Gate 1, then 2026-11-18): model names per role and the embedding dimensions are in `.env.example` (chat, router and rewrite `gpt-6-luna`, embedding `text-embedding-3-small` at 1536, judge `gpt-6.2-sol`).
 - Not in v1: a runtime answer self-check (I9) and a semantic cache (I10).
 - Out of scope for v1: OCR for scanned PDFs, answering mixed-domain questions with more than one agent (I14).

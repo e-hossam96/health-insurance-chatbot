@@ -515,7 +515,7 @@ Tabs: Locations, Specialties, Clinics, Doctors. Each tab is a table with a `[+ A
 
 - Loading: skeleton rows for tables, spinner on buttons that call the backend.
 - Empty: every list has a one-line empty state with the next action ("No documents yet. Upload one above.").
-- Errors: toast for failed actions; inline messages for forms.
+- Errors: inline messages for forms and controls; a failed confirmed action shows its message in the confirm dialog (section 7, Row actions). No toasts and no `alert()`.
 - Session expired (401): redirect to /login, then back to the previous route.
 - Destructive actions (delete, mark completed, cancel visit, auto-fill) use a confirm dialog.
 - Times: always UTC (C8). Cards, drawer items and table cells carry the suffix "UTC", and a note under the chat input says "All times are UTC." Slot hours are always on the hour.
@@ -539,11 +539,12 @@ Decided:
 12. Case-insensitive uniqueness on usernames, location names and specialty names (A4). Login is case-insensitive.
 13. AI design is in `ai.md`: router plus agents with per-turn routing (I1 to I4), OpenAI-style providers per role (I11), no semantic cache (I10), no runtime self-evaluation (I9), an eval module in the AI package.
 
+14. Branding: section 1 (Gate 3, restyled after phase 8).
+15. Deployment: one VM behind Caddy with Let's Encrypt; size, domain and steps in `docs/deployment.md` (Gate 3).
+16. Seed data: `scripts/seed.py` (3 locations, 5 specialties, clinics, doctors, two sample members, slots by auto-fill).
+
 Still open:
-- Branding (later).
-- Deployment specifics: instance size, domain or subdomain, SSL.
-- Seed script design (later, with Claude Code).
-- AI open items are listed in `ai.md` (reranker provider, model names, eval datasets and fixtures).
+- AI open items are listed in `ai.md` (reranker provider, larger eval datasets and fixtures).
 
 ---
 
