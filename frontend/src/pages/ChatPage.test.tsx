@@ -107,7 +107,7 @@ describe('ChatPage', () => {
       'Cancel a visit',
       'File a complaint',
       'Check my complaints',
-      'Ask about my coverage',
+      'Ask a policy question',
     ]);
   });
 

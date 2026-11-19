@@ -153,8 +153,8 @@ Guards (UX only; the backend checks the role on every call, B8):
 |                  |  | visit            |   | complaint        |         |
 | ...              |  +------------------+   +------------------+         |
 |                  |  +------------------+   +------------------+         |
-|                  |  | Check my         |   | Ask about my     |         |
-|                  |  | complaints       |   | coverage         |         |
+|                  |  | Check my         |   | Ask a policy     |         |
+|                  |  | complaints       |   | question         |         |
 |                  |  +------------------+   +------------------+         |
 |                  |                                                      |
 |                  | +-----------------------------------+ +----------+   |
@@ -188,7 +188,7 @@ Guards (UX only; the backend checks the role on every call, B8):
 | other | Chat |
 | (null) | New chat |
 
-qa.db is answered from the database (clinics, specialties, doctors, availability). qa.kb is answered from the knowledge base (policy, coverage, exclusions, procedures). Grouping or icons can use the prefix before the dot (visit, complaint, qa).
+qa.db is answered from the database (clinics, specialties, doctors, availability). qa.kb is answered from the knowledge base: any general insurance question the uploaded documents cover, such as refund and reimbursement rules, spending limits, co-pays, coverage, exclusions, claims, approvals and procedures. Grouping or icons can use the prefix before the dot (visit, complaint, qa).
 
 ### Starter cards (empty chat only)
 
@@ -203,7 +203,7 @@ Six cards in a 2 by 3 grid, in this order:
 | Cancel a visit | "I want to cancel a visit." | visit.cancel |
 | File a complaint | "I want to file a complaint about a visit." | complaint.file |
 | Check my complaints | "Show me my complaints." | complaint.check |
-| Ask about my coverage | "What does my health insurance cover?" | qa.kb |
+| Ask a policy question | "What does my health insurance cover?" | qa.kb |
 
 The expected intent is what the classifier should return for that message. The routing eval checks it (`ai.md`).
 
@@ -363,7 +363,7 @@ Header as in section 3, with a section menu next to the `[User view]` toggle so 
 | Health Insurance Chatbot   admin1  [KB documents v] [User view] [Log out] |
 |                                    +-----------------------------------+ |
 |                                    | KB documents                      | |
-|                                    |   Upload and index policy files   | |
+|                                    |   Documents for policy questions  | |
 |                                    | Catalog                           | |
 |                                    |   Locations, specialties, clinics,| |
 |                                    |   doctors                         | |
