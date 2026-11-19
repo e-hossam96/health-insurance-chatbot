@@ -191,13 +191,13 @@ All services are defined in [`docker-compose.yml`](docker-compose.yml). There is
 
 | Service | Image |
 | --- | --- |
-| `frontend` | built from `frontend/Dockerfile`, based on `nginxinc/nginx-unprivileged:1.30-alpine`. It listens on 8080 as a non-root user. |
-| `backend` | built from `backend/Dockerfile` (Python 3.14) |
+| `frontend` | built from `frontend/Dockerfile`, based on `nginx:1.31.9-alpine`, changed in its Dockerfile to run as the non-root `nginx` user. It listens on 8080. |
+| `backend` | built from `backend/Dockerfile` (`python:3.14.10-slim`) |
 | `postgres` | `postgres:18.7` |
 | `qdrant` | `qdrant/qdrant:v1.20.2` |
 | `prometheus` | `prom/prometheus:v3.16.0` |
 | `grafana` | `grafana/grafana:13.3.1` |
-| `postgres-exporter` | `prometheuscommunity/postgres-exporter:v0.20.1` |
+| `postgres-exporter` | `prometheuscommunity/postgres-exporter:v0.21.1` |
 | `caddy` | `caddy:2.11.9-alpine` |
 
 ### Volumes

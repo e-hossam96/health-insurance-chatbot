@@ -1,10 +1,10 @@
-FROM python:3.14-slim
+FROM python:3.14.10-slim
 
 WORKDIR /app
 
 RUN useradd --system --uid 10001 --create-home app && mkdir -p /data/kb && chown app:app /data/kb
 
-COPY --from=ghcr.io/astral-sh/uv:0.13.8 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.9 /uv /uvx /bin/
 
 COPY pyproject.toml uv.lock ./
 COPY backend/pyproject.toml backend/pyproject.toml
