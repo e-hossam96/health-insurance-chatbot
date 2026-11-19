@@ -32,7 +32,7 @@ export function AdminComplaintsPage(): ReactNode {
   const [complaints, setComplaints] = useState<AdminComplaint[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
-  const [statusFilter, setStatusFilter] = useState('open');
+  const [statusFilter, setStatusFilter] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<AdminComplaintDetail | null>(null);
   const [replyBody, setReplyBody] = useState('');
@@ -119,7 +119,7 @@ export function AdminComplaintsPage(): ReactNode {
                 data-testid="complaint-status-filter"
                 aria-label="Status"
               >
-                <option value="">All</option>
+                <option value="">All statuses</option>
                 <option value="open">Open</option>
                 <option value="closed">Closed</option>
               </select>

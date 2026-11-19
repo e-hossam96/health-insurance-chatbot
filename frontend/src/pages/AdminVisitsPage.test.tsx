@@ -63,18 +63,18 @@ describe('AdminVisitsPage', () => {
     expect(cells.slice(0, 6)).toEqual(['Sara N.', 'Cairo', 'Cairo Clinic', 'Dermatology', 'Dr. Sara Nabil', 'Sun 15 Nov, 10:00 UTC']);
   });
 
-  it('AP4: the list opens on Scheduled visits', async () => {
+  it('AP4: the list opens on all statuses', async () => {
     renderPage();
     await screen.findAllByTestId('visit-row');
-    expect(screen.getByTestId('status-filter')).toHaveValue('scheduled');
-    expect(getAdminVisits).toHaveBeenCalledWith({ limit: 50, offset: 0, status: 'scheduled' });
+    expect(screen.getByTestId('status-filter')).toHaveValue('');
+    expect(getAdminVisits).toHaveBeenCalledWith({ limit: 50, offset: 0 });
   });
 
   it('AP4: searching by patient name asks the server for matching visits', async () => {
     renderPage();
     await screen.findAllByTestId('visit-row');
     fireEvent.change(screen.getByTestId('patient-search'), { target: { value: ' sara ' } });
-    await waitFor(() => expect(getAdminVisits).toHaveBeenLastCalledWith({ limit: 50, offset: 0, status: 'scheduled', patient: 'sara' }), { timeout: 2000 });
+    await waitFor(() => expect(getAdminVisits).toHaveBeenLastCalledWith({ limit: 50, offset: 0, patient: 'sara' }), { timeout: 2000 });
   });
 
   it('AP3: a link from a booked slot opens just that visit, whatever its status', async () => {
