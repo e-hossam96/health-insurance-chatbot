@@ -159,8 +159,13 @@ def test_H6_production_caddy_is_the_only_public_service_and_serves_https() -> No
 def test_the_frontend_runs_nginx_as_a_non_root_user() -> None:
     dockerfile = (ROOT / "frontend" / "Dockerfile").read_text(encoding="utf-8")
     runtime_image = re.findall(r"^FROM (\S+)", dockerfile, re.MULTILINE)[-1]
-    assert runtime_image.startswith("nginxinc/nginx-unprivileged:")
-    assert not re.search(r"^USER (root|0)\b", dockerfile, re.MULTILINE)
+    assert runtime_image.startswith(("nginx:", "nginxinc/nginx-unprivileged:"))
+    runtime_stage = dockerfile.split(f"FROM {runtime_image}", 1)[1]
+    users = re.findall(r"^USER (\S+)", runtime_stage, re.MULTILINE)
+    assert not any(user in {"root", "0"} for user in users)
+    if runtime_image.startswith("nginx:"):
+        assert users, "the official nginx image runs as root unless USER is set"
+        assert "/tmp/nginx.pid" in runtime_stage, "a non-root nginx cannot write the default pid file"
     assert re.search(r"^\s*listen 8080;", DEV_NGINX, re.MULTILINE), (
         "a non-root nginx cannot bind port 80"
     )
