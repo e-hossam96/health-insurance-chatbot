@@ -69,7 +69,7 @@ describe('AdminComplaintsPage', () => {
     (replyToComplaint as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 10, body: 'x', complaint_status: 'open' });
   });
 
-  it('AP5: lists complaints with patient, date, reply count and status, open ones by default', async () => {
+  it('AP5: lists complaints with patient, date, reply count and status, all statuses by default', async () => {
     renderPage();
     const items = await screen.findAllByTestId('complaint-item');
     expect(items).toHaveLength(3);
@@ -78,7 +78,7 @@ describe('AdminComplaintsPage', () => {
     expect(items[1]).toHaveTextContent('2 replies');
     expect(items[2]).toHaveTextContent('no reply');
     expect(screen.getAllByTestId('complaint-status-badge')).toHaveLength(3);
-    expect(getAdminComplaints).toHaveBeenCalledWith({ limit: 50, offset: 0, status: 'open' });
+    expect(getAdminComplaints).toHaveBeenCalledWith({ limit: 50, offset: 0 });
   });
 
   it('AP5: the detail shows the patient, the visit, the description and the reply thread', async () => {

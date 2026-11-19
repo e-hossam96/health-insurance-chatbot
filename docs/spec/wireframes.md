@@ -468,7 +468,7 @@ Tabs: Locations, Specialties, Clinics, Doctors. Each tab is a table with a `[+ A
 
 ```
 +-------------------------------------------------------------------------+
-| Status [Scheduled v]   Search patient [__________]                      |
+| Status [All statuses v]   Search patient [__________]                   |
 +-------------------------------------------------------------------------+
 | Patient   Location  Clinic        Specialty  Doctor      When          Status       Action |
 | Sara N.   Cairo     Cairo Clinic  Derm.      Dr. Sara    15 Nov 10:00  [Scheduled]  [Mark completed] |
@@ -476,7 +476,7 @@ Tabs: Locations, Specialties, Clinics, Doctors. Each tab is a table with a `[+ A
 +-------------------------------------------------------------------------+
 ```
 
-- All visits of all patients. Default filter: Scheduled. Sort by date.
+- All visits of all patients. Default filter: All statuses. Sort by date.
 - `[Mark completed]` only on Scheduled, with a confirm dialog (D3). Cancelled and Completed are final; admins cannot cancel.
 - Patient = `profile.name`. Other columns derived by joins (D4).
 - A booked slot chip in AP3 opens /admin/visits?visit=<id>, which shows only that visit (any status) with a button to show all again.
@@ -486,7 +486,7 @@ Tabs: Locations, Specialties, Clinics, Doctors. Each tab is a table with a `[+ A
 
 ```
 +------------------------------+------------------------------------------+
-| Status [Open v]              | Complaint #14                    [Open]  |
+| Status [All statuses v]      | Complaint #14                    [Open]  |
 |                              | Patient: Omar K.                         |
 | #14 Omar K.        [Open]    | Visit: 12 Nov 10:00, Dr. Omar Hassan,    |
 |     13 Nov - 1 reply         |        Nile Medical                      |
@@ -504,7 +504,7 @@ Tabs: Locations, Specialties, Clinics, Doctors. Each tab is a table with a `[+ A
 +------------------------------+------------------------------------------+
 ```
 
-- Left: list with status filter (Open default), newest first. Right: detail of the selected complaint.
+- Left: list with status filter (All statuses default), newest first. Right: detail of the selected complaint.
 - A reply does not change status (E4). Closing is separate: the checkbox on send, or `[ Close complaint ]` on its own.
 - Closed complaints: reply box disabled with "Closed complaints can't receive replies." (E5)
 - Replies show the admin username and date. Users see them as "Support team".

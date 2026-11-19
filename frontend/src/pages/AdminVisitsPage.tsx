@@ -18,7 +18,7 @@ export function AdminVisitsPage(): ReactNode {
   const [visits, setVisits] = useState<AdminVisit[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
-  const [statusFilter, setStatusFilter] = useState(visitId === undefined ? 'scheduled' : '');
+  const [statusFilter, setStatusFilter] = useState('');
   const [patientInput, setPatientInput] = useState('');
   const [patient, setPatient] = useState('');
   const { confirm, confirmDialog } = useConfirm();
