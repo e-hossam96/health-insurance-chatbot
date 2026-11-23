@@ -262,7 +262,7 @@ export function ChatPage(): ReactNode {
                 <div className="mx-auto mt-[12vh] mb-6 flex max-w-lg flex-col items-center gap-3 text-center">
                   <LogoMark size={48} />
                   <p className="text-xl font-bold">How can I help today?</p>
-                  <p className="text-sm text-muted">Book a visit, check a complaint, ask about clinics, or ask a policy question such as refunds or spending limits.</p>
+                  <p className="text-sm text-muted">Book a visit, check a complaint, ask about clinics, or ask an insurance question such as refunds or spending limits.</p>
                 </div>
                 <div className="mx-auto grid max-w-lg grid-cols-1 gap-3 sm:grid-cols-2">
                   {STARTER_CARDS.map(card => (

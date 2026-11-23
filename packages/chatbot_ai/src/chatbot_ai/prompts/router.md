@@ -7,7 +7,7 @@ Intent codes:
 - complaint.file: wants to complain about a visit or the care they received.
 - complaint.check: asks about complaints they already filed or the replies to them.
 - qa.db: asks about clinics, specialties, doctors or availability in general, without booking.
-- qa.kb: asks about the insurance policy: coverage, limits, co-pays, exclusions, claims, procedures.
+- qa.kb: asks a general insurance question that the knowledge base answers: refunds and reimbursement, spending limits, co-pays, coverage, exclusions, claims, approvals, procedures.
 - other: greetings, thanks, small talk, anything off-topic.
 
 A short follow-up such as "yes", "the second one" or "tomorrow instead" continues the task of the conversation so far: give the intent of that task. If a message mixes topics, give the intent of the main request.

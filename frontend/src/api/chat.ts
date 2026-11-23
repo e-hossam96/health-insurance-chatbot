@@ -192,7 +192,7 @@ export const INTENT_LABELS: Record<string, string> = {
   'complaint.file': 'File a complaint',
   'complaint.check': 'My complaints',
   'qa.db': 'Clinic question',
-  'qa.kb': 'Policy question',
+  'qa.kb': 'Insurance question',
   other: 'Chat',
 };
 
@@ -207,7 +207,7 @@ export const STARTER_CARDS: readonly { label: string; message: string }[] = [
   { label: 'Cancel a visit', message: 'I want to cancel a visit.' },
   { label: 'File a complaint', message: 'I want to file a complaint about a visit.' },
   { label: 'Check my complaints', message: 'Show me my complaints.' },
-  { label: 'Ask a policy question', message: 'What does my health insurance cover?' },
+  { label: 'Ask an insurance question', message: 'What does my health insurance cover?' },
 ];
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

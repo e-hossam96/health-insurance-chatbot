@@ -15,11 +15,11 @@ Setup: the stack is running with real models, the demo data is seeded, and `poli
 4. Open **My visits & complaints** in the header: the visit is listed as Scheduled.
 5. Optional: open a second browser as another member and book the same slot first, then click Book in the first browser: "This slot was just taken" with **Show other options**.
 
-## 3. Policy questions from the knowledge base (2 min)
+## 3. Insurance questions from the knowledge base (2 min)
 
-Policy questions are any general insurance question the documents answer, not only coverage: refunds and reimbursement, spending limits, co-pays, exclusions, claims and approvals.
+Insurance questions are any general question the documents answer, not only coverage: refunds and reimbursement, spending limits, co-pays, exclusions, claims and approvals.
 
-1. Start a new chat and click **Ask a policy question**, or ask "How much is the co-pay for an outpatient visit?" (50 EGP), "What is the yearly limit for prescription drugs?" (20000 EGP), "How long do I have to claim a refund for a visit I paid for?" (90 days, with the original receipts and the medical report) and "Does an MRI need approval, and how far ahead?" (3 working days, from a table in the member guide).
+1. Start a new chat and click **Ask an insurance question**, or ask "How much is the co-pay for an outpatient visit?" (50 EGP), "What is the yearly limit for prescription drugs?" (20000 EGP), "How long do I have to claim a refund for a visit I paid for?" (90 days, with the original receipts and the medical report) and "Does an MRI need approval, and how far ahead?" (3 working days, from a table in the member guide).
 2. Ask something the documents don't cover, such as "Does the plan cover IVF?": the assistant says it could not find IVF in the documents and does not guess. Until a reranker and its minimum score are set (`AI_RERANK_MIN_SCORE`), the model writes this reply itself from the closest excerpts and may mention related clauses; the fixed reply "I couldn't find that in the documents." appears only when the search returns nothing (I8).
 
 ## 4. Cancel and complain (2 min)

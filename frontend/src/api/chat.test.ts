@@ -67,7 +67,7 @@ describe('intent label map', () => {
     expect(intentLabel('complaint.file')).toBe('File a complaint');
     expect(intentLabel('complaint.check')).toBe('My complaints');
     expect(intentLabel('qa.db')).toBe('Clinic question');
-    expect(intentLabel('qa.kb')).toBe('Policy question');
+    expect(intentLabel('qa.kb')).toBe('Insurance question');
     expect(intentLabel('other')).toBe('Chat');
     expect(intentLabel(null)).toBe('New chat');
   });

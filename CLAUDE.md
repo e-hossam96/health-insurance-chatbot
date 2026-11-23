@@ -2,7 +2,7 @@
 
 Version: v0.1.0. Every spec file carries the same version line.
 
-A demo of an AI chatbot for a health insurer, shown to insurers and employers. It books clinic visits, files and checks complaints, answers questions about clinics from the database, and answers policy questions from an uploaded knowledge base. Policy questions are general insurance questions the knowledge base can answer: refund and reimbursement rules, spending limits, co-pays, coverage, exclusions, claims, approvals and procedures. The AI side is meant to show a modern RAG and agent stack, and to be measured by an eval module.
+A demo of an AI chatbot for a health insurer, shown to insurers and employers. It books clinic visits, files and checks complaints, answers questions about clinics from the database, and answers general insurance questions from an uploaded knowledge base, meaning anything the knowledge base can answer: refund and reimbursement rules, spending limits, co-pays, coverage, exclusions, claims, approvals and procedures. The AI side is meant to show a modern RAG and agent stack, and to be measured by an eval module.
 
 ## Read in this order
 

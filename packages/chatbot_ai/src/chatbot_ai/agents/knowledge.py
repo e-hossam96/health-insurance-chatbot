@@ -30,7 +30,7 @@ SEARCH_TOOL = "search_kb"
 
 def excerpt_block(excerpts: list[Candidate]) -> str:
     parts = [f"[{index}] {c.breadcrumb or 'Document'}\n{c.content}" for index, c in enumerate(excerpts, start=1)]
-    return "Excerpts from the policy documents:\n\n" + "\n\n".join(parts)
+    return "Excerpts from the knowledge base documents:\n\n" + "\n\n".join(parts)
 
 
 def not_found_reply(language: LanguageCode) -> str:

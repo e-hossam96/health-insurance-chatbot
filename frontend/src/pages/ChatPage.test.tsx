@@ -112,7 +112,7 @@ describe('ChatPage', () => {
       'Cancel a visit',
       'File a complaint',
       'Check my complaints',
-      'Ask a policy question',
+      'Ask an insurance question',
     ]);
   });
 
@@ -146,7 +146,7 @@ describe('ChatPage', () => {
     getSessions.mockResolvedValue(sessions);
     renderChat();
     await waitFor(() => {
-      expect(screen.getAllByTestId('session-label').map(l => l.textContent)).toEqual(['Policy question', 'New chat']);
+      expect(screen.getAllByTestId('session-label').map(l => l.textContent)).toEqual(['Insurance question', 'New chat']);
     });
   });
 

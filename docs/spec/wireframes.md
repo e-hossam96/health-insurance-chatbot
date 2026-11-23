@@ -147,7 +147,7 @@ Guards (UX only; the backend checks the role on every call, B8):
 |  "I need a derm" |  +------------------+   +------------------+         |
 |  2 min ago       |  | Book a clinic    |   | Check my         |         |
 |                  |  | visit            |   | visits           |         |
-| Policy question  |  +------------------+   +------------------+         |
+| Insurance ques.. |  +------------------+   +------------------+         |
 |  "What does my.."|  +------------------+   +------------------+         |
 |  Yesterday       |  | Cancel a         |   | File a           |         |
 |                  |  | visit            |   | complaint        |         |
@@ -184,7 +184,7 @@ Guards (UX only; the backend checks the role on every call, B8):
 | complaint.file | File a complaint |
 | complaint.check | My complaints |
 | qa.db | Clinic question |
-| qa.kb | Policy question |
+| qa.kb | Insurance question |
 | other | Chat |
 | (null) | New chat |
 
@@ -203,7 +203,7 @@ Six cards in a 2 by 3 grid, in this order:
 | Cancel a visit | "I want to cancel a visit." | visit.cancel |
 | File a complaint | "I want to file a complaint about a visit." | complaint.file |
 | Check my complaints | "Show me my complaints." | complaint.check |
-| Ask a policy question | "What does my health insurance cover?" | qa.kb |
+| Ask an insurance question | "What does my health insurance cover?" | qa.kb |
 
 The expected intent is what the classifier should return for that message. The routing eval checks it (`ai.md`).
 
@@ -363,7 +363,7 @@ Header as in section 3, with a section menu next to the `[User view]` toggle so 
 | Health Insurance Chatbot   admin1  [KB documents v] [User view] [Log out] |
 |                                    +-----------------------------------+ |
 |                                    | KB documents                      | |
-|                                    |   Documents for policy questions  | |
+|                                    |  Documents for insurance questions| |
 |                                    | Catalog                           | |
 |                                    |   Locations, specialties, clinics,| |
 |                                    |   doctors                         | |
