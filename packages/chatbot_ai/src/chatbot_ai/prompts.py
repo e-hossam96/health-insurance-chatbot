@@ -3,6 +3,8 @@ from __future__ import annotations
 from functools import cache
 from importlib.resources import files
 
+from openai.types.chat import ChatCompletionMessageParam
+
 from chatbot_ai.intents import AgentName
 from chatbot_ai.interface import ProfileInfo
 from chatbot_ai.languages import LanguageCode, reply_language
@@ -23,9 +25,19 @@ def profile_block(profile: ProfileInfo) -> str:
     )
 
 
+def reply_language_block(language: LanguageCode) -> str:
+    return load_prompt(reply_language(language).value)
+
+
+def language_reminder(language: LanguageCode) -> list[ChatCompletionMessageParam]:
+    if language is not LanguageCode.other:
+        return []
+    return [{"role": "system", "content": load_prompt("language_other_reminder")}]
+
+
 def agent_system_prompt(agent: AgentName, profile: ProfileInfo, language: LanguageCode) -> str:
     blocks = [load_prompt(name) for name in SHARED_BLOCKS]
     blocks.append(profile_block(profile))
-    blocks.append(load_prompt(reply_language(language).value))
+    blocks.append(reply_language_block(language))
     blocks.append(load_prompt(agent.value))
     return "\n\n".join(blocks)

@@ -180,3 +180,45 @@ async def test_F17_cards_carry_the_turn_language_and_keep_the_catalog_names(
     assert cards.language is LanguageCode(card_language)
     catalog_doctors = {doctor.name for doctor in sample_catalog().doctors}
     assert cards.items and all(item["doctor_name"] in catalog_doctors for item in cards.items)
+
+
+def test_F17_the_english_block_forbids_mirroring_another_language() -> None:
+    english = load_prompt("language_english")
+    assert "never reply in the member's language when it is not English" in english
+
+
+def test_F17_the_arabic_block_translates_document_text_but_keeps_catalog_names() -> None:
+    arabic = load_prompt("language_arabic")
+    assert "Translate everything you take from the tools or documents into Arabic" in arabic
+    assert "keep doctor, clinic, location and specialty names exactly as the tools give them" in arabic
+    assert "The cards are shown in English" not in arabic
+
+
+def test_I1_F8_a_described_health_problem_routes_to_booking() -> None:
+    assert "describes a health problem or asks for medical advice should see a doctor: give visit.book" in load_prompt("router")
+
+
+def test_I6_F17_the_rewrite_always_asks_for_the_alternates_it_has_room_for() -> None:
+    system = str(rewrite_messages([], "هل الولادة مغطاة؟", 3)[0].get("content"))
+    assert 'always fill it with exactly 2 different phrasings' in system and "never leave it empty" in system
+    assert "If asked for alternates" not in system
+
+
+@pytest.mark.anyio()
+@pytest.mark.parametrize(("intent", "language"), [("other", "other"), ("visit.check", "other"), ("other", "en"), ("visit.check", "ar")])
+async def test_F17_only_an_other_language_turn_ends_with_the_english_reminder_and_it_is_not_stored(
+    fake_openai: FakeOpenAI, ai_settings: AISettings, role_clients: RoleClients, intent: str, language: str
+) -> None:
+    fake_openai.queue(json_reply({"intent": intent, "language": language}), model="router-model")
+    fake_openai.queue(text_reply("ok"), model="chat-model")
+    events = await _collect(run_turn(_request("Bonjour, mes rendez-vous ?"), PORTS, ai_settings, role_clients))
+    messages = fake_openai.chat_requests[1]["messages"]
+    reminder = {"role": "system", "content": load_prompt("language_other_reminder")}
+    if language == "other":
+        assert messages[-1] == reminder
+        assert messages[-2] == {"role": "user", "content": "Bonjour, mes rendez-vous ?"}
+    else:
+        assert reminder not in messages
+    done = events[-1]
+    assert isinstance(done, Done)
+    assert all(row.role != "system" for row in done.new_rows)

@@ -14,3 +14,11 @@
 {"id": "complaint-reply-time", "question": "How quickly does the care team reply to a complaint?", "expected_phrases": ["replies within 3 working days"], "expected_document": "member_guide.docx"}
 {"id": "mri-approval", "question": "Does an MRI scan need pre-authorization?", "expected_phrases": ["MRI scan", "3 working days"], "expected_document": "member_guide.docx"}
 {"id": "dental-crown", "question": "What is the yearly limit for a dental crown on the Premium tier?", "expected_phrases": ["Crown"], "expected_document": "member_guide.docx"}
+{"id": "ar-outpatient-copay", "question": "كم أدفع مقابل زيارة العيادة الخارجية في عيادة من الشبكة؟", "expected_phrases": ["co-pay of 50 EGP per visit"], "expected_document": "policy_handbook.pdf", "expected_language": "ar"}
+{"id": "ar-inpatient-nights", "question": "كم ليلة إقامة في المستشفى مغطاة كل عام؟", "expected_phrases": ["up to 30 nights per year"], "expected_document": "policy_handbook.pdf", "expected_language": "ar"}
+{"id": "ar-claim-deadline", "question": "كم من الوقت لدي لتقديم طلب استرداد المصاريف؟", "expected_phrases": ["within 90 days of the service date"], "expected_document": "policy_handbook.pdf", "expected_language": "ar"}
+{"id": "ar-member-card", "question": "متى ستصلني بطاقة العضوية؟", "expected_phrases": ["within 10 days of enrollment"], "expected_document": "member_guide.docx", "expected_language": "ar"}
+{"id": "ar-mri-approval", "question": "هل يحتاج التصوير بالرنين المغناطيسي إلى موافقة مسبقة؟", "expected_phrases": ["MRI scan", "3 working days"], "expected_document": "member_guide.docx", "expected_language": "ar"}
+{"id": "ar-dialect-missed-visits", "question": "إيه اللي يحصل لو فوّت مواعيد من غير ما ألغيها؟", "expected_phrases": ["three missed visits in a year suspend online booking for 30 days"], "expected_document": "member_guide.docx", "expected_language": "ar"}
+{"id": "other-french-referral", "question": "Ai-je besoin d'une recommandation pour consulter un spécialiste ?", "expected_phrases": ["Specialist visits need no referral"], "expected_document": "policy_handbook.pdf", "expected_language": "other"}
+{"id": "other-spanish-drugs", "question": "¿Cuál es el límite anual para medicamentos recetados?", "expected_phrases": ["Prescription drugs", "20000 EGP"], "expected_document": "policy_handbook.pdf", "expected_language": "other"}

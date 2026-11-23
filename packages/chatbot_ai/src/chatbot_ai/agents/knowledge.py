@@ -14,7 +14,11 @@ from chatbot_ai.intents import AgentName
 from chatbot_ai.interface import HistoryRow, Token, Usage
 from chatbot_ai.languages import LanguageCode, ReplyLanguage, reply_language
 from chatbot_ai.llm import StreamedReply, reply_output, stream_reply
-from chatbot_ai.prompts import agent_system_prompt
+from chatbot_ai.prompts import (
+    agent_system_prompt,
+    language_reminder,
+    reply_language_block,
+)
 from chatbot_ai.rag.rewrite import rewrite_messages, rewrite_question
 from chatbot_ai.rag.search import Candidate, dedupe, rrf_merge, search_one
 from chatbot_ai.rerank.base import Reranker, make_reranker
@@ -134,9 +138,15 @@ class KnowledgeAgent:
             return
 
         messages: list[ChatCompletionMessageParam] = [
-            {"role": "system", "content": agent_system_prompt(self.name, request.profile, context.language) + "\n\n" + excerpt_block(excerpts)},
+            {
+                "role": "system",
+                "content": "\n\n".join(
+                    [agent_system_prompt(self.name, request.profile, context.language), excerpt_block(excerpts), reply_language_block(context.language)]
+                ),
+            },
             *to_openai_messages(request.history),
             {"role": "user", "content": request.message},
+            *language_reminder(context.language),
         ]
         chat = context.clients.get(Role.chat)
         reply: StreamedReply | None = None

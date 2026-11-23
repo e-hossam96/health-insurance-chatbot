@@ -3,7 +3,12 @@ from __future__ import annotations
 import pytest
 
 from chatbot_ai.evals.schemas import RetrievalItem
-from chatbot_ai.evals.suites import _scores, is_refusal, stale_slot_mentions
+from chatbot_ai.evals.suites import (
+    _scores,
+    is_english_query,
+    is_refusal,
+    stale_slot_mentions,
+)
 from chatbot_ai.languages import LanguageCode, written_language
 from chatbot_ai.rag.search import Candidate
 
@@ -104,3 +109,12 @@ def test_F17_written_language_goes_by_the_main_script() -> None:
     assert written_language("أقرب موعد مع Dr. Sara Nabil في Cairo Clinic يوم الثلاثاء 10:00 UTC.") is LanguageCode.arabic
     assert written_language("The co-pay is 50 EGP for every outpatient visit (مبلغ المشاركة).") is LanguageCode.english
     assert written_language("") is LanguageCode.english
+
+
+def test_F17_I6_a_search_query_counts_as_english_only_without_arabic_and_with_english_words() -> None:
+    assert is_english_query("What is the copayment for an outpatient clinic visit?")
+    assert is_english_query("Does the plan cover IVF?")
+    assert not is_english_query("هل الولادة مغطاة؟")
+    assert not is_english_query("Is الولادة covered?")
+    assert not is_english_query("Combien coûte la participation pour une consultation externe ?")
+    assert not is_english_query("¿Cuál es el límite anual para medicamentos recetados?")

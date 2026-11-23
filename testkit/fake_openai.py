@@ -136,7 +136,7 @@ def auto_reply(body: ChatCompletionBody) -> ChatReply:
         if schema_name == "intent":
             return json_reply({"intent": classify(body.messages), "language": detect_language(body.messages)})
         if schema_name == "judge":
-            return json_reply({"faithful": True, "facts_present": True, "refused": False, "notes": "auto"})
+            return json_reply({"faithful": True, "facts_present": True, "refused": False, "answer_language": "en", "notes": "auto"})
         last_user = next((str(m.get("content", "")) for m in reversed(body.messages) if m.get("role") == "user"), "")
         return json_reply({"standalone": last_user, "alternates": []})
     tool_names = {str(t["function"]["name"]) for t in body.tools or []}

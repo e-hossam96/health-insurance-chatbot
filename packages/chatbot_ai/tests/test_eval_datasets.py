@@ -79,5 +79,8 @@ def test_F17_every_dataset_has_arabic_and_other_language_items() -> None:
     assert any(not i.answerable for i in answers if i.expected_language is LanguageCode.arabic)
     turns = [turn for scenario in scenarios for turn in scenario.turns]
     assert {t.expected_cards for t in turns if t.expected_language is LanguageCode.arabic} >= CARD_TYPES
+    retrieval = load_jsonl(DATASETS / "retrieval.jsonl", RetrievalItem)
+    assert {i.expected_language for i in retrieval} == set(LanguageCode)
+    assert {i.expected_document for i in retrieval if i.expected_language is LanguageCode.arabic} == {"policy_handbook.pdf", "member_guide.docx"}
     switch = next(s for s in scenarios if s.id == "language-switch")
     assert [t.expected_language for t in switch.turns] == [LanguageCode.english, LanguageCode.arabic, LanguageCode.arabic]

@@ -37,7 +37,12 @@ from chatbot_ai.interface import (
     Token,
     TurnRequest,
 )
-from chatbot_ai.languages import LanguageCode, display_language, written_language
+from chatbot_ai.languages import (
+    ARABIC_LETTER,
+    LanguageCode,
+    display_language,
+    written_language,
+)
 from chatbot_ai.orchestrator import run_turn
 from chatbot_ai.rag.rewrite import rewrite_question
 from chatbot_ai.rag.search import Candidate, dedupe, rrf_merge, search_one
@@ -64,9 +69,10 @@ JUDGE_SCHEMA: ResponseFormatJSONSchema = {
                 "faithful": {"type": "boolean"},
                 "facts_present": {"type": "boolean"},
                 "refused": {"type": "boolean"},
+                "answer_language": {"type": "string", "enum": [code.value for code in LanguageCode]},
                 "notes": {"type": "string"},
             },
-            "required": ["faithful", "facts_present", "refused", "notes"],
+            "required": ["faithful", "facts_present", "refused", "answer_language", "notes"],
             "additionalProperties": False,
         },
     },
@@ -87,11 +93,35 @@ class StageScores(BaseModel):
     mrr: float
 
 
+class RewriteRecord(BaseModel):
+    id: str
+    expected_language: str
+    queries: list[str]
+    english: list[bool]
+
+
 class RetrievalReport(BaseModel):
     items: int
     stages: dict[str, StageScores]
     mean_latency_s: dict[str, float]
     misses: list[str]
+    english_query_rate: float
+    mean_queries: float
+    hit_at_5_by_language: dict[str, float]
+    rewrites: list[RewriteRecord]
+
+
+ENGLISH_FUNCTION_WORDS = frozenset(
+    ["a", "an", "the", "is", "are", "am", "was", "do", "does", "did", "can", "will", "what", "when", "how", "which", "who", "where", "why", "for", "of", "to", "in", "on", "at", "my", "i", "me", "and", "or", "with", "without", "per", "before", "after", "need", "have", "has", "there"]
+)
+WORD = re.compile(r"[a-z]+")
+
+
+def is_english_query(query: str) -> bool:
+    if ARABIC_LETTER.search(query):
+        return False
+    words = WORD.findall(query.lower())
+    return any(word in ENGLISH_FUNCTION_WORDS for word in words)
 
 
 class AnswerOutcome(BaseModel):
@@ -222,6 +252,8 @@ async def run_retrieval_suite(settings: AISettings, items: list[RetrievalItem]) 
     totals = {s: _Totals() for s in stages}
     latency = {"rewrite": 0.0, "embed": 0.0, "search": 0.0, "rerank": 0.0}
     misses: list[str] = []
+    rewrites: list[RewriteRecord] = []
+    hits_by_language: dict[str, list[bool]] = {}
     async with fixture_collection(settings) as scoped:
         clients = RoleClients(scoped)
         qdrant = make_qdrant(scoped)
@@ -230,6 +262,14 @@ async def run_retrieval_suite(settings: AISettings, items: list[RetrievalItem]) 
                 t0 = time.monotonic()
                 rewrite = await rewrite_question(clients.get(Role.rewrite), [], item.question, scoped.ai_query_count, scoped.ai_rewrite_max_output_tokens)
                 t1 = time.monotonic()
+                rewrites.append(
+                    RewriteRecord(
+                        id=item.id,
+                        expected_language=item.expected_language.value,
+                        queries=rewrite.queries,
+                        english=[is_english_query(query) for query in rewrite.queries],
+                    )
+                )
                 dense = await embed_dense(clients.get(Role.embedding), rewrite.queries, "query", scoped)
                 sparse = embed_sparse(rewrite.queries, "query")
                 t2 = time.monotonic()
@@ -248,6 +288,7 @@ async def run_retrieval_suite(settings: AISettings, items: list[RetrievalItem]) 
                     totals[name].add(hits, recall, mrr)
                 if not _scores(reranked, item)[0][max(KS)]:
                     misses.append(item.id)
+                hits_by_language.setdefault(item.expected_language.value, []).append(_scores(reranked, item)[0][5])
                 for key, seconds in (("rewrite", t1 - t0), ("embed", t2 - t1), ("search", t3 - t2), ("rerank", t4 - t3)):
                     latency[key] += seconds
         finally:
@@ -266,6 +307,10 @@ async def run_retrieval_suite(settings: AISettings, items: list[RetrievalItem]) 
         },
         mean_latency_s={key: value / n for key, value in latency.items()},
         misses=misses,
+        english_query_rate=sum(sum(r.english) for r in rewrites) / max(sum(len(r.english) for r in rewrites), 1),
+        mean_queries=sum(len(r.queries) for r in rewrites) / n,
+        hit_at_5_by_language={language: sum(hits) / len(hits) for language, hits in sorted(hits_by_language.items())},
+        rewrites=rewrites,
     )
 
 
@@ -275,20 +320,21 @@ def eval_ports(ready: list[int]) -> Ports:
     return fakes.as_ports()
 
 
-async def _judge(clients: RoleClients, item: AnswerItem, answer: str, excerpts: str) -> tuple[bool, bool, bool] | None:
+async def _judge(clients: RoleClients, item: AnswerItem, answer: str, excerpts: str) -> tuple[bool, bool, bool, LanguageCode] | None:
     prompt = (
         "You grade an insurance assistant's answer. Excerpts it was given:\n"
         f"{excerpts}\n\nQuestion: {item.question}\nAnswer: {answer}\n"
         f"Required facts: {item.must_include}\n"
         "faithful: every claim in the answer is supported by the excerpts. facts_present: every required fact is in the answer. "
         "refused: the answer says it could not find the information. "
-        "The answer may be in Arabic while the excerpts are in English: judge by meaning, and accept amounts, days and numbers in either language."
+        "The answer may be in Arabic while the excerpts are in English: judge by meaning, and accept amounts, days and numbers in either language. "
+        "answer_language: the language the answer is written in (ar Arabic, en English, other), ignoring quoted names."
     )
     try:
         judge = clients.get(Role.judge)
         completion = await judge.complete([{"role": "user", "content": prompt}], max_tokens=1024, response_format=JUDGE_SCHEMA)
         verdict = json.loads(completion.choices[0].message.content or "")
-        return bool(verdict["faithful"]), bool(verdict["facts_present"]), bool(verdict["refused"])
+        return bool(verdict["faithful"]), bool(verdict["facts_present"]), bool(verdict["refused"]), LanguageCode(verdict["answer_language"])
     except Exception:  # noqa: BLE001 - a failed judgement is counted, not fatal
         return None
 
@@ -333,7 +379,7 @@ async def run_answers_suite(settings: AISettings, items: list[AnswerItem]) -> An
                         refused=refused,
                         correct_refusal=refused != item.answerable,
                         expected_language=item.expected_language.value,
-                        reply_language=written_language(answer).value,
+                        reply_language=(verdict[3] if verdict is not None else written_language(answer)).value,
                     )
                 )
         finally:

@@ -26,7 +26,7 @@ from chatbot_ai.intents import AgentName
 from chatbot_ai.interface import Done, ProfileInfo, TurnEvent, TurnRequest
 from chatbot_ai.languages import LanguageCode
 from chatbot_ai.orchestrator import default_agents, run_turn
-from chatbot_ai.prompts import agent_system_prompt
+from chatbot_ai.prompts import agent_system_prompt, load_prompt, reply_language_block
 from chatbot_ai.rag.search import search_one
 from chatbot_ai.rerank.base import RerankResult
 from chatbot_ai.settings import AISettings
@@ -85,9 +85,15 @@ class RecordingReranker:
 
 
 async def _knowledge_turn(
-    fake: FakeOpenAI, settings: AISettings, standalone: str, ready: list[int], reranker: RecordingReranker | None = None, answer: str = "Answer."
+    fake: FakeOpenAI,
+    settings: AISettings,
+    standalone: str,
+    ready: list[int],
+    reranker: RecordingReranker | None = None,
+    answer: str = "Answer.",
+    language: str = "en",
 ) -> list[TurnEvent]:
-    fake.queue(json_reply({"intent": "qa.kb", "language": "en"}), model="router-model")
+    fake.queue(json_reply({"intent": "qa.kb", "language": language}), model="router-model")
     fake.queue(json_reply({"standalone": standalone, "alternates": [f"{standalone} policy", f"{standalone} rules"]}), model="rewrite-model")
     fake.queue(text_reply(answer), model="chat-model")
     fakes = make_fake_ports(sample_catalog(), 10, 1, datetime(2026, 12, 1, tzinfo=UTC))
@@ -128,6 +134,18 @@ async def test_I4_the_knowledge_answer_request_carries_the_full_agent_prompt(fak
     await _knowledge_turn(fake_openai, settings, "Does an MRI scan need approval?", [GUIDE])
     system = str(_answers(fake_openai)[0]["messages"][0]["content"])  # type: ignore[index]
     assert system.startswith(agent_system_prompt(AgentName.knowledge, PROFILE, LanguageCode.english))
+    assert system.endswith(reply_language_block(LanguageCode.english)), "F17: the reply language is repeated after the excerpts"
+    assert system.index("Excerpts from the knowledge base documents") < system.rindex("American English")
+
+
+@pytest.mark.anyio()
+async def test_F17_an_other_language_knowledge_answer_ends_with_the_english_reminder(fake_openai: FakeOpenAI, kb_model: str) -> None:
+    settings = settings_for(fake_openai.base_url, ai_embedding_model=kb_model)
+    await _knowledge_turn(fake_openai, settings, "Does an MRI scan need approval?", [GUIDE], language="other")
+    messages = _answers(fake_openai)[0]["messages"]
+    assert isinstance(messages, list)
+    assert messages[-1] == {"role": "system", "content": load_prompt("language_other_reminder")}
+    assert messages[-2]["role"] == "user"
 
 
 @pytest.mark.anyio()

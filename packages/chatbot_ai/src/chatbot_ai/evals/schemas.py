@@ -13,6 +13,7 @@ class RetrievalItem(BaseModel):
     question: str
     expected_phrases: list[str] = Field(min_length=1)
     expected_document: str
+    expected_language: LanguageCode = LanguageCode.english
 
 
 class AnswerItem(BaseModel):
