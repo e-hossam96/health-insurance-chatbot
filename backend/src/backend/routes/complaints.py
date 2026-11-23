@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, StringConstraints
 from sqlalchemy import select
 
 from backend.card_messages import (
@@ -20,13 +20,15 @@ from backend.metrics import card_action
 from backend.models import Complaint, ComplaintReply, Doctor, Slot, Visit, VisitStatus
 from backend.ownership import require_owned_chat_session, require_profile
 
+COMPLAINT_DESCRIPTION_MAX_CHARS = 2000
+
 router = APIRouter(prefix="/me", tags=["complaints"])
 
 
 class FileComplaintRequest(BaseModel):
     session_id: int
     visit_id: int
-    description: str
+    description: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=COMPLAINT_DESCRIPTION_MAX_CHARS)]
     language: CardLanguage = "en"
 
 
@@ -72,7 +74,8 @@ async def file_complaint(
 
     # E1: only on the member's own completed visit
     visit = (
-        await db.execute(select(Visit).where(Visit.id == body.visit_id, Visit.profile_id == profile.id))
+        # E2: the visit row lock makes the existence check and the insert one step
+        await db.execute(select(Visit).where(Visit.id == body.visit_id, Visit.profile_id == profile.id).with_for_update())
     ).scalar_one_or_none()
     if visit is None:
         raise not_found("Visit not found.")

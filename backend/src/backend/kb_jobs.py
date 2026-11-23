@@ -4,6 +4,7 @@ import asyncio
 import logging
 import multiprocessing
 import time
+from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from multiprocessing.connection import Connection
@@ -100,6 +101,10 @@ def ingest_file_type(file_type: KbFileType) -> FileType:
             return "txt"
 
 
+COMPLETED_JOBS_KEPT = 100
+CHILD_START_FAILED = "The ingestion job could not start. Upload the document again."
+
+
 class KbJobRunner:
     def __init__(
         self,
@@ -114,7 +119,7 @@ class KbJobRunner:
         self.delete_points = delete_points
         self._queue: asyncio.Queue[int] = asyncio.Queue()
         self._worker: asyncio.Task[None] | None = None
-        self.completed: list[JobRecord] = []
+        self.completed: deque[JobRecord] = deque(maxlen=COMPLETED_JOBS_KEPT)
 
     @property
     def ai_settings(self) -> AISettings | None:
@@ -182,16 +187,22 @@ class KbJobRunner:
         started = time.monotonic()
 
         settings = self._ai_settings
-        if settings is None:
-            record = JobRecord(document_id, JobFailed(AI_NOT_CONFIGURED))
-        elif not Path(path).is_file():
-            record = JobRecord(document_id, JobFailed("The uploaded file is missing from storage."))
-        else:
-            run = await run_in_child(self.ingest_function, document_id, path, file_type, settings, settings.ingest_timeout_s)
-            record = JobRecord(document_id, run.outcome, run.pid, run.exitcode)
+        try:
+            if settings is None:
+                record = JobRecord(document_id, JobFailed(AI_NOT_CONFIGURED))
+            elif not Path(path).is_file():
+                record = JobRecord(document_id, JobFailed("The uploaded file is missing from storage."))
+            else:
+                run = await run_in_child(self.ingest_function, document_id, path, file_type, settings, settings.ingest_timeout_s)
+                record = JobRecord(document_id, run.outcome, run.pid, run.exitcode)
+        except Exception:
+            # G5: a job that cannot run still leaves the document in a final state
+            logger.exception("KB job for document %s could not run", document_id)
+            record = JobRecord(document_id, JobFailed(CHILD_START_FAILED))
+        finally:
+            kb_documents_processing.dec()
         self.completed.append(record)
         outcome = record.outcome
-        kb_documents_processing.dec()
         kb_ingest_duration_seconds.observe(time.monotonic() - started)
         kb_ingest_total.labels(outcome="ok" if isinstance(outcome, JobSucceeded) else "failed").inc()
 

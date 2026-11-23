@@ -379,6 +379,36 @@ describe('ChatPage', () => {
     expect(screen.queryByTestId('doctor-card')).toBeNull();
   });
 
+  it('D6: a booking that finishes after switching chats does not add its messages to the other chat', async () => {
+    getSessions.mockResolvedValue([
+      { id: 1, intent: 'visit.book', created_at: '2026-11-15T10:00:00Z', last_message_at: '2026-11-15T10:00:00Z', first_user_message: 'book' },
+      { id: 2, intent: 'other', created_at: '2026-11-15T09:00:00Z', last_message_at: '2026-11-15T09:00:00Z', first_user_message: 'hi' },
+    ]);
+    getMessages.mockImplementation(async sessionId =>
+      sessionId === 2 ? [{ id: 9, session_id: 2, role: 'user', content: 'hi' }] : [],
+    );
+    let finishBooking: (value: Awaited<ReturnType<typeof visitsApi.bookVisit>>) => void = () => undefined;
+    bookVisit.mockReturnValueOnce(new Promise(resolve => { finishBooking = resolve; }));
+    scriptStream([{ event: 'session', session_id: 1 }, { event: 'token', text: 'Options.' }, DOCTOR_CARDS, { event: 'done' }]);
+    renderChat();
+    await send('book');
+    const user = userEvent.setup();
+    await user.click((await screen.findAllByTestId('book-btn'))[0]);
+    await user.click(screen.getAllByTestId('session-item')[1]);
+    await screen.findByText('hi', { selector: '[data-testid="msg-user"] *' });
+
+    finishBooking({
+      visit: { id: 10, status: 'scheduled' },
+      messages: [
+        { id: 50, session_id: 1, role: 'user', content: 'Book Dr. Sara on Tue 15 Dec, 10:00 UTC.' },
+        { id: 53, session_id: 1, role: 'assistant', content: 'Your visit is booked.' },
+      ],
+    });
+    await waitFor(() => expect(getSessions.mock.calls.length).toBeGreaterThan(2));
+    expect(screen.queryByText('Your visit is booked.')).toBeNull();
+    expect(screen.queryByText('Book Dr. Sara on Tue 15 Dec, 10:00 UTC.')).toBeNull();
+  });
+
   it('F3: a failed turn in an existing session keeps the session for Retry', async () => {
     getMessages.mockResolvedValue([
       { id: 1, session_id: 8, role: 'user', content: 'earlier' },

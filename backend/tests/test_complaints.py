@@ -429,3 +429,24 @@ async def test_F2_complaint_with_other_users_session_rejected(
         assert conn.execute(
             text("SELECT count(*) FROM chat_message WHERE session_id = :s"), {"s": other_session_id}
         ).scalar_one() == 0
+
+
+@pytest.mark.anyio()
+@pytest.mark.parametrize(("description", "status"), [("", 422), ("   \n ", 422), ("x" * 2001, 422), ("x" * 2000, 201)], ids=["empty", "blank", "too-long", "at-limit"])
+async def test_E1_E6_the_description_is_required_and_capped(
+    user_client: AsyncClient, db_engine: Engine, description: str, status: int
+) -> None:
+    visit_id = _setup_completed_visit(db_engine)
+    session_id = _get_chat_session_id(db_engine)
+    resp = await user_client.post("/me/complaints", json={"session_id": session_id, "visit_id": visit_id, "description": description})
+    assert resp.status_code == status
+    with db_engine.connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM complaint")).scalar_one() == (1 if status == 201 else 0)
+
+
+@pytest.mark.anyio()
+async def test_E1_the_stored_description_is_trimmed(user_client: AsyncClient, db_engine: Engine) -> None:
+    visit_id = _setup_completed_visit(db_engine)
+    session_id = _get_chat_session_id(db_engine)
+    resp = await user_client.post("/me/complaints", json={"session_id": session_id, "visit_id": visit_id, "description": "  Long wait  "})
+    assert resp.json()["complaint"]["description"] == "Long wait"

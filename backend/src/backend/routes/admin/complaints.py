@@ -81,7 +81,8 @@ class AdminComplaintDetail(BaseModel):
 
 
 async def _open_complaint(db: Db, complaint_id: int, closed_message: str) -> Complaint:
-    complaint = await db.get(Complaint, complaint_id)
+    # E5: the row lock keeps a reply from landing after a concurrent close
+    complaint = await db.get(Complaint, complaint_id, with_for_update=True)
     if complaint is None:
         raise not_found("Complaint not found.")
     # E5

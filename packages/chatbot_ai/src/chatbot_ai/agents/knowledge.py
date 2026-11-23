@@ -19,10 +19,10 @@ from chatbot_ai.prompts import (
     language_reminder,
     reply_language_block,
 )
-from chatbot_ai.rag.rewrite import rewrite_messages, rewrite_question
+from chatbot_ai.rag.rewrite import Rewrite, rewrite_messages, rewrite_question
 from chatbot_ai.rag.search import Candidate, dedupe, rrf_merge, search_one
 from chatbot_ai.rerank.base import Reranker, make_reranker
-from chatbot_ai.settings import AISettings, Role
+from chatbot_ai.settings import AISettings, RetrievalMode, Role
 
 NOT_FOUND_REPLY = "I couldn't find that in the documents."
 NOT_FOUND_REPLIES: dict[ReplyLanguage, str] = {
@@ -41,6 +41,13 @@ def not_found_reply(language: LanguageCode) -> str:
     return NOT_FOUND_REPLIES[reply_language(language)]
 
 
+def retrieval_mode(rewrite: Rewrite, language: LanguageCode, settings: AISettings) -> RetrievalMode:
+    # I6: the BM25 index is English, so an untranslated non-English question searches dense only
+    if rewrite.fell_back and language is not LanguageCode.english and settings.ai_retrieval_mode == "hybrid":
+        return "dense"
+    return settings.ai_retrieval_mode
+
+
 def is_grounded(excerpts: list[Candidate], min_score: float | None) -> bool:
     if not excerpts:
         return False
@@ -54,7 +61,9 @@ class KnowledgeAgent:
     def __init__(self, reranker_factory: Callable[[AISettings], Reranker] = make_reranker) -> None:
         self._reranker_factory = reranker_factory
 
-    async def _retrieve(self, context: AgentContext, queries: list[str], standalone: str) -> tuple[list[Candidate], dict[str, float]]:
+    async def _retrieve(
+        self, context: AgentContext, queries: list[str], standalone: str, mode: RetrievalMode
+    ) -> tuple[list[Candidate], dict[str, float]]:
         settings = context.settings
         clock = context.clock
         stages = {"embed": 0.0, "search": 0.0, "rerank": 0.0}
@@ -73,7 +82,7 @@ class KnowledgeAgent:
         embedded = clock()
         with context.tracer.stage("search", "retriever") as search_record:
             ranked_lists = [
-                await search_one(qdrant, collection, d, s, settings.ai_retrieval_mode, settings.ai_prefetch_k, ready)
+                await search_one(qdrant, collection, d, s, mode, settings.ai_prefetch_k, ready)
                 for d, s in zip(dense, sparse, strict=True)
             ]
             candidates = dedupe(rrf_merge(ranked_lists, settings.ai_fused_k))
@@ -105,7 +114,7 @@ class KnowledgeAgent:
                 usage=rewrite.usage,
             )
         rewritten = clock()
-        excerpts, stages = await self._retrieve(context, rewrite.queries, rewrite.standalone)
+        excerpts, stages = await self._retrieve(context, rewrite.queries, rewrite.standalone, retrieval_mode(rewrite, context.language, settings))
         stages["rewrite"] = rewritten - started
 
         call_id = f"call_{SEARCH_TOOL}_{uuid.uuid4().hex[:12]}"

@@ -81,6 +81,8 @@ async def prepare_turn(
     clock: ClockDep,
     settings: SettingsDep,
 ) -> PreparedTurn:
+    if body.message.strip() == "":
+        raise api_error("validation_error", "Message must not be empty.", 422)
     if len(body.message) > settings.rate_limit_message_max_chars:
         record_rate_limit("message_length")
         raise api_error(
@@ -90,8 +92,10 @@ async def prepare_turn(
         )
 
     profile = await require_profile(db, session.account_id)
+    # F15: a session the member does not own is a 404 and costs no quota
+    owned = await require_owned_chat_session(db, body.session_id, profile.id) if body.session_id is not None else None
     _enforce_chat_limits(user, str(profile.id), clock)
-    chat_session = await _open_chat_session(db, body.session_id, profile.id)
+    chat_session = owned if owned is not None else await _new_chat_session(db, profile.id)
     session_id = chat_session.id
     needs_label = chat_session.intent is None
     await db.commit()
@@ -133,9 +137,7 @@ def _enforce_chat_limits(user: Account, user_key: str, clock: Clock) -> None:
         chat_daily_limiter.record(user_key, clock=clock)
 
 
-async def _open_chat_session(db: AsyncSession, session_id: int | None, profile_id: int) -> ChatSession:
-    if session_id is not None:
-        return await require_owned_chat_session(db, session_id, profile_id)
+async def _new_chat_session(db: AsyncSession, profile_id: int) -> ChatSession:
     chat_session = ChatSession(profile_id=profile_id)
     db.add(chat_session)
     await db.flush()

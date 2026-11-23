@@ -48,7 +48,7 @@ class AdminVisitList(BaseModel):
 
 @router.post("/visits/{visit_id}/complete")
 async def complete_visit(visit_id: int, admin: RequireAdmin, db: Db) -> VisitStatusOut:
-    visit = await db.get(Visit, visit_id)
+    visit = await db.get(Visit, visit_id, with_for_update=True)
     if visit is None:
         raise not_found("Visit not found.")
     # D3

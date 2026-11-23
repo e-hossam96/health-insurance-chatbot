@@ -37,7 +37,7 @@ Per-screen endpoint paths are in the `Calls:` lines of `wireframes.md` (sections
 
 ## Chat stream
 
-`POST /me/chat {session_id?, message}` responds with text/event-stream:
+`POST /me/chat {session_id?, message}` responds with text/event-stream. Before the stream starts: an empty or whitespace-only message, or one over the F15 length, is a 422 `validation_error`; a `session_id` the member does not own is a 404 and is not counted against the F15 limits.
 
 | Event | Data | When |
 |---|---|---|
@@ -64,7 +64,7 @@ All three write the 4 static messages in the same transaction as the change (D6,
 
 - POST /me/visits {session_id, slot_id, language?} -> 201 {visit, messages}. 409 slot_taken.
 - POST /me/visits/:id/cancel {session_id?, language?} -> {visit, messages?}. `messages` only when session_id is given. 409 visit_not_cancellable.
-- POST /me/complaints {session_id, visit_id, description, language?} -> 201 {complaint, messages}. 409 visit_not_completed, complaint_exists.
+- POST /me/complaints {session_id, visit_id, description, language?} -> 201 {complaint, messages}. `description` is trimmed and must be 1 to 2000 characters (422 otherwise). 409 visit_not_completed, complaint_exists (also when another filing for the same visit wins the race).
 - `language` on the three card actions is `en` (default) or `ar`, taken from the card's `cards` event; it picks the language of the static user message and confirmation (D6, D8, E6, F17). Any other value is a 422. Doctor names come from the database unchanged.
 
 ## Admin KB documents
