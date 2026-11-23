@@ -22,6 +22,7 @@ class Rewrite:
     standalone: str
     alternates: list[str]
     usage: Usage
+    fell_back: bool = False
 
     @property
     def queries(self) -> list[str]:
@@ -77,4 +78,4 @@ async def rewrite_question(
         return Rewrite(standalone=standalone, alternates=alternates, usage=usage)
     except (OpenAIError, ValueError, KeyError, TypeError):
         logger.warning("query rewrite failed; searching with the raw message", exc_info=True)
-        return Rewrite(standalone=message, alternates=[], usage=Usage())
+        return Rewrite(standalone=message, alternates=[], usage=Usage(), fell_back=True)

@@ -7,6 +7,7 @@ from httpx import ASGITransport, AsyncClient
 
 from backend.app import create_app
 from backend.config import Settings
+from backend.rate_limit import _DailyCounter, _SlidingWindowCounter
 
 
 class FakeClock:
@@ -171,3 +172,25 @@ async def test_F15_login_limit_is_per_ip_and_username(client: AsyncClient) -> No
         "/auth/login", json={"username": "alice", "password": "password123"}, headers={"X-Forwarded-For": "198.51.100.2"}
     )
     assert same_user_other_ip.status_code == 200
+
+
+def test_F15_the_minute_counter_forgets_users_whose_window_has_passed(clock: FakeClock) -> None:
+    counter = _SlidingWindowCounter(window_seconds=60, max_count=6)
+    for user in ("a", "b", "c"):
+        counter.record(user, clock=clock)
+    clock.advance(seconds=61)
+    for user in ("a", "b", "c"):
+        assert counter.check(user, clock=clock) is None
+    assert counter._events == {}
+
+
+def test_F15_the_daily_counter_drops_earlier_days_and_still_counts_today(clock: FakeClock) -> None:
+    counter = _DailyCounter(max_count=2)
+    counter.record("a", clock=clock)
+    counter.record("b", clock=clock)
+    clock.advance(days=1)
+    counter.record("a", clock=clock)
+    assert list(counter._counts) == ["a:2026-06-16"]
+    assert not counter.check("a", clock=clock)
+    counter.record("a", clock=clock)
+    assert counter.check("a", clock=clock)

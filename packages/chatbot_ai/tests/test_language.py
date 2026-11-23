@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from chatbot_ai.agents.knowledge import NOT_FOUND_REPLY
+from chatbot_ai.agents.knowledge import NOT_FOUND_REPLY, retrieval_mode
 from chatbot_ai.clients import RoleClients
 from chatbot_ai.evals.routing import RoutingOutcome, summarize
 from chatbot_ai.intents import AgentName, IntentCode
@@ -13,7 +13,7 @@ from chatbot_ai.interface import Cards, Done, ProfileInfo, Token, TurnEvent, Tur
 from chatbot_ai.languages import LanguageCode, script_language
 from chatbot_ai.orchestrator import run_turn
 from chatbot_ai.prompts import agent_system_prompt, load_prompt
-from chatbot_ai.rag.rewrite import rewrite_messages
+from chatbot_ai.rag.rewrite import rewrite_messages, rewrite_question
 from chatbot_ai.router import classify
 from chatbot_ai.settings import AISettings, Role
 from testkit.fake_openai import (
@@ -222,3 +222,23 @@ async def test_F17_only_an_other_language_turn_ends_with_the_english_reminder_an
     done = events[-1]
     assert isinstance(done, Done)
     assert all(row.role != "system" for row in done.new_rows)
+
+
+@pytest.mark.anyio()
+async def test_I6_F17_a_failed_rewrite_is_flagged_and_a_non_english_turn_then_searches_dense_only(
+    fake_openai: FakeOpenAI, role_clients: RoleClients, ai_settings: AISettings
+) -> None:
+    fake_openai.queue(error_reply(500, "rewrite down"), model="rewrite-model")
+    failed = await rewrite_question(role_clients.get(Role.rewrite), [], "هل الولادة مغطاة؟", 3)
+    assert failed.fell_back and failed.queries == ["هل الولادة مغطاة؟"]
+    fake_openai.queue(json_reply({"standalone": "Is maternity covered?", "alternates": ["a", "b"]}), model="rewrite-model")
+    rewritten = await rewrite_question(role_clients.get(Role.rewrite), [], "هل الولادة مغطاة؟", 3)
+    assert not rewritten.fell_back
+
+    hybrid = ai_settings.model_copy(update={"ai_retrieval_mode": "hybrid"})
+    assert retrieval_mode(failed, LanguageCode.arabic, hybrid) == "dense"
+    assert retrieval_mode(failed, LanguageCode.other, hybrid) == "dense"
+    assert retrieval_mode(failed, LanguageCode.english, hybrid) == "hybrid"
+    assert retrieval_mode(rewritten, LanguageCode.arabic, hybrid) == "hybrid"
+    sparse = ai_settings.model_copy(update={"ai_retrieval_mode": "sparse"})
+    assert retrieval_mode(failed, LanguageCode.arabic, sparse) == "sparse", "an explicit ablation setting is kept"

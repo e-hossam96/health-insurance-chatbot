@@ -216,10 +216,13 @@ export function ChatPage(): ReactNode {
     updateCards(key, s => ({ ...s, busyId: id, failure: null }));
     try {
       const response = await action(sessionId);
+      void refreshSessions();
+      // the member may have opened another chat meanwhile; its transcript must not get these messages
+      if (activeSessionRef.current !== sessionId) return;
       updateCards(key, s => ({ ...s, busyId: null, doneId: id }));
       setItems(prev => [...prev, ...staticItems(response.messages)]);
-      void refreshSessions();
     } catch (err: unknown) {
+      if (activeSessionRef.current !== sessionId) return;
       updateCards(key, s => ({ ...s, busyId: null, failure: { id, kind: failureKind(err) } }));
     }
   }

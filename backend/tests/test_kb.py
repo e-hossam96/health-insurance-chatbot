@@ -14,6 +14,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
+from backend import kb_jobs
 from backend.app import create_app
 from backend.config import Settings, get_settings
 from backend.kb_jobs import AI_NOT_CONFIGURED, IngestFunction, KbJobRunner
@@ -421,3 +422,31 @@ async def test_H3_the_ingestion_gauge_moves_and_outcomes_are_counted(_clean_data
         assert metric_value(after, "kb_documents_processing") == metric_value(before, "kb_documents_processing")
         assert metric_value(after, "kb_ingest_total", {"outcome": "ok"}) == metric_value(before, "kb_ingest_total", {"outcome": "ok"}) + 1
         assert metric_value(after, "kb_ingest_duration_seconds_count") == metric_value(before, "kb_ingest_duration_seconds_count") + 1
+
+
+@pytest.mark.anyio()
+async def test_G5_H3_a_job_whose_child_cannot_start_fails_and_the_gauge_comes_back(
+    _clean_database: None, tmp_path: Path, ai_settings: AISettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def cannot_start(*args: object) -> object:
+        raise OSError("no more processes")
+
+    monkeypatch.setattr(kb_jobs, "run_in_child", cannot_start)
+    async with kb_harness(tmp_path / "kb", ai_settings) as harness:
+        before = (await harness.admin.get("/metrics")).text
+        await harness.upload("handbook.pdf", PDF)
+        await harness.runner.join()
+        listed = (await harness.listed())["handbook.pdf"]
+        assert (listed["status"], listed["error_message"]) == ("failed", kb_jobs.CHILD_START_FAILED)
+        after = (await harness.admin.get("/metrics")).text
+        assert metric_value(after, "kb_documents_processing") == metric_value(before, "kb_documents_processing")
+        assert metric_value(after, "kb_ingest_total", {"outcome": "failed"}) == metric_value(before, "kb_ingest_total", {"outcome": "failed"}) + 1
+
+
+@pytest.mark.anyio()
+async def test_G5_only_the_latest_finished_jobs_are_kept_in_memory(_clean_database: None, tmp_path: Path) -> None:
+    async with kb_harness(tmp_path / "kb", None) as harness:
+        for document_id in range(kb_jobs.COMPLETED_JOBS_KEPT + 5):
+            harness.runner.completed.append(kb_jobs.JobRecord(document_id, kb_jobs.JobFailed("x")))
+        assert len(harness.runner.completed) == kb_jobs.COMPLETED_JOBS_KEPT
+        assert harness.runner.completed[0].document_id == 5

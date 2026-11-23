@@ -132,7 +132,8 @@ async def cancel_visit(
     profile = await require_profile(db, session.account_id)
 
     visit = (
-        await db.execute(select(Visit).where(Visit.id == visit_id, Visit.profile_id == profile.id))
+        # D2 D3: the row lock serializes this cancel with another cancel or an admin complete
+        await db.execute(select(Visit).where(Visit.id == visit_id, Visit.profile_id == profile.id).with_for_update())
     ).scalar_one_or_none()
     if visit is None:
         raise not_found("Visit not found.")

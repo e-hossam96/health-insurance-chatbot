@@ -12,6 +12,7 @@ from sqlalchemy.engine import Engine
 
 from backend.app import create_app
 from backend.config import Settings, get_settings
+from backend.rate_limit import chat_minute_limiter
 from chatbot_ai.interface import Done, HistoryRow, Token, TurnEvent, TurnRequest
 from chatbot_ai.stub import run_stub_turn
 
@@ -651,3 +652,24 @@ async def test_F3_a_failed_turn_in_an_existing_session_keeps_the_session(user_cl
     assert _parse_sse(failed.text)[-1]["event"] == "error"
     assert _session_count(db_engine) == 1
     assert [r[0] for r in _stored_rows(db_engine, sid)] == ["user", "assistant"]
+
+
+@pytest.mark.anyio()
+@pytest.mark.parametrize("message", ["", "   ", "\n\t "], ids=["empty", "spaces", "whitespace"])
+async def test_F15_an_empty_message_is_rejected_before_any_turn(
+    user_client: AsyncClient, db_engine: Engine, message: str
+) -> None:
+    resp = await user_client.post("/me/chat", json={"message": message})
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["error"]["code"] == "validation_error"
+    assert _session_count(db_engine) == 0
+    assert chat_minute_limiter._events == {}
+
+
+@pytest.mark.anyio()
+async def test_F2_F15_a_session_the_member_does_not_own_costs_no_quota(user_client: AsyncClient, clock: FakeClock) -> None:
+    for _ in range(6):
+        missing = await user_client.post("/me/chat", json={"session_id": 999999, "message": "hello"})
+        assert missing.status_code == 404
+    allowed = await user_client.post("/me/chat", json={"message": "still allowed"})
+    assert allowed.status_code == 200
