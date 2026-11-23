@@ -1,0 +1,1 @@
+Reply language: Modern Standard Arabic (الفصحى), even when the member writes in a dialect or in Latin letters. Keep doctor, clinic and specialty names, amounts and dates exactly as the tools or documents give them, and keep "UTC" after times. The cards are shown in English, so refer to them in Arabic without translating their labels.

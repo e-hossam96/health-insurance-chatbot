@@ -24,6 +24,7 @@ from chatbot_ai.ingest.index import (
 )
 from chatbot_ai.intents import AgentName
 from chatbot_ai.interface import Done, ProfileInfo, TurnEvent, TurnRequest
+from chatbot_ai.languages import LanguageCode
 from chatbot_ai.orchestrator import default_agents, run_turn
 from chatbot_ai.prompts import agent_system_prompt
 from chatbot_ai.rag.search import search_one
@@ -39,7 +40,7 @@ PROFILE = ProfileInfo(display_name="Mona", location_name="Cairo", location_id=1)
 GUIDE, TWIN_A, TWIN_B = 2, 21, 22
 TWIN_TEXT = "Orthodontic braces are covered once per member up to 9000 EGP."
 SHARED_PHRASES = (
-    "English only",
+    "American English",
     "UTC",
     "Never give medical advice",
     "help them file a complaint",
@@ -86,7 +87,7 @@ class RecordingReranker:
 async def _knowledge_turn(
     fake: FakeOpenAI, settings: AISettings, standalone: str, ready: list[int], reranker: RecordingReranker | None = None, answer: str = "Answer."
 ) -> list[TurnEvent]:
-    fake.queue(json_reply({"intent": "qa.kb"}), model="router-model")
+    fake.queue(json_reply({"intent": "qa.kb", "language": "en"}), model="router-model")
     fake.queue(json_reply({"standalone": standalone, "alternates": [f"{standalone} policy", f"{standalone} rules"]}), model="rewrite-model")
     fake.queue(text_reply(answer), model="chat-model")
     fakes = make_fake_ports(sample_catalog(), 10, 1, datetime(2026, 12, 1, tzinfo=UTC))
@@ -115,10 +116,10 @@ def _answers(fake: FakeOpenAI) -> list[dict[str, object]]:
 
 def test_I4_I14_F8_every_agent_gets_the_shared_blocks() -> None:
     for agent in AgentName:
-        prompt = agent_system_prompt(agent, PROFILE)
+        prompt = agent_system_prompt(agent, PROFILE, LanguageCode.english)
         for phrase in SHARED_PHRASES:
             assert phrase in prompt, f"{agent.value}: {phrase!r}"
-    assert "tell them to ask for it separately" in agent_system_prompt(AgentName.knowledge, PROFILE)
+    assert "tell them to ask for it separately" in agent_system_prompt(AgentName.knowledge, PROFILE, LanguageCode.english)
 
 
 @pytest.mark.anyio()
@@ -126,7 +127,7 @@ async def test_I4_the_knowledge_answer_request_carries_the_full_agent_prompt(fak
     settings = settings_for(fake_openai.base_url, ai_embedding_model=kb_model)
     await _knowledge_turn(fake_openai, settings, "Does an MRI scan need approval?", [GUIDE])
     system = str(_answers(fake_openai)[0]["messages"][0]["content"])  # type: ignore[index]
-    assert system.startswith(agent_system_prompt(AgentName.knowledge, PROFILE))
+    assert system.startswith(agent_system_prompt(AgentName.knowledge, PROFILE, LanguageCode.english))
 
 
 @pytest.mark.anyio()

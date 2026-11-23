@@ -12,6 +12,7 @@ from chatbot_ai.context import to_openai_messages
 from chatbot_ai.ingest.index import collection_name, embed_dense, embed_sparse
 from chatbot_ai.intents import AgentName
 from chatbot_ai.interface import HistoryRow, Token, Usage
+from chatbot_ai.languages import LanguageCode, ReplyLanguage, reply_language
 from chatbot_ai.llm import StreamedReply, reply_output, stream_reply
 from chatbot_ai.prompts import agent_system_prompt
 from chatbot_ai.rag.rewrite import rewrite_messages, rewrite_question
@@ -20,12 +21,20 @@ from chatbot_ai.rerank.base import Reranker, make_reranker
 from chatbot_ai.settings import AISettings, Role
 
 NOT_FOUND_REPLY = "I couldn't find that in the documents."
+NOT_FOUND_REPLIES: dict[ReplyLanguage, str] = {
+    ReplyLanguage.american_english: NOT_FOUND_REPLY,
+    ReplyLanguage.modern_standard_arabic: "لم أجد ذلك في المستندات.",
+}
 SEARCH_TOOL = "search_kb"
 
 
 def excerpt_block(excerpts: list[Candidate]) -> str:
     parts = [f"[{index}] {c.breadcrumb or 'Document'}\n{c.content}" for index, c in enumerate(excerpts, start=1)]
     return "Excerpts from the policy documents:\n\n" + "\n\n".join(parts)
+
+
+def not_found_reply(language: LanguageCode) -> str:
+    return NOT_FOUND_REPLIES[reply_language(language)]
 
 
 def is_grounded(excerpts: list[Candidate], min_score: float | None) -> bool:
@@ -112,10 +121,11 @@ class KnowledgeAgent:
 
         generation_started = clock()
         if not is_grounded(excerpts, settings.ai_rerank_min_score):
-            yield Token(text=NOT_FOUND_REPLY, elapsed=0.0)
+            refusal = not_found_reply(context.language)
+            yield Token(text=refusal, elapsed=0.0)
             finished = clock()
             yield AgentResult(
-                rows=[*rows, HistoryRow(role="assistant", content=NOT_FOUND_REPLY)],
+                rows=[*rows, HistoryRow(role="assistant", content=refusal)],
                 usage=rewrite.usage,
                 ttft=0.0,
                 generate=finished - generation_started,
@@ -124,7 +134,7 @@ class KnowledgeAgent:
             return
 
         messages: list[ChatCompletionMessageParam] = [
-            {"role": "system", "content": agent_system_prompt(self.name, request.profile) + "\n\n" + excerpt_block(excerpts)},
+            {"role": "system", "content": agent_system_prompt(self.name, request.profile, context.language) + "\n\n" + excerpt_block(excerpts)},
             *to_openai_messages(request.history),
             {"role": "user", "content": request.message},
         ]

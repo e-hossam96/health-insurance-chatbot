@@ -52,7 +52,7 @@ async def test_F7_a_chat_turn_through_the_api_is_traced_under_the_chat_session_i
     traced: tuple[AsyncClient, Langfuse], fake: FakeOpenAI, exporter: InMemorySpanExporter
 ) -> None:
     client, langfuse = traced
-    fake.queue(json_reply({"intent": "other"}), json_reply({"intent": "other"}), model="router-model")
+    fake.queue(json_reply({"intent": "other", "language": "en"}), json_reply({"intent": "other", "language": "en"}), model="router-model")
     fake.queue(text_reply("Hello Mona"), text_reply("Hello again"), model="chat-model")
     first = await client.post("/me/chat", json={"message": "hi"})
     session_id = json.loads(first.text.split("data: ", 1)[1].split("\n", 1)[0])["session_id"]

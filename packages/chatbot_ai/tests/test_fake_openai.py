@@ -21,7 +21,10 @@ from testkit.fake_openai import (
 
 INTENT_SCHEMA = {
     "type": "object",
-    "properties": {"intent": {"type": "string", "enum": ["visit.book", "qa.kb", "other"]}},
+    "properties": {
+        "intent": {"type": "string", "enum": ["visit.book", "qa.kb", "other"]},
+        "language": {"type": "string", "enum": ["ar", "en", "other"]},
+    },
     "required": ["intent"],
     "additionalProperties": False,
 }
@@ -226,7 +229,13 @@ async def test_auto_mode_answers_router_rewrite_and_chat_without_a_script(fake_o
             messages=USER_MESSAGE,
             response_format={"type": "json_schema", "json_schema": {"name": "intent", "schema": INTENT_SCHEMA, "strict": True}},
         )
-        assert json.loads(router.choices[0].message.content or "") == {"intent": "other"}
+        assert json.loads(router.choices[0].message.content or "") == {"intent": "other", "language": "en"}
+        arabic = await openai_client.chat.completions.create(
+            model="router",
+            messages=[{"role": "user", "content": "مرحبا"}],
+            response_format={"type": "json_schema", "json_schema": {"name": "intent", "schema": INTENT_SCHEMA, "strict": True}},
+        )
+        assert json.loads(arabic.choices[0].message.content or "") == {"intent": "other", "language": "ar"}
         chat = await openai_client.chat.completions.create(model="chat", messages=USER_MESSAGE)
         assert chat.choices[0].message.content == "Streaming check: one two three four five six."
     finally:

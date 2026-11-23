@@ -37,6 +37,7 @@ from chatbot_ai.interface import (
     Token,
     TurnRequest,
 )
+from chatbot_ai.languages import script_language
 from chatbot_ai.orchestrator import run_turn
 from chatbot_ai.rag.rewrite import rewrite_question
 from chatbot_ai.rag.search import Candidate, dedupe, rrf_merge, search_one
@@ -293,7 +294,15 @@ async def run_answers_suite(settings: AISettings, items: list[AnswerItem]) -> An
         try:
             for item in items:
                 request = TurnRequest(history=[], message=item.question, profile=PROFILE, needs_label=False, session_id=0)
-                context = AgentContext(request=request, ports=ports, settings=scoped, clients=clients, clock=time.monotonic, tracer=NoopTracer())
+                context = AgentContext(
+                    request=request,
+                    ports=ports,
+                    settings=scoped,
+                    clients=clients,
+                    clock=time.monotonic,
+                    tracer=NoopTracer(),
+                    language=script_language(item.question),
+                )
                 answer = ""
                 result: AgentResult | None = None
                 async for event in KnowledgeAgent().run(context):

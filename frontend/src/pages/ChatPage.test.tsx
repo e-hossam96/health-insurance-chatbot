@@ -98,6 +98,11 @@ describe('ChatPage', () => {
     expect(await screen.findByText('All times are UTC.')).toBeTruthy();
   });
 
+  it('F17: the message box takes its direction from the text, so Arabic types right to left', async () => {
+    renderChat();
+    expect((await screen.findByTestId('chat-input')).getAttribute('dir')).toBe('auto');
+  });
+
   it('F1: shows the six starter cards in order on an empty chat', async () => {
     renderChat();
     const cards = await screen.findAllByTestId('starter-card');

@@ -291,7 +291,7 @@ export function ChatPage(): ReactNode {
                     }`}
                     data-testid={`msg-${item.role}`}
                   >
-                    {item.role === 'user' ? <p className="whitespace-pre-wrap break-words">{item.content}</p> : <MarkdownContent content={item.content} />}
+                    {item.role === 'user' ? <p dir="auto" className="whitespace-pre-wrap break-words">{item.content}</p> : <MarkdownContent content={item.content} />}
                   </div>
                 </div>
               ) : (
@@ -357,6 +357,7 @@ export function ChatPage(): ReactNode {
             >
               <input
                 type="text"
+                dir="auto"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 placeholder="Type your message..."

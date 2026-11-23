@@ -54,7 +54,7 @@ def test_routing_eval_runs_on_the_draft_dataset_and_writes_reports(fake_openai: 
     smoke_items = load_routing(DATASETS_DIR / "routing.jsonl")[:5]
     predictions = [item.expected.value for item in smoke_items]
     predictions[1] = "other"
-    fake_openai.queue(*(json_reply({"intent": p}) for p in predictions), model="router-model")
+    fake_openai.queue(*(json_reply({"intent": p, "language": "en"}) for p in predictions), model="router-model")
 
     code = main(
         [

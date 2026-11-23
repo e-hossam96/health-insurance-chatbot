@@ -15,7 +15,7 @@ Companion files: `schema.dbml` (tables; its A-items are migration notes), `rules
 - Auth: server-side session in an HTTP-only cookie (B10, B11). Contracts in `api.md`.
 - Time: everything is UTC and the UI says so (C8). No time zone conversion anywhere.
 - Frontend stack: Vite, TypeScript, React Router, TanStack Query, Tailwind with the app's own component classes (`btn`, `input`, `card`, `badge`, ... in `frontend/src/index.css`). The chat stream is read with fetch (it is a POST), not EventSource.
-- Language: English only. Assistant text renders as Markdown with raw HTML disabled (F17). Branding: the product is "Health Insurance Chatbot" with a text logo (a chat-bubble mark); colors follow the system light or dark setting, and every page has a toggle to pin light, dark or system: in the header on signed-in pages, and in the top-right corner on login, signup and onboarding. The palette is an indigo accent (#2C4BD0 light, #8FA3FF dark) on cool neutrals (#F4F6FA / #0D1119 page, #FFFFFF / #151B27 cards), with soft 1px dividers, 10px control and 14px card radii, and soft shadows. Tokens live in `frontend/src/index.css`.
+- Language: the UI is English only. Assistant replies are in Modern Standard Arabic or American English, following the member's language (F17); message bubbles and the message inputs use `dir="auto"` so Arabic reads right to left. Assistant text renders as Markdown with raw HTML disabled (F17). Branding: the product is "Health Insurance Chatbot" with a text logo (a chat-bubble mark); colors follow the system light or dark setting, and every page has a toggle to pin light, dark or system: in the header on signed-in pages, and in the top-right corner on login, signup and onboarding. The palette is an indigo accent (#2C4BD0 light, #8FA3FF dark) on cool neutrals (#F4F6FA / #0D1119 page, #FFFFFF / #151B27 cards), with soft 1px dividers, 10px control and 14px card radii, and soft shadows. Tokens live in `frontend/src/index.css`.
 - The chatbot is the primary way to do everything (book, cancel, complain, ask). The drawer is a convenience.
 - Out of scope for v1: password reset, profile editing, user replies in complaints, deleting chats, Excel upload, notifications.
 
@@ -530,7 +530,7 @@ Decided:
 2. Time zone: UTC everywhere (C8).
 3. Numbers: 3 recommendation cards, context = last 40 message rows (F4), upload limit 10 MB, abuse limits per F15.
 4. Accepted defaults: sibling cards disabled after a booking; admins land on /admin/kb; catalog is add and delete only (renames in the DB); replies on closed complaints are rejected (E5).
-5. Language and rendering: English only; assistant text is Markdown without raw HTML (F17).
+5. Language and rendering: English UI; replies in Modern Standard Arabic or American English per turn, bubbles with `dir="auto"`; assistant text is Markdown without raw HTML (F17).
 6. UI stack: see section 1.
 7. Storage: KB originals on a local Docker volume. S3 is not used (G11).
 8. Auth: session cookie, argon2, 7-day sessions, create_admin script (B10 to B13).

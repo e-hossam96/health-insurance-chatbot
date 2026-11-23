@@ -72,7 +72,7 @@ async def _turn(settings: AISettings, ready: list[int], message: str, agents: di
 
 
 def _queue_knowledge_turn(fake: FakeOpenAI, standalone: str, alternates: list[str], answer: str = "Here is the answer.") -> None:
-    fake.queue(json_reply({"intent": "qa.kb"}), model="router-model")
+    fake.queue(json_reply({"intent": "qa.kb", "language": "en"}), model="router-model")
     fake.queue(json_reply({"standalone": standalone, "alternates": alternates}), model="rewrite-model")
     fake.queue(text_reply(answer), model="chat-model")
 
@@ -174,7 +174,7 @@ async def test_G8_only_ready_documents_are_searchable(fake_openai: FakeOpenAI, k
 @pytest.mark.anyio()
 async def test_I8_no_ready_documents_gives_the_fixed_reply_without_a_chat_call(fake_openai: FakeOpenAI, kb_model: str) -> None:
     settings = _settings(fake_openai, kb_model)
-    fake_openai.queue(json_reply({"intent": "qa.kb"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "qa.kb", "language": "en"}), model="router-model")
     fake_openai.queue(json_reply({"standalone": "Is cosmetic surgery covered?", "alternates": []}), model="rewrite-model")
     events = await _turn(settings, [], "cosmetic surgery?")
     assert [e.text for e in events if isinstance(e, Token)] == [NOT_FOUND_REPLY]
@@ -194,7 +194,7 @@ class LowScoreReranker:
 @pytest.mark.anyio()
 async def test_I8_a_best_score_below_the_threshold_gives_the_fixed_reply(fake_openai: FakeOpenAI, kb_model: str) -> None:
     settings = _settings(fake_openai, kb_model, ai_rerank_min_score=0.5)
-    fake_openai.queue(json_reply({"intent": "qa.kb"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "qa.kb", "language": "en"}), model="router-model")
     fake_openai.queue(json_reply({"standalone": "Is cosmetic surgery covered?", "alternates": []}), model="rewrite-model")
     agents = {**default_agents(), AgentName.knowledge: KnowledgeAgent(lambda s: LowScoreReranker())}
     events = await _turn(settings, [POLICY, GUIDE], "cosmetic surgery?", agents)  # type: ignore[arg-type]
@@ -237,7 +237,7 @@ async def test_I13_retrieval_mode_switches_between_dense_sparse_and_hybrid(fake_
 @pytest.mark.anyio()
 async def test_I13_query_count_changes_the_number_of_searched_queries(fake_openai: FakeOpenAI, kb_model: str) -> None:
     settings = _settings(fake_openai, kb_model, ai_query_count=1)
-    fake_openai.queue(json_reply({"intent": "qa.kb"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "qa.kb", "language": "en"}), model="router-model")
     fake_openai.queue(json_reply({"standalone": "Is cosmetic surgery covered?"}), model="rewrite-model")
     fake_openai.queue(text_reply("No."), model="chat-model")
     await _turn(settings, [POLICY], "cosmetic?")
@@ -270,7 +270,7 @@ async def test_I4_I14_knowledge_then_scheduling_keeps_each_agent_to_its_own_tool
         assert isinstance(knowledge_done, Done)
         assert "tools" not in _answer_requests(fake_openai)[0]
 
-        fake_openai.queue(json_reply({"intent": "visit.book"}), model="router-model")
+        fake_openai.queue(json_reply({"intent": "visit.book", "language": "en"}), model="router-model")
         fake_openai.queue(
             tool_reply(ToolCallSpec(SEARCH_TOOL, {"query": "physiotherapy"}, id="k1")),
             text_reply("Which specialty do you need?"),

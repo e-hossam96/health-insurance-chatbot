@@ -90,7 +90,7 @@ def test_F7_the_tracer_is_built_from_the_langfuse_settings() -> None:
 @pytest.mark.anyio()
 async def test_F7_a_turn_without_keys_creates_no_spans(fake_openai: FakeOpenAI, exporter: InMemorySpanExporter) -> None:
     settings = settings_for(fake_openai.base_url)
-    fake_openai.queue(json_reply({"intent": "other"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "other", "language": "en"}), model="router-model")
     fake_openai.queue(text_reply("hi"), model="chat-model")
     fakes = make_fake_ports(sample_catalog(), 10, 1, datetime(2026, 12, 1, tzinfo=UTC))
     clients = RoleClients(settings)
@@ -108,7 +108,7 @@ async def test_F7_a_tool_turn_is_one_trace_with_spans_for_classify_generate_and_
     fake_openai: FakeOpenAI, langfuse_client: Langfuse, exporter: InMemorySpanExporter
 ) -> None:
     settings = settings_for(fake_openai.base_url)
-    fake_openai.queue(json_reply({"intent": "visit.book"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "visit.book", "language": "en"}), model="router-model")
     fake_openai.queue(
         tool_reply(ToolCallSpec("list_specialties", {})),
         tool_reply(ToolCallSpec("recommend_doctors", {"specialty_id": 1})),
@@ -140,7 +140,7 @@ async def test_F7_a_knowledge_turn_has_spans_for_every_pipeline_stage(
     source.write_text("Outpatient visits have a co-pay of 50 EGP.", encoding="utf-8")
     await asyncio.to_thread(ingest, 31, str(source), "txt", settings)
     try:
-        fake_openai.queue(json_reply({"intent": "qa.kb"}), model="router-model")
+        fake_openai.queue(json_reply({"intent": "qa.kb", "language": "en"}), model="router-model")
         fake_openai.queue(json_reply({"standalone": "What is the outpatient co-pay?", "alternates": ["co-pay", "visit cost"]}), model="rewrite-model")
         fake_openai.queue(text_reply("50 EGP."), model="chat-model")
         await _run(settings, LangfuseTracer(langfuse_client), "co-pay?", 8, ready=[31])
@@ -167,7 +167,7 @@ async def test_F7_spans_carry_input_output_and_token_usage(
     fake_openai: FakeOpenAI, langfuse_client: Langfuse, exporter: InMemorySpanExporter
 ) -> None:
     settings = settings_for(fake_openai.base_url)
-    fake_openai.queue(json_reply({"intent": "visit.book"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "visit.book", "language": "en"}), model="router-model")
     fake_openai.queue(tool_reply(ToolCallSpec("list_specialties", {})), text_reply("We have dermatology."), model="chat-model")
     await _run(settings, LangfuseTracer(langfuse_client), "I need a dermatologist", 9)
     langfuse_client.flush()

@@ -67,7 +67,10 @@ async def run_turn(
                 )
                 classify_record.record(
                     input=router_messages(req.history, req.message, settings.ai_router_history_rows),
-                    output={"intent": classification.intent.value if classification.intent is not None else None},
+                    output={
+                        "intent": classification.intent.value if classification.intent is not None else None,
+                        "language": classification.language.value,
+                    },
                     usage=classification.usage,
                 )
             classified = clock()
@@ -79,7 +82,15 @@ async def run_turn(
             if agent is None:
                 raise AgentNotAvailable(f"no {agent_name.value} agent is registered")
 
-            context = AgentContext(request=req, ports=ports, settings=settings, clients=role_clients, clock=clock, tracer=tracer)
+            context = AgentContext(
+                request=req,
+                ports=ports,
+                settings=settings,
+                clients=role_clients,
+                clock=clock,
+                tracer=tracer,
+                language=classification.language,
+            )
             result: AgentResult | None = None
             async for event in agent.run(context):
                 if isinstance(event, AgentResult):

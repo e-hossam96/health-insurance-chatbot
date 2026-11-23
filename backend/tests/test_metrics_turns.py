@@ -79,7 +79,7 @@ async def _metrics(client: AsyncClient) -> str:
 @pytest.mark.anyio()
 async def test_H2_H3_a_turn_on_the_fake_server_records_the_turn_metrics(client: AsyncClient, fake: FakeOpenAI) -> None:
     before = await _metrics(client)
-    fake.queue(json_reply({"intent": "other"}), model="router-model")
+    fake.queue(json_reply({"intent": "other", "language": "en"}), model="router-model")
     fake.queue(text_reply("Hello Mona, welcome back", prompt_tokens=40, completion_tokens=5), model="chat-model")
     response = await client.post("/me/chat", json={"message": "hi"})
     assert '"done"' in response.text or "event: done" in response.text
@@ -91,7 +91,7 @@ async def test_H2_H3_a_turn_on_the_fake_server_records_the_turn_metrics(client: 
     assert delta("chat_turns_total", {"outcome": "ok"}) == 1
     assert delta("chat_turns_by_agent_total", {"agent": "responder"}) == 1
     assert delta("chat_tokens_total", {"kind": "prompt"}) == 40 + 10
-    assert delta("chat_tokens_total", {"kind": "completion"}) == 5 + 2
+    assert delta("chat_tokens_total", {"kind": "completion"}) == 5 + 4
     assert delta("chat_ttft_seconds_count") == 1
     assert delta("chat_llm_duration_seconds_count") == 1
     assert delta("chat_turn_duration_seconds_count") == 1
@@ -150,7 +150,7 @@ async def test_H3_signups_and_card_actions_are_counted_at_the_endpoint(client: A
 
 @pytest.mark.anyio()
 async def test_H4_labels_are_small_fixed_sets_without_ids(client: AsyncClient, fake: FakeOpenAI, db_engine: Engine) -> None:
-    fake.queue(json_reply({"intent": "other"}), model="router-model")
+    fake.queue(json_reply({"intent": "other", "language": "en"}), model="router-model")
     fake.queue(text_reply("Hello"), model="chat-model")
     await client.post("/me/chat", json={"message": "hi"})
     await client.get("/me/sessions/424242/messages")

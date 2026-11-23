@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from chatbot_ai.languages import script_language
+
 JsonObject = dict[str, Any]  # Any: OpenAI wire-format messages
 
 AUTO_TEXT = "Streaming check: one two three four five six."
@@ -27,6 +29,10 @@ def classify(messages: list[JsonObject]) -> str:
         if any(keyword in text for keyword in keywords):
             return intent
     return "other"
+
+
+def detect_language(messages: list[JsonObject]) -> str:
+    return script_language(_last_user_message(messages)).value
 
 
 def _tool_name_for(messages: list[JsonObject], call_id: str) -> str:

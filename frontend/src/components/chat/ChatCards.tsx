@@ -137,6 +137,7 @@ function ComplaintCard({ item, status, disabled, onFile }: {
           <label className="mb-1 block text-xs font-semibold" htmlFor={`complaint-${item.visit_id}`}>What happened?</label>
           <textarea
             id={`complaint-${item.visit_id}`}
+            dir="auto"
             value={description}
             onChange={e => setDescription(e.target.value)}
             disabled={disabled}

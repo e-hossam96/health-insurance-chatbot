@@ -5,6 +5,7 @@ from importlib.resources import files
 
 from chatbot_ai.intents import AgentName
 from chatbot_ai.interface import ProfileInfo
+from chatbot_ai.languages import LanguageCode, reply_language
 
 SHARED_BLOCKS = ("shared_persona", "shared_rules")
 
@@ -22,8 +23,9 @@ def profile_block(profile: ProfileInfo) -> str:
     )
 
 
-def agent_system_prompt(agent: AgentName, profile: ProfileInfo) -> str:
+def agent_system_prompt(agent: AgentName, profile: ProfileInfo, language: LanguageCode) -> str:
     blocks = [load_prompt(name) for name in SHARED_BLOCKS]
     blocks.append(profile_block(profile))
+    blocks.append(load_prompt(reply_language(language).value))
     blocks.append(load_prompt(agent.value))
     return "\n\n".join(blocks)

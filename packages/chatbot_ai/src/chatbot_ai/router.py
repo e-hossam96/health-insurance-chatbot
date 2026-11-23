@@ -11,6 +11,7 @@ from openai.types.shared_params import ResponseFormatJSONSchema
 from chatbot_ai.clients import RoleClient
 from chatbot_ai.intents import IntentCode
 from chatbot_ai.interface import HistoryRow, Usage
+from chatbot_ai.languages import LanguageCode, script_language
 from chatbot_ai.prompts import load_prompt
 
 logger = logging.getLogger(__name__)
@@ -23,8 +24,11 @@ INTENT_RESPONSE_FORMAT: ResponseFormatJSONSchema = {
         "strict": True,
         "schema": {
             "type": "object",
-            "properties": {"intent": {"type": "string", "enum": [code.value for code in IntentCode]}},
-            "required": ["intent"],
+            "properties": {
+                "intent": {"type": "string", "enum": [code.value for code in IntentCode]},
+                "language": {"type": "string", "enum": [code.value for code in LanguageCode]},
+            },
+            "required": ["intent", "language"],
             "additionalProperties": False,
         },
     },
@@ -34,6 +38,7 @@ INTENT_RESPONSE_FORMAT: ResponseFormatJSONSchema = {
 @dataclass(frozen=True)
 class Classification:
     intent: IntentCode | None
+    language: LanguageCode
     usage: Usage
 
 
@@ -67,15 +72,28 @@ async def classify(
         )
     except OpenAIError:
         logger.warning("router call failed; falling back to the responder", exc_info=True)
-        return Classification(intent=None, usage=Usage())
+        return Classification(intent=None, language=script_language(message), usage=Usage())
     usage = Usage(
         prompt_tokens=completion.usage.prompt_tokens if completion.usage else 0,
         completion_tokens=completion.usage.completion_tokens if completion.usage else 0,
     )
     content = completion.choices[0].message.content if completion.choices else None
     try:
-        intent = IntentCode(json.loads(content or "")["intent"])
-    except (ValueError, KeyError, TypeError):
+        parsed = json.loads(content or "")
+    except ValueError:
+        parsed = None
+    intent = _parse_label(parsed, "intent", IntentCode)
+    language = _parse_label(parsed, "language", LanguageCode)
+    if intent is None or language is None:
         logger.warning("router returned an unusable classification: %r", content)
-        return Classification(intent=None, usage=usage)
-    return Classification(intent=intent, usage=usage)
+    return Classification(intent=intent, language=language or script_language(message), usage=usage)
+
+
+def _parse_label[LabelT: (IntentCode, LanguageCode)](parsed: object, key: str, label: type[LabelT]) -> LabelT | None:
+    value = parsed.get(key) if isinstance(parsed, dict) else None
+    if not isinstance(value, str):
+        return None
+    try:
+        return label(value)
+    except ValueError:
+        return None

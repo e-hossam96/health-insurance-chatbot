@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
 from testkit.embeddings import DEFAULT_DIMENSIONS, hash_embedding
-from testkit.fake_brain import AUTO_TEXT, classify, scheduling_step
+from testkit.fake_brain import AUTO_TEXT, classify, detect_language, scheduling_step
 from testkit.live_server import serve_in_thread
 
 JsonObject = dict[str, Any]  # Any: arbitrary JSON from the OpenAI wire format
@@ -134,7 +134,7 @@ def auto_reply(body: ChatCompletionBody) -> ChatReply:
     if response_format.get("type") == "json_schema":
         schema_name = response_format["json_schema"].get("name")
         if schema_name == "intent":
-            return json_reply({"intent": classify(body.messages)})
+            return json_reply({"intent": classify(body.messages), "language": detect_language(body.messages)})
         if schema_name == "judge":
             return json_reply({"faithful": True, "facts_present": True, "refused": False, "notes": "auto"})
         last_user = next((str(m.get("content", "")) for m in reversed(body.messages) if m.get("role") == "user"), "")

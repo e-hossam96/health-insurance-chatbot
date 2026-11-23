@@ -16,7 +16,7 @@ from chatbot_ai.settings import Role
 def agent_messages(context: AgentContext, agent: AgentName) -> list[ChatCompletionMessageParam]:
     request = context.request
     return [
-        {"role": "system", "content": agent_system_prompt(agent, request.profile)},
+        {"role": "system", "content": agent_system_prompt(agent, request.profile, context.language)},
         *to_openai_messages(request.history),
         {"role": "user", "content": request.message},
     ]

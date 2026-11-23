@@ -70,7 +70,7 @@ Companion to `schema.dbml`, `wireframes.md`, `api.md` and `ai.md`. Each rule has
 - **F14.** User panel includes a "My visits & complaints" drawer (visit statuses, admin replies), served by normal APIs.
 - **F15.** Abuse limits (config values): 6 messages/min per user, 100 user messages/day per user (admins exempt), 1000 characters per message, ~800 output tokens per answer, sign-up 5/hour per IP, failed logins 10 per 15 min per IP + username. All counters are in memory, including the daily cap (keyed by user + UTC date). A turn is counted when it starts, so cancelled and failed turns count too. Counters reset on restart (accepted). No extra table. Client IP comes from the reverse proxy header.
 - **F16.** Client disconnect mid-stream (closed tab or Stop button): cancel the LLM call and store nothing for the turn (same as a failed turn, F3). Safe because the model only reads (D9). The user's message is not stored either. If it was the first turn of a new chat, the session row created for it is removed too (also for a failed first turn). Card-action endpoints are plain requests and always run to completion in one transaction.
-- **F17.** English only: the system prompt requires English replies. Assistant text is Markdown, rendered without raw HTML (model output is untrusted).
+- **F17.** Reply language follows the member, per turn: the classifier labels the latest message ar (Arabic, any dialect or Arabizi), en or other (I1). ar -> the agent replies in Modern Standard Arabic; en and other -> American English. The system prompt carries that one instruction; the fixed I8 reply has an Arabic and an English text. If the language label is unusable, Arabic letters in the message mean ar, else en. The UI itself stays English; message text and inputs take their direction from the text (`dir="auto"`). Assistant text is Markdown, rendered without raw HTML (model output is untrusted).
 
 ## G. Knowledge base
 
@@ -100,14 +100,14 @@ Companion to `schema.dbml`, `wireframes.md`, `api.md` and `ai.md`. Each rule has
 
 ## I. AI pipeline (design in `ai.md`)
 
-- **I1.** Routing is per turn. Every turn is classified (small model, structured output, one enum of the F6 codes) using the last 6 history rows (trimmed to start at a user row, as in F4), so a short follow-up continues the current task. The result picks the agent. Classifier failure never blocks the reply (F6): fall back to the responder agent.
+- **I1.** Routing is per turn. Every turn is classified (small model, one structured output with two labels: one enum of the F6 codes and one language code for F17) using the last 6 history rows (trimmed to start at a user row, as in F4), so a short follow-up continues the current task. The result picks the agent. Classifier failure never blocks the reply (F6): fall back to the responder agent.
 - **I2.** Intent -> agent: visit.book, visit.check, visit.cancel and qa.db -> scheduling; complaint.file and complaint.check -> complaints; qa.kb -> knowledge; other -> responder (no tools). Scheduling and complaints are tool loops (max `AI_MAX_TOOL_ROUNDS` rounds). Knowledge is a fixed pipeline (I6).
 - **I3.** The router is invisible. Classifier calls are never stored or shown; only the chosen agent's rows are stored (F3, F11), so history looks like a single-agent history.
 - **I4.** All agents see the same history (F4) and the same shared prompt blocks (F5, F8, F17, C8, profile name and location, and a note that the history may contain tool calls the agent cannot make). No agent writes data (D9). Tools get the acting profile from the request context, never from model arguments (B6).
 - **I5.** Database questions (qa.db) use typed, read-only, parameterized tools. No model-written SQL. Specialty and location arguments are validated against the catalog.
 - **I6.** Knowledge order: rewrite, hybrid search per query, merge, dedupe (I7), rerank, top K, grounding check (I8), answer. Retrieval is recorded as a synthetic search_kb tool call and result so history keeps one shape (F3, F4).
 - **I7.** Duplicate chunks are removed at query time only, after merging: by chunk id, then by normalized text hash. No cross-document dedupe at ingest (G3 blocks identical files), so deleting a document (G9) never removes chunks another document needs.
-- **I8.** Grounding: no candidates, or a best rerank score below `AI_RERANK_MIN_SCORE` (when set), returns the fixed reply "I couldn't find that in the documents." with no generation call. Answers use only the retrieved excerpts.
+- **I8.** Grounding: no candidates, or a best rerank score below `AI_RERANK_MIN_SCORE` (when set), returns the fixed reply "I couldn't find that in the documents." (in Arabic for an ar turn, F17) with no generation call. Answers use only the retrieved excerpts.
 - **I9.** No runtime self-evaluation of answers in v1 (no critic or verifier call before replying). Quality is measured offline by the eval module.
 - **I10.** No semantic cache in v1.
 - **I11.** Every model call goes through per-role provider config (base URL, key, model) in the OpenAI API shape. No provider or model names in code.

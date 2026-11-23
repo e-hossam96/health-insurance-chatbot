@@ -51,7 +51,7 @@ Router plus specialists, with handoff (I1 to I4).
 ```mermaid
 flowchart TD
     message(["user message"])
-    classify{{"<b>classify</b><br/>router model, structured output,<br/>one enum of intent codes"}}
+    classify{{"<b>classify</b><br/>router model, structured output,<br/>intent code + language code"}}
     scheduling["<b>scheduling</b><br/>tool loop"]
     complaints["<b>complaints</b><br/>tool loop"]
     knowledge["<b>knowledge</b><br/>fixed RAG pipeline"]
@@ -78,10 +78,10 @@ flowchart TD
     linkStyle default stroke:#64748b,stroke-width:1.5px
 ```
 
-- The classifier sees the last 6 history rows (trimmed to start at a user row, I1). The 6 are counted over all stored rows, tool rows included; tool rows and tool-call-only assistant rows are then left out of the router request, which carries only the conversation text, and its prompt says a short follow-up ("yes, the second one") continues the current task. Its result picks the agent every turn (I1). When `needs_label` is true the same result is also stored as the sidebar label (F6).
+- The classifier sees the last 6 history rows (trimmed to start at a user row, I1). The 6 are counted over all stored rows, tool rows included; tool rows and tool-call-only assistant rows are then left out of the router request, which carries only the conversation text, and its prompt says a short follow-up ("yes, the second one") continues the current task. Its result picks the agent every turn (I1). When `needs_label` is true the same result is also stored as the sidebar label (F6). The same call also returns a language code (ar, en, other) for the latest message; a message with no language of its own ("ok", a date) takes the language of the earlier member messages. The two labels are parsed separately, so a bad language keeps a good intent and the reverse; an unusable language falls back to a script check (Arabic letters -> ar, else en). The language goes to the agent in `AgentContext.language` (F17).
 - The router is invisible: its calls are never stored. Only the chosen agent's rows are stored, so history looks like a single-agent history (I3).
 - Tool loops run up to `AI_MAX_TOOL_ROUNDS` rounds. Tool results are size-capped (F4).
-- Each agent has a system prompt in `prompts/<agent>.md`, built from shared blocks (persona, F5 re-fetch note, F8 no medical advice, F17 English, C8 UTC, profile name, location name and id, and a note that the history may contain tool calls the agent cannot make: use only the tools listed now and re-fetch anything that can change) plus agent-specific instructions.
+- Each agent has a system prompt in `prompts/<agent>.md`, built from shared blocks (persona, F5 re-fetch note, F8 no medical advice, Markdown, C8 UTC, profile name, location name and id, the F17 reply-language block (`language_arabic.md` for Modern Standard Arabic, `language_english.md` for American English), and a note that the history may contain tool calls the agent cannot make: use only the tools listed now and re-fetch anything that can change) plus agent-specific instructions.
 - Knowledge is a fixed pipeline rather than a model-driven loop (section 3). Only the final answer streams.
 - Framework: none. Plain Python with the OpenAI SDK: a dict from intent code to agent, and a small tool loop. No checkpointer (F10).
 
@@ -111,7 +111,7 @@ Database questions (qa.db) use only these typed tools (I5). Specialty and locati
 
 Order is fixed (I6). Every optional stage has a config switch (I13).
 
-1. **Rewrite.** One structured-output call (rewrite model) returns `{standalone, alternates}`. `standalone` is the question made self-contained from history. `alternates` has `AI_QUERY_COUNT - 1` paraphrases (default count 3). With count 1 no alternates are requested. On failure, use the raw message.
+1. **Rewrite.** One structured-output call (rewrite model) returns `{standalone, alternates}`. `standalone` is the question made self-contained from history. `alternates` has `AI_QUERY_COUNT - 1` paraphrases (default count 3). With count 1 no alternates are requested. The queries are always written in English, translating an Arabic or other-language question, because the documents and the BM25 vectors are English. On failure, use the raw message.
 2. **Embed.** All queries in one embedding call. Dense vectors come from the embedding provider. Sparse BM25 vectors are computed in-process (fastembed), English only.
 3. **Search.** One Qdrant hybrid query per query: dense and sparse prefetch (`AI_PREFETCH_K` each), fused server-side with RRF. `AI_RETRIEVAL_MODE` can force dense or sparse only (evals).
 4. **Merge.** RRF across the per-query lists, keep the top `AI_FUSED_K` (default 30).

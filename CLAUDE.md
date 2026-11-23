@@ -18,7 +18,7 @@ Read the whole of items 1 to 2 at the start of a session. Read only the spec fil
 
 ## Stack
 
-- Frontend: React, Vite, TypeScript, React Router, TanStack Query, Tailwind with the app's own component classes (no shadcn/ui). The chat stream is read with fetch because it is a POST. English only. Assistant text is Markdown without raw HTML.
+- Frontend: React, Vite, TypeScript, React Router, TanStack Query, Tailwind with the app's own component classes (no shadcn/ui). The chat stream is read with fetch because it is a POST. English UI; assistant replies follow the member's language (Modern Standard Arabic or American English, F17). Assistant text is Markdown without raw HTML.
 - Backend: Python, FastAPI (use the built-in `fastapi.sse` for streaming), Postgres, SQLAlchemy + Alembic, argon2 password hashing, session cookies.
 - AI package: OpenAI SDK against the OpenAI API shape (Chat Completions, embeddings), one provider config per role (I11). Closed-source OpenAI models first. Docling parses PDF and DOCX. Reranker sits behind a Protocol; the provider is a placeholder (`ai.md`).
 - Retrieval: Qdrant (dense + BM25, RRF fusion). Chunks live only in Qdrant.
