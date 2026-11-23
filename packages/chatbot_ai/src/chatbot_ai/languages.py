@@ -21,6 +21,7 @@ REPLY_LANGUAGE_FOR: dict[LanguageCode, ReplyLanguage] = {
     LanguageCode.other: ReplyLanguage.american_english,
 }
 
+LATIN_LETTER = re.compile(r"[A-Za-z]")
 ARABIC_LETTER = re.compile(r"[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]")
 
 
@@ -34,3 +35,13 @@ def display_language(language: LanguageCode) -> LanguageCode:
 
 def script_language(text: str) -> LanguageCode:
     return LanguageCode.arabic if ARABIC_LETTER.search(text) else LanguageCode.english
+
+
+ARABIC_SHARE_FOR_ARABIC = 0.4
+
+
+def written_language(text: str) -> LanguageCode:
+    # database names stay in Latin letters, so an Arabic reply can still hold many of them
+    arabic = len(ARABIC_LETTER.findall(text))
+    letters = arabic + len(LATIN_LETTER.findall(text))
+    return LanguageCode.arabic if letters and arabic / letters >= ARABIC_SHARE_FOR_ARABIC else LanguageCode.english

@@ -37,7 +37,7 @@ from chatbot_ai.interface import (
     Token,
     TurnRequest,
 )
-from chatbot_ai.languages import script_language
+from chatbot_ai.languages import LanguageCode, display_language, written_language
 from chatbot_ai.orchestrator import run_turn
 from chatbot_ai.rag.rewrite import rewrite_question
 from chatbot_ai.rag.search import Candidate, dedupe, rrf_merge, search_one
@@ -103,6 +103,8 @@ class AnswerOutcome(BaseModel):
     judged_facts_present: bool | None
     refused: bool
     correct_refusal: bool
+    expected_language: str = LanguageCode.english.value
+    reply_language: str = LanguageCode.english.value
 
 
 class AnswersReport(BaseModel):
@@ -110,6 +112,7 @@ class AnswersReport(BaseModel):
     faithfulness: float
     facts_present: float
     refusal_accuracy: float
+    reply_language_accuracy: float
     judge_errors: int
     outcomes: list[AnswerOutcome]
 
@@ -123,6 +126,9 @@ class TurnOutcome(BaseModel):
     cards: str | None
     foreign_tool_calls: int
     stale_slot_mentions: int = 0
+    expected_language: str = LanguageCode.english.value
+    reply_language: str = LanguageCode.english.value
+    card_language: str | None = None
     passed: bool
 
 
@@ -131,6 +137,7 @@ class ToolsReport(BaseModel):
     turns: int
     turn_pass_rate: float
     scenario_pass_rate: float
+    language_pass_rate: float
     outcomes: list[TurnOutcome]
 
 
@@ -274,7 +281,8 @@ async def _judge(clients: RoleClients, item: AnswerItem, answer: str, excerpts: 
         f"{excerpts}\n\nQuestion: {item.question}\nAnswer: {answer}\n"
         f"Required facts: {item.must_include}\n"
         "faithful: every claim in the answer is supported by the excerpts. facts_present: every required fact is in the answer. "
-        "refused: the answer says it could not find the information."
+        "refused: the answer says it could not find the information. "
+        "The answer may be in Arabic while the excerpts are in English: judge by meaning, and accept amounts, days and numbers in either language."
     )
     try:
         judge = clients.get(Role.judge)
@@ -301,7 +309,7 @@ async def run_answers_suite(settings: AISettings, items: list[AnswerItem]) -> An
                     clients=clients,
                     clock=time.monotonic,
                     tracer=NoopTracer(),
-                    language=script_language(item.question),
+                    language=item.expected_language,
                 )
                 answer = ""
                 result: AgentResult | None = None
@@ -324,6 +332,8 @@ async def run_answers_suite(settings: AISettings, items: list[AnswerItem]) -> An
                         judged_facts_present=verdict[1] if verdict else None,
                         refused=refused,
                         correct_refusal=refused != item.answerable,
+                        expected_language=item.expected_language.value,
+                        reply_language=written_language(answer).value,
                     )
                 )
         finally:
@@ -335,6 +345,8 @@ async def run_answers_suite(settings: AISettings, items: list[AnswerItem]) -> An
         faithfulness=sum(1 for o in judged if o.judged_faithful) / max(len(judged), 1),
         facts_present=sum(1 for o in answerable if o.facts_found) / max(len(answerable), 1),
         refusal_accuracy=sum(1 for o in outcomes if o.correct_refusal) / max(len(outcomes), 1),
+        reply_language_accuracy=sum(1 for o in outcomes if o.reply_language == display_language(LanguageCode(o.expected_language)).value)
+        / max(len(outcomes), 1),
         judge_errors=judge_errors,
         outcomes=outcomes,
     )
@@ -347,7 +359,7 @@ ANSWER_CLOCK = re.compile(r"\b(\d{2}:\d{2})\b")
 def is_refusal(answer: str, judged_refusal: bool | None) -> bool:
     if judged_refusal is not None:
         return judged_refusal
-    return answer.lower().lstrip().startswith(("i couldn't find", "i could not find"))
+    return answer.lower().lstrip().startswith(("i couldn't find", "i could not find", "لم أجد", "لم اجد"))
 
 
 def stale_slot_mentions(earlier_tool_results: str, current_tool_results: str, answer: str) -> int:
@@ -388,6 +400,10 @@ async def run_tools_suite(
                     answer = next((row.content for row in reversed(done.new_rows) if row.role == "assistant" and row.content), "")
                     stale = stale_slot_mentions(earlier_tool_results, current_tool_results, answer)
                     earlier_tool_results += "\n" + current_tool_results
+                    reply_language = written_language(answer)
+                    card_language = next((e.language for e in events if isinstance(e, Cards)), None)
+                    wanted_language = display_language(turn.expected_language)
+                    language_ok = reply_language is wanted_language and card_language in (None, wanted_language)
                     tools_ok = all(any(name == want.name and _subset(want.arguments, args) for name, args in calls) for want in turn.expected_tools)
                     outcomes.append(
                         TurnOutcome(
@@ -399,7 +415,10 @@ async def run_tools_suite(
                             cards=cards,
                             foreign_tool_calls=foreign,
                             stale_slot_mentions=stale,
-                            passed=tools_ok and cards == turn.expected_cards and foreign == 0 and stale == 0,
+                            expected_language=turn.expected_language.value,
+                            reply_language=reply_language.value,
+                            card_language=card_language.value if card_language is not None else None,
+                            passed=tools_ok and cards == turn.expected_cards and foreign == 0 and stale == 0 and language_ok,
                         )
                     )
         finally:
@@ -412,5 +431,12 @@ async def run_tools_suite(
         turns=len(outcomes),
         turn_pass_rate=sum(1 for o in outcomes if o.passed) / max(len(outcomes), 1),
         scenario_pass_rate=sum(1 for ok in by_scenario.values() if ok) / max(len(by_scenario), 1),
+        language_pass_rate=sum(
+            1
+            for o in outcomes
+            if o.reply_language == display_language(LanguageCode(o.expected_language)).value
+            and o.card_language in (None, display_language(LanguageCode(o.expected_language)).value)
+        )
+        / max(len(outcomes), 1),
         outcomes=outcomes,
     )

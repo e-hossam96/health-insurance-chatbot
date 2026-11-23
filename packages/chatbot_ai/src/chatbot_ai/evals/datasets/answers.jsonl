@@ -10,3 +10,10 @@
 {"id": "u-ivf", "question": "Does the plan cover IVF treatment?", "answerable": false, "must_include": []}
 {"id": "u-premium-price", "question": "How much does the Premium tier cost per month?", "answerable": false, "must_include": []}
 {"id": "u-pet", "question": "Can I add my dog to the policy?", "answerable": false, "must_include": []}
+{"id": "ar-a-outpatient-copay", "question": "كم يبلغ مبلغ المشاركة لزيارة العيادة الخارجية؟", "answerable": true, "must_include": [["50 EGP", "50 جنيه"]], "expected_language": "ar"}
+{"id": "ar-a-claim-deadline", "question": "ما هو الموعد النهائي لتقديم طلب استرداد المصاريف؟", "answerable": true, "must_include": [["90 days", "90 يوم"]], "expected_language": "ar"}
+{"id": "ar-a-maternity", "question": "هل الولادة مغطاة، وما الحد الأقصى للتغطية؟", "answerable": true, "must_include": [["35000", "35,000"]], "expected_language": "ar"}
+{"id": "ar-a-mri", "question": "هل أحتاج إلى موافقة مسبقة قبل التصوير بالرنين المغناطيسي، وقبلها بكم يوم؟", "answerable": true, "must_include": [["3 working days", "3 أيام عمل", "ثلاثة أيام عمل"]], "expected_language": "ar"}
+{"id": "ar-a-cosmetic", "question": "هل يغطي التأمين عمليات التجميل؟", "answerable": true, "must_include": [["not cover", "excluded", "لا يغطي", "لا تغطي", "غير مغطاة", "غير مغطى", "مستثنى", "مستثناة", "استثناء"]], "expected_language": "ar"}
+{"id": "ar-u-ivf", "question": "هل تغطي الخطة علاج أطفال الأنابيب؟", "answerable": false, "must_include": [], "expected_language": "ar"}
+{"id": "other-a-copay", "question": "Combien coûte la participation pour une consultation externe ?", "answerable": true, "must_include": ["50 EGP"], "expected_language": "other"}

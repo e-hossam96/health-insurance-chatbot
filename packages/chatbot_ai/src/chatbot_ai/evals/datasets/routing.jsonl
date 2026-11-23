@@ -24,3 +24,20 @@
 {"id": "followup-new-task", "message": "Also, I'd like to complain about my last visit", "history": [{"role": "user", "content": "Show me my visits"}, {"role": "assistant", "content": "You have one completed visit with Dr. Omar Hassan on Mon 9 Nov, 14:00 UTC."}], "expected": "complaint.file"}
 {"id": "mixed-policy-and-booking", "message": "Is physiotherapy covered, and can I book a session this week?", "history": [], "expected": "visit.book"}
 {"id": "mixed-medical-advice", "message": "I have a rash, what cream should I use? Maybe I should see someone", "history": [], "expected": "visit.book"}
+{"id": "ar-book", "message": "أريد حجز موعد مع طبيب جلدية الأسبوع القادم", "history": [], "expected": "visit.book", "expected_language": "ar"}
+{"id": "ar-check-visits", "message": "ما هي مواعيدي القادمة؟", "history": [], "expected": "visit.check", "expected_language": "ar"}
+{"id": "ar-cancel", "message": "أريد إلغاء موعدي غدًا", "history": [], "expected": "visit.cancel", "expected_language": "ar"}
+{"id": "ar-complaint", "message": "كانت موظفة الاستقبال في عيادة النيل غير مهذبة معي أمس", "history": [], "expected": "complaint.file", "expected_language": "ar"}
+{"id": "ar-complaint-reply", "message": "هل ردّ أحد على شكواي؟", "history": [], "expected": "complaint.check", "expected_language": "ar"}
+{"id": "ar-db-clinics", "message": "ما العيادات في القاهرة التي يوجد بها طبيب أطفال؟", "history": [], "expected": "qa.db", "expected_language": "ar"}
+{"id": "ar-kb-copay", "message": "كم أدفع مقابل زيارة العيادة الخارجية؟", "history": [], "expected": "qa.kb", "expected_language": "ar"}
+{"id": "ar-kb-refund", "message": "كم من الوقت لدي لطلب استرداد قيمة زيارة دفعتها؟", "history": [], "expected": "qa.kb", "expected_language": "ar"}
+{"id": "ar-greeting", "message": "السلام عليكم", "history": [], "expected": "other", "expected_language": "ar"}
+{"id": "ar-dialect-book", "message": "عايز أحجز عند دكتور جلدية", "history": [], "expected": "visit.book", "expected_language": "ar"}
+{"id": "ar-arabizi-book", "message": "3ayez a7gez m3ad 3and doktor galdeya", "history": [], "expected": "visit.book", "expected_language": "ar"}
+{"id": "ar-followup-yes", "message": "نعم", "history": [{"role": "user", "content": "أريد إلغاء موعد"}, {"role": "assistant", "content": "لديك موعد واحد مجدول: Dr. Sara Nabil يوم الثلاثاء 15 ديسمبر، 10:00 UTC. هل تريد إلغاءه؟"}], "expected": "visit.cancel", "expected_language": "ar"}
+{"id": "ar-followup-number", "message": "2", "history": [{"role": "user", "content": "أحتاج إلى طبيب جلدية"}, {"role": "assistant", "content": "أقرب المواعيد: Dr. Sara Nabil يوم الثلاثاء 15 ديسمبر، 10:00 UTC، أو Dr. Omar Hassan يوم الأربعاء 16 ديسمبر، 14:00 UTC."}], "expected": "visit.book", "expected_language": "ar"}
+{"id": "en-after-arabic", "message": "Can you show me my visits?", "history": [{"role": "user", "content": "أحتاج إلى طبيب جلدية"}, {"role": "assistant", "content": "أقرب المواعيد: Dr. Sara Nabil يوم الثلاثاء 15 ديسمبر، 10:00 UTC، أو Dr. Omar Hassan يوم الأربعاء 16 ديسمبر، 14:00 UTC."}], "expected": "visit.check", "expected_language": "en"}
+{"id": "other-french-book", "message": "Je voudrais prendre rendez-vous chez un dermatologue", "history": [], "expected": "visit.book", "expected_language": "other"}
+{"id": "other-spanish-kb", "message": "¿Mi seguro cubre la maternidad?", "history": [], "expected": "qa.kb", "expected_language": "other"}
+{"id": "other-german-thanks", "message": "Danke, das ist alles für heute", "history": [], "expected": "other", "expected_language": "other"}
