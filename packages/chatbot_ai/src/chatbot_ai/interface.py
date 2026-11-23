@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from chatbot_ai.languages import LanguageCode
 from chatbot_ai.tools.ports import ComplaintsPort, KnowledgePort, Ports, SchedulingPort
 
 
@@ -47,6 +48,7 @@ class Token:
 class Cards:
     type: str
     items: list[dict[str, Any]]
+    language: LanguageCode = LanguageCode.english
 
 
 @dataclass(frozen=True)

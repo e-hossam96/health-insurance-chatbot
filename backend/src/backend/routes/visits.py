@@ -7,7 +7,9 @@ from pydantic import BaseModel
 from sqlalchemy import select, update
 
 from backend.card_messages import (
+    CARD_TEXTS,
     CardAction,
+    CardLanguage,
     MessageOut,
     slot_label,
     write_card_action_messages,
@@ -45,6 +47,7 @@ class VisitOut(BaseModel):
 class BookRequest(BaseModel):
     session_id: int
     slot_id: int
+    language: CardLanguage = "en"
 
 
 class BookResponse(BaseModel):
@@ -54,6 +57,7 @@ class BookResponse(BaseModel):
 
 class CancelRequest(BaseModel):
     session_id: int | None = None
+    language: CardLanguage = "en"
 
 
 class CancelResponse(BaseModel):
@@ -103,12 +107,12 @@ async def book_visit(
         db,
         body.session_id,
         CardAction(
-            user_text=f"Book {await slot_label(db, body.slot_id)}.",
+            user_text=CARD_TEXTS[body.language].book_user.format(slot=await slot_label(db, body.slot_id, body.language)),
             tool_name="book_visit",
             tool_call_id=f"book_{visit.id}",
             arguments={"slot_id": body.slot_id},
             result={"visit_id": visit.id, "status": "scheduled"},
-            reply="Your visit has been booked successfully.",
+            reply=CARD_TEXTS[body.language].book_reply,
         ),
     )
     visit_out = VisitOut.from_row(visit)
@@ -147,12 +151,12 @@ async def cancel_visit(
             db,
             body.session_id,
             CardAction(
-                user_text=f"Cancel my visit with {await slot_label(db, visit.slot_id)}.",
+                user_text=CARD_TEXTS[body.language].cancel_user.format(slot=await slot_label(db, visit.slot_id, body.language)),
                 tool_name="cancel_visit",
                 tool_call_id=f"cancel_{visit_id}",
                 arguments={"visit_id": visit_id},
                 result={"visit_id": visit_id, "status": "cancelled"},
-                reply="Your visit has been cancelled.",
+                reply=CARD_TEXTS[body.language].cancel_reply,
             ),
         )
 

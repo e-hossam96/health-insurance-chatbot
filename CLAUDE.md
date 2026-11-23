@@ -2,7 +2,7 @@
 
 Version: v0.1.0. Every spec file carries the same version line.
 
-A demo of an AI chatbot for a health insurer, shown to insurers and employers. It books clinic visits, files and checks complaints, answers questions about clinics from the database, and answers policy questions from an uploaded knowledge base. Policy questions are general insurance questions the knowledge base can answer: refund and reimbursement rules, spending limits, co-pays, coverage, exclusions, claims, approvals and procedures. The AI side is meant to show a modern RAG and agent stack, and to be measured by an eval module.
+A demo of an AI chatbot for a health insurer, shown to insurers and employers. It books clinic visits, files and checks complaints, answers questions about clinics from the database, and answers general insurance questions from an uploaded knowledge base, meaning anything the knowledge base can answer: refund and reimbursement rules, spending limits, co-pays, coverage, exclusions, claims, approvals and procedures. The AI side is meant to show a modern RAG and agent stack, and to be measured by an eval module.
 
 ## Read in this order
 
@@ -18,7 +18,7 @@ Read the whole of items 1 to 2 at the start of a session. Read only the spec fil
 
 ## Stack
 
-- Frontend: React, Vite, TypeScript, React Router, TanStack Query, Tailwind with the app's own component classes (no shadcn/ui). The chat stream is read with fetch because it is a POST. English only. Assistant text is Markdown without raw HTML.
+- Frontend: React, Vite, TypeScript, React Router, TanStack Query, Tailwind with the app's own component classes (no shadcn/ui). The chat stream is read with fetch because it is a POST. English UI; assistant replies follow the member's language (Modern Standard Arabic or American English, F17). Assistant text is Markdown without raw HTML.
 - Backend: Python, FastAPI (use the built-in `fastapi.sse` for streaming), Postgres, SQLAlchemy + Alembic, argon2 password hashing, session cookies.
 - AI package: OpenAI SDK against the OpenAI API shape (Chat Completions, embeddings), one provider config per role (I11). Closed-source OpenAI models first. Docling parses PDF and DOCX. Reranker sits behind a Protocol; the provider is a placeholder (`ai.md`).
 - Retrieval: Qdrant (dense + BM25, RRF fusion). Chunks live only in Qdrant.

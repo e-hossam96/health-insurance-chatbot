@@ -139,7 +139,7 @@ async def test_walkthrough_booking_card_click_and_knowledge_question(
     app, world = app_and_world
     client = await _signed_in(app)
     try:
-        fake.queue(json_reply({"intent": "visit.book"}), json_reply({"intent": "qa.kb"}), model="router-model")
+        fake.queue(json_reply({"intent": "visit.book", "language": "en"}), json_reply({"intent": "qa.kb", "language": "en"}), model="router-model")
         fake.queue(
             tool_reply(ToolCallSpec("list_specialties", {}, id="t1")),
             tool_reply(ToolCallSpec("recommend_doctors", {"specialty_id": world.derm}, id="t2")),

@@ -1,0 +1,444 @@
+{
+  "suite": "retrieval",
+  "date": "2026-11-23T15:54:21.173411+00:00",
+  "config": {
+    "roles": {
+      "chat": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "router": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "rewrite": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "embedding": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "text-embedding-3-small"
+      },
+      "rerank": {
+        "base_url": "https://api.openai.com/v1",
+        "model": null
+      },
+      "judge": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6.2-sol"
+      }
+    },
+    "switches": {
+      "ai_query_count": 3,
+      "ai_retrieval_mode": "hybrid",
+      "ai_prefetch_k": 20,
+      "ai_fused_k": 30,
+      "ai_context_k": 5,
+      "ai_rerank_provider": "none",
+      "ai_rerank_min_score": null,
+      "ai_router_history_rows": 6,
+      "ai_chat_max_output_tokens": 800
+    }
+  },
+  "result": {
+    "items": 24,
+    "stages": {
+      "first_query": {
+        "hit": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "recall": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "mrr": 0.9791666666666666
+      },
+      "fused": {
+        "hit": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "recall": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "mrr": 0.9791666666666666
+      },
+      "deduped": {
+        "hit": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "recall": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "mrr": 0.9791666666666666
+      },
+      "reranked": {
+        "hit": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "recall": {
+          "@5": 1.0,
+          "@10": 1.0
+        },
+        "mrr": 0.9791666666666666
+      }
+    },
+    "mean_latency_s": {
+      "rewrite": 1.9548203083346987,
+      "embed": 0.2845177833332855,
+      "search": 0.02185117083233005,
+      "rerank": 8.81583340136179e-05
+    },
+    "misses": [],
+    "english_query_rate": 1.0,
+    "mean_queries": 3.0,
+    "hit_at_5_by_language": {
+      "ar": 1.0,
+      "en": 1.0,
+      "other": 1.0
+    },
+    "rewrites": [
+      {
+        "id": "outpatient-copay",
+        "expected_language": "en",
+        "queries": [
+          "How much do I pay for an outpatient visit at a network clinic?",
+          "What is my cost-sharing for an outpatient visit at an in-network clinic?",
+          "How much is my copayment or other out-of-pocket cost for outpatient care at a participating clinic?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "referral",
+        "expected_language": "en",
+        "queries": [
+          "Do I need a referral to see a specialist?",
+          "Is a referral required to visit a specialist?",
+          "Do I need a referral from my primary care provider to receive specialist care?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "telemedicine",
+        "expected_language": "en",
+        "queries": [
+          "Is there a co-payment for telemedicine consultations?",
+          "Do telehealth visits require a member copay?",
+          "What copayment applies to virtual medical consultations?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "inpatient-nights",
+        "expected_language": "en",
+        "queries": [
+          "How many nights of hospital stay are covered each year?",
+          "What is the annual coverage limit for inpatient hospital nights?",
+          "How many nights of inpatient hospitalization are covered per year?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "planned-admission",
+        "expected_language": "en",
+        "queries": [
+          "How far in advance must I obtain approval for a planned hospital admission?",
+          "What is the required advance notice for authorization of a scheduled inpatient hospital stay?",
+          "How many days before a planned hospital admission do I need to request preapproval?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "drug-limit",
+        "expected_language": "en",
+        "queries": [
+          "What is the annual limit for prescription drugs?",
+          "What is the yearly maximum benefit for prescription medication?",
+          "How much does the plan cover for prescription drugs per year?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "maternity-limit",
+        "expected_language": "en",
+        "queries": [
+          "How much maternity cover do I have?",
+          "What is the amount of my maternity coverage?",
+          "What maternity benefits and coverage limits are included in my plan?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "exclusions-cosmetic",
+        "expected_language": "en",
+        "queries": [
+          "Is cosmetic surgery covered?",
+          "Does the health insurance plan cover cosmetic surgery?",
+          "Are cosmetic surgical procedures included in the plan's benefits?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "claim-deadline",
+        "expected_language": "en",
+        "queries": [
+          "What is the deadline for submitting a reimbursement claim?",
+          "How much time do I have to file a claim for reimbursement?",
+          "What is the time limit for submitting a claim for reimbursement?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "appeal",
+        "expected_language": "en",
+        "queries": [
+          "Can I appeal a rejected claim, and how long does it take to receive a decision on the appeal?",
+          "Can I dispute a denied claim, and what is the timeframe for a decision?",
+          "Can I request a review of a refused claim, and how long does the review take?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "fee-schedule",
+        "expected_language": "en",
+        "queries": [
+          "What is the cost of an X-ray at Giza Care?",
+          "How much does Giza Care charge for an X-ray?",
+          "What is the price of an X-ray service at Giza Care?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "member-card",
+        "expected_language": "en",
+        "queries": [
+          "When will my member card arrive?",
+          "When should I expect to receive my health insurance ID card?",
+          "What is the expected delivery date for my member identification card?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "missed-visits",
+        "expected_language": "en",
+        "queries": [
+          "What happens if I miss appointments without cancelling?",
+          "What are the consequences of missing scheduled visits without cancelling them?",
+          "Does a fee or penalty apply if I do not attend appointments and fail to cancel?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "complaint-reply-time",
+        "expected_language": "en",
+        "queries": [
+          "How quickly does the care team respond to a complaint?",
+          "What is the response time for a complaint submitted to the care team?",
+          "How long does the care team take to acknowledge or address a complaint?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "mri-approval",
+        "expected_language": "en",
+        "queries": [
+          "Does an MRI scan require pre-authorization?",
+          "Is preapproval required for an MRI scan?",
+          "Does an MRI procedure require prior authorization?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "dental-crown",
+        "expected_language": "en",
+        "queries": [
+          "What is the yearly limit for a dental crown on the Premium tier?",
+          "What is the annual maximum benefit for a dental crown under the Premium tier?",
+          "How much does the Premium tier cover per year for a dental crown?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "ar-outpatient-copay",
+        "expected_language": "ar",
+        "queries": [
+          "How much do I pay for an outpatient clinic visit at an in-network clinic?",
+          "What is my cost for an outpatient visit at a participating provider clinic?",
+          "How much is the member\u2019s share for an outpatient clinic appointment with an in-network provider?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "ar-inpatient-nights",
+        "expected_language": "ar",
+        "queries": [
+          "How many nights of hospital stays are covered each year?",
+          "What is the annual coverage limit for inpatient hospital nights?",
+          "How many nights of hospitalization are included in the yearly benefits?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "ar-claim-deadline",
+        "expected_language": "ar",
+        "queries": [
+          "How long do I have to submit a reimbursement claim?",
+          "What is the deadline for filing a claim for reimbursement of expenses?",
+          "How much time do I have to request reimbursement for my expenses?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "ar-member-card",
+        "expected_language": "ar",
+        "queries": [
+          "When will I receive my membership card?",
+          "When should I expect to receive my member ID card?",
+          "How long will it take for my insurance membership card to arrive?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "ar-mri-approval",
+        "expected_language": "ar",
+        "queries": [
+          "Does magnetic resonance imaging (MRI) require prior authorization?",
+          "Is preapproval required for an MRI scan?",
+          "Does an MRI procedure need advance approval?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "ar-dialect-missed-visits",
+        "expected_language": "ar",
+        "queries": [
+          "What happens if I miss appointments without canceling them?",
+          "What are the consequences of missing appointments without canceling them in advance?",
+          "How are appointments handled when a member does not attend or cancel?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "other-french-referral",
+        "expected_language": "other",
+        "queries": [
+          "Do I need a referral to see a specialist?",
+          "Is a referral required to visit a specialist?",
+          "Do I need a primary care provider's authorization to consult a specialist?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "other-spanish-drugs",
+        "expected_language": "other",
+        "queries": [
+          "What is the annual limit for prescription medications?",
+          "What is the yearly maximum benefit for prescription drugs?",
+          "What is the annual coverage cap for prescription medicines?"
+        ],
+        "english": [
+          true,
+          true,
+          true
+        ]
+      }
+    ]
+  }
+}

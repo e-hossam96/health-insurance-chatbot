@@ -33,4 +33,12 @@ describe('MarkdownContent', () => {
     expect(container.querySelector('strong')?.textContent).toBe('two');
     expect(container.querySelector('a')?.getAttribute('href')).toBe('https://example.com/policy');
   });
+
+  it('F17: Arabic replies get their direction from the text', () => {
+    const { getByTestId } = render(<MarkdownContent content={'- **التغطية** تشمل الولادة\n- co-pay 50 EGP'} />);
+    const root = getByTestId('markdown-content');
+    expect(root.getAttribute('dir')).toBe('auto');
+    expect(root.className).toContain('[&_ul]:ps-5');
+    expect(root.className).not.toContain('pl-5');
+  });
 });

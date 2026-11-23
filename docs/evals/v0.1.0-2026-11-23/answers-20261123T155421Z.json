@@ -1,0 +1,281 @@
+{
+  "suite": "answers",
+  "date": "2026-11-23T15:54:21.173411+00:00",
+  "config": {
+    "roles": {
+      "chat": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "router": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "rewrite": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6-luna"
+      },
+      "embedding": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "text-embedding-3-small"
+      },
+      "rerank": {
+        "base_url": "https://api.openai.com/v1",
+        "model": null
+      },
+      "judge": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-6.2-sol"
+      }
+    },
+    "switches": {
+      "ai_query_count": 3,
+      "ai_retrieval_mode": "hybrid",
+      "ai_prefetch_k": 20,
+      "ai_fused_k": 30,
+      "ai_context_k": 5,
+      "ai_rerank_provider": "none",
+      "ai_rerank_min_score": null,
+      "ai_router_history_rows": 6,
+      "ai_chat_max_output_tokens": 800
+    }
+  },
+  "result": {
+    "items": 19,
+    "faithfulness": 1.0,
+    "facts_present": 1.0,
+    "refusal_accuracy": 1.0,
+    "reply_language_accuracy": 1.0,
+    "judge_errors": 0,
+    "outcomes": [
+      {
+        "id": "a-outpatient-copay",
+        "answerable": true,
+        "answer": "The co-pay for an outpatient visit at a network clinic is **50 EGP per visit**. Telemedicine consultations have no co-pay.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "en",
+        "reply_language": "en"
+      },
+      {
+        "id": "a-inpatient",
+        "answerable": true,
+        "answer": "The plan covers up to **30 hospital nights per year** in a semi-private room.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "en",
+        "reply_language": "en"
+      },
+      {
+        "id": "a-claim-deadline",
+        "answerable": true,
+        "answer": "Submit a reimbursement claim within 90 days of the service date, with the original receipts and medical report.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "en",
+        "reply_language": "en"
+      },
+      {
+        "id": "a-appeal",
+        "answerable": true,
+        "answer": "Appeals are answered within 15 working days.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "en",
+        "reply_language": "en"
+      },
+      {
+        "id": "a-maternity",
+        "answerable": true,
+        "answer": "Yes. Maternity is covered up to **35,000 EGP per year** with **0 EGP co-pay** (Section 2.3, Annual coverage limits).",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "en",
+        "reply_language": "en"
+      },
+      {
+        "id": "a-cosmetic",
+        "answerable": true,
+        "answer": "No. Cosmetic surgery is excluded from coverage.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "en",
+        "reply_language": "en"
+      },
+      {
+        "id": "a-mri",
+        "answerable": true,
+        "answer": "Yes. An MRI requires pre-authorization at least **3 working days** in advance.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "en",
+        "reply_language": "en"
+      },
+      {
+        "id": "a-missed",
+        "answerable": true,
+        "answer": "Yes. Missed visits without cancellation are counted. Three missed visits in a year suspend online booking for 30 days. You can cancel a scheduled visit up to its start time.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "en",
+        "reply_language": "en"
+      },
+      {
+        "id": "u-abroad",
+        "answerable": false,
+        "answer": "The documents don\u2019t specify coverage for treatment abroad. They say treatment outside the network is not covered except in an emergency, but they don\u2019t clarify how that applies while traveling abroad.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": true,
+        "correct_refusal": true,
+        "expected_language": "en",
+        "reply_language": "en"
+      },
+      {
+        "id": "u-ivf",
+        "answerable": false,
+        "answer": "I couldn\u2019t find information about IVF coverage in the plan documents. The exclusions list experimental treatments, but it doesn\u2019t say whether IVF is covered.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": true,
+        "correct_refusal": true,
+        "expected_language": "en",
+        "reply_language": "en"
+      },
+      {
+        "id": "u-premium-price",
+        "answerable": false,
+        "answer": "I couldn\u2019t find the Premium tier\u2019s monthly cost in the documents provided.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": true,
+        "correct_refusal": true,
+        "expected_language": "en",
+        "reply_language": "en"
+      },
+      {
+        "id": "u-pet",
+        "answerable": false,
+        "answer": "I couldn\u2019t find information about adding a pet to your policy in the available documents.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": true,
+        "correct_refusal": true,
+        "expected_language": "en",
+        "reply_language": "en"
+      },
+      {
+        "id": "ar-a-outpatient-copay",
+        "answerable": true,
+        "answer": "\u062a\u0628\u0644\u063a \u0627\u0644\u0645\u0634\u0627\u0631\u0643\u0629 \u0641\u064a \u0632\u064a\u0627\u0631\u0629 \u0627\u0644\u0639\u064a\u0627\u062f\u0629 \u0627\u0644\u062e\u0627\u0631\u062c\u064a\u0629 \u0636\u0645\u0646 \u0634\u0628\u0643\u0629 \u0627\u0644\u0639\u064a\u0627\u062f\u0627\u062a **50 EGP \u0644\u0643\u0644 \u0632\u064a\u0627\u0631\u0629**.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "ar",
+        "reply_language": "ar"
+      },
+      {
+        "id": "ar-a-claim-deadline",
+        "answerable": true,
+        "answer": "\u064a\u062c\u0628 \u062a\u0642\u062f\u064a\u0645 \u0637\u0644\u0628 \u0627\u0633\u062a\u0631\u062f\u0627\u062f \u0627\u0644\u0645\u0635\u0627\u0631\u064a\u0641 \u062e\u0644\u0627\u0644 90 \u064a\u0648\u0645\u064b\u0627 \u0645\u0646 \u062a\u0627\u0631\u064a\u062e \u062a\u0644\u0642\u064a \u0627\u0644\u062e\u062f\u0645\u0629\u060c \u0645\u0639 \u0627\u0644\u0625\u064a\u0635\u0627\u0644\u0627\u062a \u0627\u0644\u0623\u0635\u0644\u064a\u0629 \u0648\u0627\u0644\u062a\u0642\u0631\u064a\u0631 \u0627\u0644\u0637\u0628\u064a.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "ar",
+        "reply_language": "ar"
+      },
+      {
+        "id": "ar-a-maternity",
+        "answerable": true,
+        "answer": "\u0646\u0639\u0645\u060c \u0627\u0644\u0648\u0644\u0627\u062f\u0629 \u0645\u063a\u0637\u0627\u0629 \u0636\u0645\u0646 \u0645\u0646\u0641\u0639\u0629 \u0627\u0644\u0623\u0645\u0648\u0645\u0629\u060c \u0628\u062d\u062f \u0633\u0646\u0648\u064a \u0623\u0642\u0635\u0649 \u0642\u062f\u0631\u0647 **35000 EGP**\u060c \u0648\u0628\u0645\u0634\u0627\u0631\u0643\u0629 \u062f\u0641\u0639 \u0642\u062f\u0631\u0647\u0627 **0 EGP**. \u0648\u064a\u0633\u062a\u0646\u062f \u0630\u0644\u0643 \u0625\u0644\u0649 \u0642\u0633\u0645 **\u0627\u0644\u062e\u062f\u0645\u0627\u062a \u0627\u0644\u0645\u063a\u0637\u0627\u0629 > \u062d\u062f\u0648\u062f \u0627\u0644\u062a\u063a\u0637\u064a\u0629 \u0627\u0644\u0633\u0646\u0648\u064a\u0629**.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "ar",
+        "reply_language": "ar"
+      },
+      {
+        "id": "ar-a-mri",
+        "answerable": true,
+        "answer": "\u0646\u0639\u0645\u060c \u064a\u062d\u062a\u0627\u062c \u0627\u0644\u062a\u0635\u0648\u064a\u0631 \u0628\u0627\u0644\u0631\u0646\u064a\u0646 \u0627\u0644\u0645\u063a\u0646\u0627\u0637\u064a\u0633\u064a \u0625\u0644\u0649 \u0645\u0648\u0627\u0641\u0642\u0629 \u0645\u0633\u0628\u0642\u0629\u060c \u0648\u064a\u062c\u0628 \u062a\u0642\u062f\u064a\u0645 \u0627\u0644\u0637\u0644\u0628 \u0642\u0628\u0644 3 \u0623\u064a\u0627\u0645 \u0639\u0645\u0644 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "ar",
+        "reply_language": "ar"
+      },
+      {
+        "id": "ar-a-cosmetic",
+        "answerable": true,
+        "answer": "\u0644\u0627\u060c \u0644\u0627 \u064a\u063a\u0637\u064a \u0627\u0644\u062a\u0623\u0645\u064a\u0646 \u0639\u0645\u0644\u064a\u0627\u062a \u0627\u0644\u062a\u062c\u0645\u064a\u0644\u060c \u0648\u0641\u0642\u064b\u0627 \u0644\u0642\u0633\u0645 \u00ab\u0627\u0644\u0627\u0633\u062a\u062b\u0646\u0627\u0621\u0627\u062a\u00bb \u0641\u064a \u0648\u062b\u0627\u0626\u0642 \u0627\u0644\u062a\u063a\u0637\u064a\u0629.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "ar",
+        "reply_language": "ar"
+      },
+      {
+        "id": "ar-u-ivf",
+        "answerable": false,
+        "answer": "\u0644\u0645 \u0623\u062c\u062f \u0641\u064a \u0627\u0644\u0648\u062b\u0627\u0626\u0642 \u0627\u0644\u0645\u062a\u0627\u062d\u0629 \u0645\u0627 \u064a\u0648\u0636\u062d \u0645\u0627 \u0625\u0630\u0627 \u0643\u0627\u0646\u062a \u0627\u0644\u062e\u0637\u0629 \u062a\u063a\u0637\u064a \u0639\u0644\u0627\u062c \u0623\u0637\u0641\u0627\u0644 \u0627\u0644\u0623\u0646\u0627\u0628\u064a\u0628.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": true,
+        "correct_refusal": true,
+        "expected_language": "ar",
+        "reply_language": "ar"
+      },
+      {
+        "id": "other-a-copay",
+        "answerable": true,
+        "answer": "The co-pay for an outpatient visit at a network clinic is **50 EGP per visit**. Telemedicine consultations have no co-pay.",
+        "facts_found": true,
+        "judged_faithful": true,
+        "judged_facts_present": true,
+        "refused": false,
+        "correct_refusal": true,
+        "expected_language": "other",
+        "reply_language": "en"
+      }
+    ]
+  }
+}

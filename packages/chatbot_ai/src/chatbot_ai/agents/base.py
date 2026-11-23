@@ -7,6 +7,7 @@ from typing import Protocol
 from chatbot_ai.clients import RoleClients
 from chatbot_ai.intents import AgentName
 from chatbot_ai.interface import Cards, HistoryRow, Ports, Token, TurnRequest, Usage
+from chatbot_ai.languages import LanguageCode
 from chatbot_ai.settings import AISettings
 from chatbot_ai.tracing import TurnTracer
 
@@ -21,6 +22,7 @@ class AgentContext:
     clients: RoleClients
     clock: Clock
     tracer: TurnTracer
+    language: LanguageCode
 
 
 @dataclass(frozen=True)

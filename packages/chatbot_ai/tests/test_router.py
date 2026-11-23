@@ -53,7 +53,7 @@ def test_I1_router_sees_the_conversation_text_but_not_tool_rows() -> None:
 async def test_I1_classifier_uses_structured_output_with_the_F6_enum(
     fake_openai: FakeOpenAI, role_clients: RoleClients
 ) -> None:
-    fake_openai.queue(json_reply({"intent": "qa.kb"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "qa.kb", "language": "en"}), model="router-model")
     result = await classify(role_clients.get(Role.router), [], "Is maternity covered?", 6)
     assert result.intent is IntentCode.qa_kb
     request = fake_openai.chat_requests[0]

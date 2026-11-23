@@ -7,7 +7,9 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from backend.card_messages import (
+    CARD_TEXTS,
     CardAction,
+    CardLanguage,
     MessageOut,
     slot_label,
     write_card_action_messages,
@@ -25,6 +27,7 @@ class FileComplaintRequest(BaseModel):
     session_id: int
     visit_id: int
     description: str
+    language: CardLanguage = "en"
 
 
 class ComplaintOut(BaseModel):
@@ -90,12 +93,12 @@ async def file_complaint(
         db,
         body.session_id,
         CardAction(
-            user_text=f"File a complaint about my visit with {await slot_label(db, visit.slot_id)}.",
+            user_text=CARD_TEXTS[body.language].complaint_user.format(slot=await slot_label(db, visit.slot_id, body.language)),
             tool_name="file_complaint",
             tool_call_id=f"complaint_{complaint.id}",
             arguments={"visit_id": body.visit_id},
             result={"complaint_id": complaint.id, "status": "open"},
-            reply="Your complaint has been filed.",
+            reply=CARD_TEXTS[body.language].complaint_reply,
         ),
     )
     complaint_out = ComplaintOut(

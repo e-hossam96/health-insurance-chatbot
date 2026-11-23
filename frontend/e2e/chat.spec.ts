@@ -5,6 +5,7 @@ type SseEvent = [name: string, data: Record<string, unknown>];
 const SESSION_ID = 21;
 
 const DOCTORS = {
+  language: 'en',
   type: 'doctors',
   items: [
     { slot_id: 1, doctor_name: 'Dr. Sara Nabil', specialty: 'Dermatology', clinic: 'Cairo Clinic', location: 'Cairo', start_at: '2026-12-15T10:00:00Z' },
@@ -75,7 +76,29 @@ test.describe('chat against stub scenarios', () => {
     await expect(page.getByTestId('booked-badge')).toBeVisible();
     await expect(page.getByTestId('book-btn')).toBeDisabled();
     await expect(page.getByText('Your visit is booked.')).toBeVisible();
-    expect(bookBody).toEqual({ session_id: SESSION_ID, slot_id: 1 });
+    expect(bookBody).toEqual({ session_id: SESSION_ID, slot_id: 1, language: 'en' });
+  });
+
+  test('F17: Arabic cards use Arabic labels, keep the database names and book in Arabic', async ({ page }) => {
+    await mockSignedInUser(page, [turn('هذه أقرب المواعيد المتاحة.', { ...DOCTORS, language: 'ar' })]);
+    let bookBody: unknown = null;
+    await page.route('**/api/me/visits', async route => {
+      bookBody = route.request().postDataJSON();
+      await json(route, { visit: { id: 30, status: 'scheduled' }, messages: staticMessages('احجز موعدًا مع Dr. Sara Nabil يوم الثلاثاء 15 ديسمبر، 10:00 UTC.', 'تم حجز موعدك بنجاح.') }, 201);
+    });
+
+    await page.goto('/chat');
+    await send(page, 'أريد حجز موعد');
+    await expect(page.getByTestId('chat-cards')).toHaveAttribute('dir', 'rtl');
+    await expect(page.getByTestId('doctor-name').first()).toHaveText('Dr. Sara Nabil');
+    await expect(page.getByText('Cairo Clinic, Cairo').first()).toBeVisible();
+    await expect(page.getByText('الثلاثاء 15 ديسمبر، 10:00 UTC')).toBeVisible();
+    await expect(page.getByTestId('book-btn').first()).toHaveText('احجز');
+
+    await page.getByTestId('book-btn').first().click();
+    await expect(page.getByTestId('booked-badge')).toHaveText('تم الحجز');
+    await expect(page.getByText('تم حجز موعدك بنجاح.')).toBeVisible();
+    expect(bookBody).toEqual({ session_id: SESSION_ID, slot_id: 1, language: 'ar' });
   });
 
   test('slot taken: the card says so and Show other options sends a new turn', async ({ page }) => {
@@ -115,7 +138,7 @@ test.describe('chat against stub scenarios', () => {
     await page.getByTestId('submit-complaint-btn').click();
     await expect(page.getByTestId('filed-badge')).toBeVisible();
     await expect(page.getByText('Your complaint was filed.')).toBeVisible();
-    expect(complaintBody).toEqual({ session_id: SESSION_ID, visit_id: 7, description: 'Long wait' });
+    expect(complaintBody).toEqual({ session_id: SESSION_ID, visit_id: 7, description: 'Long wait', language: 'en' });
   });
 
   test('cancel: Yes, cancel visit marks the card cancelled', async ({ page }) => {
@@ -131,7 +154,7 @@ test.describe('chat against stub scenarios', () => {
     await page.getByRole('button', { name: 'Yes, cancel visit' }).click();
     await expect(page.getByTestId('cancelled-badge')).toBeVisible();
     await expect(page.getByText('Your visit is cancelled.')).toBeVisible();
-    expect(cancelBody).toEqual({ session_id: SESSION_ID });
+    expect(cancelBody).toEqual({ session_id: SESSION_ID, language: 'en' });
   });
 
   test('Stop: the input is locked while streaming and Stop gives the text back', async ({ page }) => {

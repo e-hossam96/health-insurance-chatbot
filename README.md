@@ -10,7 +10,7 @@ The app has two kinds of users.
   - book and cancel clinic visits,
   - file complaints and follow the replies,
   - ask about clinics and doctors,
-  - ask policy questions: any general insurance question the uploaded knowledge base can answer, such as refund and reimbursement rules, spending limits, co-pays, what is covered or excluded, and how to file a claim.
+  - ask insurance questions: any general insurance question the uploaded knowledge base can answer, such as refund and reimbursement rules, spending limits, co-pays, what is covered or excluded, and how to file a claim.
 - **Admins** manage the data behind it: locations, specialties, clinics, doctors, slots, visits, complaints and the knowledge-base documents.
 
 One rule shapes the whole design: **the model never writes data.** The assistant only proposes cards. A booking, cancellation or complaint happens only when the member clicks a button on one of those cards.
@@ -65,7 +65,7 @@ Where to find more:
 | Cancellations | Offers the member's scheduled visits as cards. Confirming a cancellation frees the slot. |
 | Complaints | Files a complaint about a completed visit. The member can then follow the admin's replies. |
 | Clinic questions | Answered from the database through read-only tools. |
-| Policy questions | General insurance questions: refunds and reimbursement, spending limits, co-pays, coverage, exclusions, claims and approvals. Answered from uploaded PDF, DOCX and TXT documents (retrieval-augmented), showing the excerpts used. When the documents don't cover a question, the assistant says so. |
+| Insurance questions | General insurance questions: refunds and reimbursement, spending limits, co-pays, coverage, exclusions, claims and approvals. Answered from uploaded PDF, DOCX and TXT documents (retrieval-augmented), showing the excerpts used. When the documents don't cover a question, the assistant says so. |
 
 ### For admins and operators
 

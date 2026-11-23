@@ -5,7 +5,10 @@ import re
 import zipfile
 from pathlib import Path
 
+from chatbot_ai.evals.routing import load_routing
 from chatbot_ai.evals.schemas import AnswerItem, RetrievalItem, ToolScenario, load_jsonl
+from chatbot_ai.intents import IntentCode
+from chatbot_ai.languages import LanguageCode
 from chatbot_ai.tools.registry import COMPLAINT_TOOLS, SCHEDULING_TOOLS
 
 EVALS = Path(__file__).resolve().parent.parent / "src" / "chatbot_ai" / "evals"
@@ -64,3 +67,20 @@ def test_a_required_fact_passes_when_any_of_its_wordings_is_in_the_answer() -> N
     assert not item.facts_in("Cosmetic surgery is excluded.")
     assert not item.facts_in("The co-pay is 50 EGP and cosmetic surgery is covered.")
     assert item.facts_in("The co-pay is **50** EGP and cosmetic surgery is **excluded**.")
+
+
+def test_F17_every_dataset_has_arabic_and_other_language_items() -> None:
+    answers = load_jsonl(DATASETS / "answers.jsonl", AnswerItem)
+    scenarios = load_jsonl(DATASETS / "tools.jsonl", ToolScenario)
+    routing = load_routing(DATASETS / "routing.jsonl")
+    assert {i.expected_language for i in routing} == set(LanguageCode)
+    assert {i.expected for i in routing if i.expected_language is LanguageCode.arabic} == set(IntentCode)
+    assert {i.expected_language for i in answers} == set(LanguageCode)
+    assert any(not i.answerable for i in answers if i.expected_language is LanguageCode.arabic)
+    turns = [turn for scenario in scenarios for turn in scenario.turns]
+    assert {t.expected_cards for t in turns if t.expected_language is LanguageCode.arabic} >= CARD_TYPES
+    retrieval = load_jsonl(DATASETS / "retrieval.jsonl", RetrievalItem)
+    assert {i.expected_language for i in retrieval} == set(LanguageCode)
+    assert {i.expected_document for i in retrieval if i.expected_language is LanguageCode.arabic} == {"policy_handbook.pdf", "member_guide.docx"}
+    switch = next(s for s in scenarios if s.id == "language-switch")
+    assert [t.expected_language for t in switch.turns] == [LanguageCode.english, LanguageCode.arabic, LanguageCode.arabic]

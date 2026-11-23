@@ -16,6 +16,7 @@ from chatbot_ai.interface import (
     TurnEvent,
     TurnRequest,
 )
+from chatbot_ai.languages import LanguageCode
 from chatbot_ai.orchestrator import run_turn
 from chatbot_ai.prompts import agent_system_prompt
 from chatbot_ai.settings import AISettings
@@ -67,7 +68,7 @@ async def test_scheduling_turn_runs_tools_and_emits_cards_after_the_last_token(
     fake_openai: FakeOpenAI, ai_settings: AISettings, role_clients: RoleClients
 ) -> None:
     fakes = _fakes()
-    fake_openai.queue(json_reply({"intent": "visit.book"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "visit.book", "language": "en"}), model="router-model")
     fake_openai.queue(
         tool_reply(ToolCallSpec("list_specialties", {}, id="c1")),
         tool_reply(ToolCallSpec("recommend_doctors", {"specialty_id": 1}, id="c2")),
@@ -110,7 +111,7 @@ async def test_scheduling_turn_runs_tools_and_emits_cards_after_the_last_token(
 async def test_the_tool_loop_stops_at_the_round_limit(fake_openai: FakeOpenAI) -> None:
     settings = settings_for(fake_openai.base_url, ai_max_tool_rounds=2)
     clients = RoleClients(settings)
-    fake_openai.queue(json_reply({"intent": "visit.check"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "visit.check", "language": "en"}), model="router-model")
     fake_openai.queue(
         tool_reply(ToolCallSpec("my_visits", {})),
         tool_reply(ToolCallSpec("my_visits", {})),
@@ -136,7 +137,7 @@ async def test_a_tool_call_offered_in_the_final_round_is_not_executed(fake_opena
     settings = settings_for(fake_openai.base_url, ai_max_tool_rounds=1)
     clients = RoleClients(settings)
     fakes = _fakes()
-    fake_openai.queue(json_reply({"intent": "visit.check"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "visit.check", "language": "en"}), model="router-model")
     fake_openai.queue(
         tool_reply(ToolCallSpec("my_visits", {})),
         tool_reply(ToolCallSpec("my_visits", {}), content="Here they are."),
@@ -153,15 +154,15 @@ async def test_a_tool_call_offered_in_the_final_round_is_not_executed(fake_opena
 
 
 def test_F5_F8_F9_I4_prompt_blocks_for_the_tool_agents() -> None:
-    scheduling = agent_system_prompt(AgentName.scheduling, PROFILE)
-    complaints = agent_system_prompt(AgentName.complaints, PROFILE)
+    scheduling = agent_system_prompt(AgentName.scheduling, PROFILE, LanguageCode.english)
+    complaints = agent_system_prompt(AgentName.complaints, PROFILE, LanguageCode.english)
     for prompt in (scheduling, complaints):
         assert "fetch them again with a tool" in prompt
         assert "Never give medical advice" in prompt
         assert "help them file a complaint" in prompt
         assert "tool calls from tools you do not have now" in prompt
         assert "You never create, change or cancel anything yourself" in prompt
-        assert "English only" in prompt and "UTC" in prompt
+        assert "American English" in prompt and "UTC" in prompt
         assert "The cards are not saved" in prompt
     assert "name each one in your reply" in scheduling
     assert "already ranked" in scheduling
@@ -174,14 +175,14 @@ async def test_I4_I14_cross_agent_turns_only_offer_and_run_the_current_agents_to
     fakes = _fakes()
     history: list[HistoryRow] = []
 
-    fake_openai.queue(json_reply({"intent": "visit.book"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "visit.book", "language": "en"}), model="router-model")
     fake_openai.queue(tool_reply(ToolCallSpec("recommend_doctors", {"specialty_id": 1}, id="s1")), text_reply("Dr. Sara Nabil is first."), model="chat-model")
     first = await _collect(run_turn(_request("derm please", history), fakes.as_ports(), ai_settings, role_clients))
     first_done = first[-1]
     assert isinstance(first_done, Done)
     history += first_done.new_rows
 
-    fake_openai.queue(json_reply({"intent": "complaint.file"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "complaint.file", "language": "en"}), model="router-model")
     fake_openai.queue(
         tool_reply(ToolCallSpec("recommend_doctors", {"specialty_id": 1}, id="x1")),
         tool_reply(ToolCallSpec("eligible_visits", {}, id="x2")),
@@ -197,7 +198,7 @@ async def test_I4_I14_cross_agent_turns_only_offer_and_run_the_current_agents_to
     assert [c.type for c in second_cards] == ["visits_for_complaint"]
     history += second_done.new_rows
 
-    fake_openai.queue(json_reply({"intent": "visit.book"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "visit.book", "language": "en"}), model="router-model")
     fake_openai.queue(tool_reply(ToolCallSpec("eligible_visits", {}, id="y1")), text_reply("Let me look again."), model="chat-model")
     third = await _collect(run_turn(_request("back to booking", history), fakes.as_ports(), ai_settings, role_clients))
     third_done = third[-1]

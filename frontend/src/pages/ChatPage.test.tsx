@@ -38,6 +38,7 @@ const bookVisit = vi.mocked(visitsApi.bookVisit);
 const DOCTOR_CARDS: StreamEvent = {
   event: 'cards',
   cards: {
+    language: 'en',
     type: 'doctors',
     items: [
       { slot_id: 1, doctor_name: 'Dr. Sara', specialty: 'Dermatology', clinic: 'Cairo Clinic', location: 'Cairo', start_at: '2026-12-15T10:00:00Z' },
@@ -98,6 +99,11 @@ describe('ChatPage', () => {
     expect(await screen.findByText('All times are UTC.')).toBeTruthy();
   });
 
+  it('F17: the message box takes its direction from the text, so Arabic types right to left', async () => {
+    renderChat();
+    expect((await screen.findByTestId('chat-input')).getAttribute('dir')).toBe('auto');
+  });
+
   it('F1: shows the six starter cards in order on an empty chat', async () => {
     renderChat();
     const cards = await screen.findAllByTestId('starter-card');
@@ -107,7 +113,7 @@ describe('ChatPage', () => {
       'Cancel a visit',
       'File a complaint',
       'Check my complaints',
-      'Ask a policy question',
+      'Ask an insurance question',
     ]);
   });
 
@@ -141,7 +147,7 @@ describe('ChatPage', () => {
     getSessions.mockResolvedValue(sessions);
     renderChat();
     await waitFor(() => {
-      expect(screen.getAllByTestId('session-label').map(l => l.textContent)).toEqual(['Policy question', 'New chat']);
+      expect(screen.getAllByTestId('session-label').map(l => l.textContent)).toEqual(['Insurance question', 'New chat']);
     });
   });
 
@@ -242,7 +248,7 @@ describe('ChatPage', () => {
     renderChat();
     await send('book');
     await userEvent.setup().click((await screen.findAllByTestId('book-btn'))[0]);
-    expect(bookVisit).toHaveBeenCalledWith(1, 1);
+    expect(bookVisit).toHaveBeenCalledWith(1, 1, 'en');
     expect(await screen.findByTestId('booked-badge')).toBeTruthy();
     expect(screen.getByText('Book Dr. Sara on Tue 15 Dec, 10:00 UTC.')).toBeTruthy();
     expect(screen.getByText('Your visit is booked.')).toBeTruthy();
@@ -259,6 +265,21 @@ describe('ChatPage', () => {
     await user.click(await screen.findByTestId('show-other-btn'));
     await screen.findByText('Here are others.');
     expect(streamChat.mock.calls[1][0]).toBe('Show me other options.');
+  });
+
+  it('F17: an Arabic card books in Arabic and Show other options asks in Arabic', async () => {
+    const arabicCards: StreamEvent = DOCTOR_CARDS.event === 'cards' ? { event: 'cards', cards: { ...DOCTOR_CARDS.cards, language: 'ar' } } : DOCTOR_CARDS;
+    scriptStream([{ event: 'session', session_id: 1 }, { event: 'token', text: 'خيارات.' }, arabicCards, { event: 'done' }]);
+    scriptStream([{ event: 'token', text: 'خيارات أخرى.' }, { event: 'done' }]);
+    bookVisit.mockRejectedValueOnce({ status: 409, error: { code: 'slot_taken', message: 'This slot was just taken.' } });
+    renderChat();
+    await send('أريد حجز موعد');
+    const user = userEvent.setup();
+    await user.click((await screen.findAllByTestId('book-btn'))[0]);
+    expect(bookVisit).toHaveBeenCalledWith(1, 1, 'ar');
+    await user.click(await screen.findByTestId('show-other-btn'));
+    await screen.findByText('خيارات أخرى.');
+    expect(streamChat.mock.calls[1][0]).toBe('اعرض لي خيارات أخرى.');
   });
 
   it('F17: a replayed transcript and the sidebar subtitle never render HTML', async () => {

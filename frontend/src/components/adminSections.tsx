@@ -4,7 +4,7 @@ import { BookIcon, BuildingIcon, CalendarIcon, ClipboardCheckIcon, MessageAlertI
 export type AdminSection = { path: string; label: string; hint: string; icon: ReactNode };
 
 export const ADMIN_SECTIONS: AdminSection[] = [
-  { path: '/admin/kb', label: 'KB documents', hint: 'Documents for policy questions', icon: <BookIcon /> },
+  { path: '/admin/kb', label: 'KB documents', hint: 'Documents for insurance questions', icon: <BookIcon /> },
   { path: '/admin/catalog', label: 'Catalog', hint: 'Locations, specialties, clinics, doctors', icon: <BuildingIcon /> },
   { path: '/admin/slots', label: 'Slots', hint: 'Open and remove appointment slots', icon: <CalendarIcon /> },
   { path: '/admin/visits', label: 'Visits', hint: 'Review and complete booked visits', icon: <ClipboardCheckIcon /> },

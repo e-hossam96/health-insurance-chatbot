@@ -58,6 +58,9 @@ def test_retrieval_suite_reports_metrics_after_every_stage(auto: FakeOpenAI, tmp
         assert set(scores["hit"]) == {"@5", "@10"} and 0.0 <= scores["mrr"] <= 1.0
     assert set(result["mean_latency_s"]) == {"rewrite", "embed", "search", "rerank"}
     assert result["stages"]["reranked"]["hit"]["@10"] > 0.5, "hash embeddings find most fixture phrases"
+    assert len(result["rewrites"]) == 5 and all(len(r["queries"]) == len(r["english"]) for r in result["rewrites"])
+    assert 0.0 <= result["english_query_rate"] <= 1.0 and result["mean_queries"] >= 1.0
+    assert set(result["hit_at_5_by_language"]) == {"en"}
 
 
 def test_answers_suite_judges_answers_and_refusals(auto: FakeOpenAI, tmp_path: Path) -> None:
@@ -67,6 +70,10 @@ def test_answers_suite_judges_answers_and_refusals(auto: FakeOpenAI, tmp_path: P
     assert result["items"] == 5 and result["judge_errors"] == 0
     assert any(r["model"] == "judge-model" for r in auto.chat_requests)
     assert all(set(o) >= {"id", "answer", "refused", "correct_refusal"} for o in result["outcomes"])
+    judge_request = next(r for r in auto.chat_requests if r["model"] == "judge-model")
+    assert "answer_language" in judge_request["response_format"]["json_schema"]["schema"]["required"]
+    assert all(o["reply_language"] == "en" for o in result["outcomes"]), "the judge's language label is the reply language"
+    assert result["reply_language_accuracy"] == 1.0
 
 
 def test_tools_suite_scores_tool_calls_and_cards(auto: FakeOpenAI, tmp_path: Path) -> None:

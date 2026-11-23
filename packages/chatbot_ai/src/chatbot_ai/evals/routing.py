@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from chatbot_ai.clients import RoleClient
 from chatbot_ai.intents import IntentCode
 from chatbot_ai.interface import HistoryRow
+from chatbot_ai.languages import LanguageCode
 from chatbot_ai.router import classify
 
 NO_INTENT = "none"
@@ -25,6 +26,7 @@ class RoutingItem(BaseModel):
     message: str
     history: list[HistoryTurn] = Field(default_factory=list)
     expected: IntentCode
+    expected_language: LanguageCode = LanguageCode.english
 
 
 class RoutingOutcome(BaseModel):
@@ -32,6 +34,8 @@ class RoutingOutcome(BaseModel):
     expected: str
     predicted: str
     latency_s: float
+    expected_language: str = LanguageCode.english.value
+    predicted_language: str = LanguageCode.english.value
 
 
 class RoutingReport(BaseModel):
@@ -40,6 +44,8 @@ class RoutingReport(BaseModel):
     recall: dict[str, float]
     confusion: dict[str, dict[str, int]]
     mistakes: list[RoutingOutcome]
+    language_accuracy: float
+    language_mistakes: list[RoutingOutcome]
     mean_latency_s: float
 
 
@@ -62,6 +68,8 @@ def summarize(outcomes: list[RoutingOutcome]) -> RoutingReport:
         recall={code: correct_counts[code] / count for code, count in sorted(expected_counts.items())},
         confusion=confusion,
         mistakes=[o for o in outcomes if o.expected != o.predicted],
+        language_accuracy=sum(o.expected_language == o.predicted_language for o in outcomes) / len(outcomes) if outcomes else 0.0,
+        language_mistakes=[o for o in outcomes if o.expected_language != o.predicted_language],
         mean_latency_s=sum(o.latency_s for o in outcomes) / len(outcomes) if outcomes else 0.0,
     )
 
@@ -80,6 +88,8 @@ async def run_routing(
                 expected=item.expected.value,
                 predicted=classification.intent.value if classification.intent else NO_INTENT,
                 latency_s=clock() - started,
+                expected_language=item.expected_language.value,
+                predicted_language=classification.language.value,
             )
         )
     return summarize(outcomes)

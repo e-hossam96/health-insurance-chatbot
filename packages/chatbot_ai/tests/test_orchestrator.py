@@ -24,6 +24,7 @@ from chatbot_ai.interface import (
     TurnRequest,
     Usage,
 )
+from chatbot_ai.languages import LanguageCode
 from chatbot_ai.orchestrator import default_agents, run_turn
 from chatbot_ai.prompts import agent_system_prompt
 from chatbot_ai.settings import AISettings
@@ -80,7 +81,7 @@ def test_I2_every_intent_maps_to_its_agent() -> None:
 async def test_I2_I14_scripted_classification_runs_exactly_one_agent(
     intent: IntentCode, fake_openai: FakeOpenAI, ai_settings: AISettings, role_clients: RoleClients
 ) -> None:
-    fake_openai.queue(json_reply({"intent": intent.value}), model="router-model")
+    fake_openai.queue(json_reply({"intent": intent.value, "language": "en"}), model="router-model")
     registry = _recording_registry()
     events = await _collect(run_turn(_request("msg"), PORTS, ai_settings, role_clients, registry))
 
@@ -94,7 +95,7 @@ async def test_I2_I14_scripted_classification_runs_exactly_one_agent(
 async def test_I3_router_call_is_not_in_the_stored_rows(
     fake_openai: FakeOpenAI, ai_settings: AISettings, role_clients: RoleClients
 ) -> None:
-    fake_openai.queue(json_reply({"intent": "other"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "other", "language": "en"}), model="router-model")
     fake_openai.queue(text_reply("Hello Mona!"), model="chat-model")
     events = await _collect(run_turn(_request("hi"), PORTS, ai_settings, role_clients))
 
@@ -109,7 +110,7 @@ async def test_F6_intent_event_comes_first_only_when_a_label_is_needed(
     fake_openai: FakeOpenAI, ai_settings: AISettings, role_clients: RoleClients
 ) -> None:
     registry = _recording_registry()
-    fake_openai.queue(json_reply({"intent": "qa.kb"}), json_reply({"intent": "visit.book"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "qa.kb", "language": "en"}), json_reply({"intent": "visit.book", "language": "en"}), model="router-model")
 
     labelled = await _collect(run_turn(_request("cover?", needs_label=True), PORTS, ai_settings, role_clients, registry))
     assert labelled[0] == Intent(code="qa.kb")
@@ -125,7 +126,7 @@ async def test_I1_F6_classifier_failure_falls_back_to_the_responder_and_the_next
     fake_openai: FakeOpenAI, ai_settings: AISettings, role_clients: RoleClients
 ) -> None:
     registry = _recording_registry()
-    fake_openai.queue(error_reply(500, "router down"), json_reply({"intent": "visit.book"}), model="router-model")
+    fake_openai.queue(error_reply(500, "router down"), json_reply({"intent": "visit.book", "language": "en"}), model="router-model")
 
     failed = await _collect(run_turn(_request("book a visit"), PORTS, ai_settings, role_clients, registry))
     assert not any(isinstance(e, Intent) for e in failed)
@@ -142,7 +143,7 @@ async def test_I1_router_gets_the_last_6_history_rows(
     fake_openai: FakeOpenAI, ai_settings: AISettings, role_clients: RoleClients
 ) -> None:
     history = [HistoryRow(role="user" if i % 2 == 0 else "assistant", content=f"row {i}") for i in range(11)]
-    fake_openai.queue(json_reply({"intent": "other"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "other", "language": "en"}), model="router-model")
     await _collect(run_turn(_request("yes", history=history), PORTS, ai_settings, role_clients, _recording_registry()))
     router_messages = fake_openai.chat_requests[0]["messages"]
     assert [m["content"] for m in router_messages[1:]] == ["row 6", "row 7", "row 8", "row 9", "row 10", "yes"]
@@ -150,7 +151,7 @@ async def test_I1_router_gets_the_last_6_history_rows(
 
 @pytest.mark.anyio()
 async def test_unregistered_agent_is_an_error(fake_openai: FakeOpenAI, ai_settings: AISettings, role_clients: RoleClients) -> None:
-    fake_openai.queue(json_reply({"intent": "qa.kb"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "qa.kb", "language": "en"}), model="router-model")
     with pytest.raises(AgentNotAvailable, match="knowledge"):
         await _collect(run_turn(_request("cover?"), PORTS, ai_settings, role_clients, {}))
 
@@ -159,7 +160,7 @@ async def test_unregistered_agent_is_an_error(fake_openai: FakeOpenAI, ai_settin
 async def test_responder_streams_tokens_and_reports_usage_and_timings(
     fake_openai: FakeOpenAI, ai_settings: AISettings, role_clients: RoleClients
 ) -> None:
-    fake_openai.queue(json_reply({"intent": "other"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "other", "language": "en"}), model="router-model")
     fake_openai.queue(text_reply("Hi Mona, how can I help?", prompt_tokens=40, completion_tokens=6), model="chat-model")
     ticks = _ticks()
     events = await _collect(
@@ -171,7 +172,7 @@ async def test_responder_streams_tokens_and_reports_usage_and_timings(
     assert [t.elapsed for t in tokens] == sorted(t.elapsed for t in tokens)
     done = events[-1]
     assert isinstance(done, Done)
-    router_usage = Usage(prompt_tokens=10, completion_tokens=2)
+    router_usage = Usage(prompt_tokens=10, completion_tokens=4)
     assert done.usage == Usage(prompt_tokens=40 + router_usage.prompt_tokens, completion_tokens=6 + router_usage.completion_tokens)
     assert done.timings.classify == 1.0
     assert done.timings.ttft > 0
@@ -198,14 +199,14 @@ async def test_I4_agents_get_the_shared_prompt_blocks_and_the_full_history(
         HistoryRow(role="tool", content='{"slots": []}', tool_call_id="c1", tool_name="get_availability"),
         HistoryRow(role="assistant", content="No slots."),
     ]
-    fake_openai.queue(json_reply({"intent": "other"}), model="router-model")
+    fake_openai.queue(json_reply({"intent": "other", "language": "en"}), model="router-model")
     fake_openai.queue(text_reply("ok"), model="chat-model")
     await _collect(run_turn(_request("thanks", history=history), PORTS, ai_settings, role_clients))
 
     messages = fake_openai.chat_requests[1]["messages"]
     system = messages[0]["content"]
-    assert system == agent_system_prompt(AgentName.responder, PROFILE)
-    for phrase in ("English only", "UTC", "medical advice", "fetch them again", "tools you do not have", "Mona", "location id 1"):
+    assert system == agent_system_prompt(AgentName.responder, PROFILE, LanguageCode.english)
+    for phrase in ("American English", "UTC", "medical advice", "fetch them again", "tools you do not have", "Mona", "location id 1"):
         assert phrase in system
     assert [m["role"] for m in messages[1:]] == ["user", "assistant", "tool", "assistant", "user"]
     assert messages[2]["tool_calls"][0]["id"] == "c1"

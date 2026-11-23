@@ -15,7 +15,7 @@ import { Header } from '../components/Header';
 import { LogoMark } from '../components/Logo';
 import { SendIcon } from '../components/icons';
 import { VisitsDrawer } from '../components/VisitsDrawer';
-import { ChatCards } from '../components/chat/ChatCards';
+import { ChatCards, SHOW_OTHER_OPTIONS } from '../components/chat/ChatCards';
 import { type CardFailureKind, type CardSetState, INITIAL_CARD_STATE } from '../components/chat/cardState';
 import { ChatSidebar } from '../components/chat/ChatSidebar';
 import { MarkdownContent } from '../components/chat/MarkdownContent';
@@ -26,7 +26,6 @@ type ChatItem =
 
 type TurnError = { userKey: string; text: string; message: string };
 
-const SHOW_OTHER_OPTIONS = 'Show me other options.';
 const GENERIC_ERROR = 'Something went wrong.';
 
 let keyCounter = 0;
@@ -262,7 +261,7 @@ export function ChatPage(): ReactNode {
                 <div className="mx-auto mt-[12vh] mb-6 flex max-w-lg flex-col items-center gap-3 text-center">
                   <LogoMark size={48} />
                   <p className="text-xl font-bold">How can I help today?</p>
-                  <p className="text-sm text-muted">Book a visit, check a complaint, ask about clinics, or ask a policy question such as refunds or spending limits.</p>
+                  <p className="text-sm text-muted">Book a visit, check a complaint, ask about clinics, or ask an insurance question such as refunds or spending limits.</p>
                 </div>
                 <div className="mx-auto grid max-w-lg grid-cols-1 gap-3 sm:grid-cols-2">
                   {STARTER_CARDS.map(card => (
@@ -291,7 +290,7 @@ export function ChatPage(): ReactNode {
                     }`}
                     data-testid={`msg-${item.role}`}
                   >
-                    {item.role === 'user' ? <p className="whitespace-pre-wrap break-words">{item.content}</p> : <MarkdownContent content={item.content} />}
+                    {item.role === 'user' ? <p dir="auto" className="whitespace-pre-wrap break-words">{item.content}</p> : <MarkdownContent content={item.content} />}
                   </div>
                 </div>
               ) : (
@@ -300,12 +299,12 @@ export function ChatPage(): ReactNode {
                   cards={item.cards}
                   state={item.state}
                   locked={isStreaming}
-                  onBook={slotId => void runCardAction(item.key, slotId, sid => bookVisit(sid, slotId))}
-                  onCancelVisit={visitId => void runCardAction(item.key, visitId, sid => cancelVisit(visitId, sid))}
+                  onBook={slotId => void runCardAction(item.key, slotId, sid => bookVisit(sid, slotId, item.cards.language))}
+                  onCancelVisit={visitId => void runCardAction(item.key, visitId, sid => cancelVisit(visitId, sid, item.cards.language))}
                   onFileComplaint={(visitId, description) =>
-                    void runCardAction(item.key, visitId, sid => fileComplaint(sid, visitId, description))
+                    void runCardAction(item.key, visitId, sid => fileComplaint(sid, visitId, description, item.cards.language))
                   }
-                  onShowOther={() => void sendMessage(SHOW_OTHER_OPTIONS)}
+                  onShowOther={() => void sendMessage(SHOW_OTHER_OPTIONS[item.cards.language])}
                 />
               ),
             )}
@@ -357,6 +356,7 @@ export function ChatPage(): ReactNode {
             >
               <input
                 type="text"
+                dir="auto"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 placeholder="Type your message..."

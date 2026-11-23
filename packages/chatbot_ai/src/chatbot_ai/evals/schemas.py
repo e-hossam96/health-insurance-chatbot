@@ -5,6 +5,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from chatbot_ai.intents import IntentCode
+from chatbot_ai.languages import LanguageCode
 
 
 class RetrievalItem(BaseModel):
@@ -12,6 +13,7 @@ class RetrievalItem(BaseModel):
     question: str
     expected_phrases: list[str] = Field(min_length=1)
     expected_document: str
+    expected_language: LanguageCode = LanguageCode.english
 
 
 class AnswerItem(BaseModel):
@@ -19,6 +21,7 @@ class AnswerItem(BaseModel):
     question: str
     answerable: bool
     must_include: list[str | list[str]] = Field(default_factory=list)
+    expected_language: LanguageCode = LanguageCode.english
 
     def fact_alternatives(self) -> list[list[str]]:
         return [[fact] if isinstance(fact, str) else fact for fact in self.must_include]
@@ -38,6 +41,7 @@ class ScenarioTurn(BaseModel):
     expected_intent: IntentCode
     expected_tools: list[ExpectedToolCall] = Field(default_factory=list)
     expected_cards: str | None = None
+    expected_language: LanguageCode = LanguageCode.english
 
 
 class ToolScenario(BaseModel):

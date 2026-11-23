@@ -51,7 +51,7 @@ Router plus specialists, with handoff (I1 to I4).
 ```mermaid
 flowchart TD
     message(["user message"])
-    classify{{"<b>classify</b><br/>router model, structured output,<br/>one enum of intent codes"}}
+    classify{{"<b>classify</b><br/>router model, structured output,<br/>intent code + language code"}}
     scheduling["<b>scheduling</b><br/>tool loop"]
     complaints["<b>complaints</b><br/>tool loop"]
     knowledge["<b>knowledge</b><br/>fixed RAG pipeline"]
@@ -78,10 +78,10 @@ flowchart TD
     linkStyle default stroke:#64748b,stroke-width:1.5px
 ```
 
-- The classifier sees the last 6 history rows (trimmed to start at a user row, I1). The 6 are counted over all stored rows, tool rows included; tool rows and tool-call-only assistant rows are then left out of the router request, which carries only the conversation text, and its prompt says a short follow-up ("yes, the second one") continues the current task. Its result picks the agent every turn (I1). When `needs_label` is true the same result is also stored as the sidebar label (F6).
+- The classifier sees the last 6 history rows (trimmed to start at a user row, I1). The 6 are counted over all stored rows, tool rows included; tool rows and tool-call-only assistant rows are then left out of the router request, which carries only the conversation text, and its prompt says a short follow-up ("yes, the second one") continues the current task. Its result picks the agent every turn (I1). When `needs_label` is true the same result is also stored as the sidebar label (F6). The same call also returns a language code (ar, en, other) for the latest message; a message with no language of its own ("ok", a date) takes the language of the earlier member messages. The two labels are parsed separately, so a bad language keeps a good intent and the reverse; an unusable language falls back to a script check (Arabic letters -> ar, else en). The language goes to the agent in `AgentContext.language` (F17).
 - The router is invisible: its calls are never stored. Only the chosen agent's rows are stored, so history looks like a single-agent history (I3).
 - Tool loops run up to `AI_MAX_TOOL_ROUNDS` rounds. Tool results are size-capped (F4).
-- Each agent has a system prompt in `prompts/<agent>.md`, built from shared blocks (persona, F5 re-fetch note, F8 no medical advice, F17 English, C8 UTC, profile name, location name and id, and a note that the history may contain tool calls the agent cannot make: use only the tools listed now and re-fetch anything that can change) plus agent-specific instructions.
+- Each agent has a system prompt in `prompts/<agent>.md`, built from shared blocks (persona, F5 re-fetch note, F8 no medical advice, Markdown, C8 UTC, profile name, location name and id, the F17 reply-language block (`language_arabic.md` for Modern Standard Arabic, `language_english.md` for American English), and a note that the history may contain tool calls the agent cannot make: use only the tools listed now and re-fetch anything that can change) plus agent-specific instructions. On an `other` turn every agent also gets a short system message after the member's message telling it to reply in American English; it is never stored. The knowledge agent repeats the reply-language block after the excerpts.
 - Knowledge is a fixed pipeline rather than a model-driven loop (section 3). Only the final answer streams.
 - Framework: none. Plain Python with the OpenAI SDK: a dict from intent code to agent, and a small tool loop. No checkpointer (F10).
 
@@ -111,7 +111,7 @@ Database questions (qa.db) use only these typed tools (I5). Specialty and locati
 
 Order is fixed (I6). Every optional stage has a config switch (I13).
 
-1. **Rewrite.** One structured-output call (rewrite model) returns `{standalone, alternates}`. `standalone` is the question made self-contained from history. `alternates` has `AI_QUERY_COUNT - 1` paraphrases (default count 3). With count 1 no alternates are requested. On failure, use the raw message.
+1. **Rewrite.** One structured-output call (rewrite model) returns `{standalone, alternates}`. `standalone` is the question made self-contained from history. `alternates` has `AI_QUERY_COUNT - 1` paraphrases (default count 3). The prompt always asks for exactly that many (an earlier wording, "if asked for alternates", let the model return none, so the default searched with one query). With count 1 no alternates are requested. The queries are always written in English, translating an Arabic or other-language question, because the documents and the BM25 vectors are English. On failure, use the raw message.
 2. **Embed.** All queries in one embedding call. Dense vectors come from the embedding provider. Sparse BM25 vectors are computed in-process (fastembed), English only.
 3. **Search.** One Qdrant hybrid query per query: dense and sparse prefetch (`AI_PREFETCH_K` each), fused server-side with RRF. `AI_RETRIEVAL_MODE` can force dense or sparse only (evals).
 4. **Merge.** RRF across the per-query lists, keep the top `AI_FUSED_K` (default 30).
@@ -251,10 +251,10 @@ The runner uses its own Qdrant collection (created and dropped by the run) and f
 | Suite | Input | Checks |
 |---|---|---|
 | ingest | fixture documents | no empty chunks; breadcrumbs present; small tables stay whole; split tables repeat the header; expected table chunk counts. No LLM calls |
-| routing | message, optional prior rows, expected intent code | accuracy, per-class recall, confusion matrix. Includes follow-ups, off-topic and mixed messages (I14), and the six starter-card messages |
-| retrieval | question, `expected_phrases`, expected document | hit@k, recall@k and MRR (k = 5, 10) after each stage, plus latency per stage. Phrases rather than chunk ids, because chunk ids change when chunking changes |
-| answers | question, `must_include` facts (each a phrase or a list of accepted wordings), `answerable` flag | judged by the JUDGE model: faithfulness to the retrieved excerpts, presence of the required facts, and correct refusal for unanswerable questions (I8) |
-| tools | scripted scenario on fake ports, expected tool calls (name and argument subset) | right tools called, a card emitted when expected, no write is possible (D9). Includes multi-turn scenarios across agents (scheduling, then knowledge, then scheduling) that assert no tool outside the current agent's set is called and no stale slot data is repeated; the knowledge steps use the run's fixture collection |
+| routing | message, optional prior rows, expected intent code, `expected_language` (default `en`) | accuracy, per-class recall, confusion matrix, and language accuracy with its mistakes (F17). Includes follow-ups, off-topic and mixed messages (I14), the six starter-card messages, every intent in Arabic (dialect and Arabizi too), Arabic follow-ups with no language of their own, and other languages |
+| retrieval | question, `expected_phrases`, expected document, `expected_language` | hit@k, recall@k and MRR (k = 5, 10) after each stage, plus latency per stage. Phrases rather than chunk ids, because chunk ids change when chunking changes. Also records every rewrite and reports the share of search queries in English (no Arabic letters and at least one common English word), the mean number of queries per question (should equal `AI_QUERY_COUNT`) and hit@5 per language. Includes Arabic (MSA and dialect) and other-language questions |
+| answers | question, `must_include` facts (each a phrase or a list of accepted wordings), `answerable` flag, `expected_language` | judged by the JUDGE model: faithfulness to the retrieved excerpts, presence of the required facts, and correct refusal for unanswerable questions (I8); reply-language accuracy: Arabic questions must get Arabic answers, the rest English (F17). The agent gets the item's language as if the router had labelled it |
+| tools | scripted scenario on fake ports, expected tool calls (name and argument subset) | right tools called, a card emitted when expected, no write is possible (D9). Includes multi-turn scenarios across agents (scheduling, then knowledge, then scheduling) that assert no tool outside the current agent's set is called and no stale slot data is repeated; the knowledge steps use the run's fixture collection. A turn with `expected_language` also needs the reply and the cards in that language (F17); Arabic scenarios cover every card type and a mid-conversation switch from English to Arabic. A reply counts as Arabic when at least 40% of its letters are Arabic, since database names stay in Latin letters |
 
 Ablation table produced by the retrieval and answers suites:
 

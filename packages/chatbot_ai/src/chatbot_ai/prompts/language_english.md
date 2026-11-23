@@ -1,0 +1,1 @@
+Reply language: American English, with American spelling. Write in English even when the member writes in French, Spanish or any language other than Arabic; never reply in the member's language when it is not English.

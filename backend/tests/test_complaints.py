@@ -200,6 +200,22 @@ async def test_E6_complaint_writes_static_messages(
     assert messages[2]["tool_name"] == "file_complaint"
 
 
+@pytest.mark.anyio()
+async def test_E6_F17_an_arabic_complaint_card_writes_arabic_messages(
+    user_client: AsyncClient, db_engine: Engine
+) -> None:
+    visit_id = _setup_completed_visit(db_engine)
+    session_id = _get_chat_session_id(db_engine)
+    resp = await user_client.post(
+        "/me/complaints",
+        json={"session_id": session_id, "visit_id": visit_id, "description": "انتظرت طويلًا", "language": "ar"},
+    )
+    assert resp.status_code == 201
+    messages = resp.json()["messages"]
+    assert messages[0]["content"] == "أريد تقديم شكوى بشأن موعدي مع Dr يوم الثلاثاء 15 ديسمبر، 10:00 UTC."
+    assert messages[3]["content"] == "تم تقديم شكواك."
+
+
 # --- E3: only admins reply ---
 
 

@@ -192,7 +192,7 @@ async def chat(
                 last_token_at = event.elapsed
                 yield ServerSentEvent(event="token", data={"text": event.text})
             elif isinstance(event, Cards):
-                yield ServerSentEvent(event="cards", data={"type": event.type, "items": event.items})
+                yield ServerSentEvent(event="cards", data={"type": event.type, "items": event.items, "language": event.language.value})
             elif isinstance(event, Done):
                 await _store_turn(db, turn.session_id, event, clock, intent_code, turn.needs_label)
                 stored = True

@@ -15,7 +15,7 @@ Companion files: `schema.dbml` (tables; its A-items are migration notes), `rules
 - Auth: server-side session in an HTTP-only cookie (B10, B11). Contracts in `api.md`.
 - Time: everything is UTC and the UI says so (C8). No time zone conversion anywhere.
 - Frontend stack: Vite, TypeScript, React Router, TanStack Query, Tailwind with the app's own component classes (`btn`, `input`, `card`, `badge`, ... in `frontend/src/index.css`). The chat stream is read with fetch (it is a POST), not EventSource.
-- Language: English only. Assistant text renders as Markdown with raw HTML disabled (F17). Branding: the product is "Health Insurance Chatbot" with a text logo (a chat-bubble mark); colors follow the system light or dark setting, and every page has a toggle to pin light, dark or system: in the header on signed-in pages, and in the top-right corner on login, signup and onboarding. The palette is an indigo accent (#2C4BD0 light, #8FA3FF dark) on cool neutrals (#F4F6FA / #0D1119 page, #FFFFFF / #151B27 cards), with soft 1px dividers, 10px control and 14px card radii, and soft shadows. Tokens live in `frontend/src/index.css`.
+- Language: the UI is English only. Assistant replies are in Modern Standard Arabic or American English, following the member's language (F17); message bubbles and the message inputs use `dir="auto"` so Arabic reads right to left. Assistant text renders as Markdown with raw HTML disabled (F17). Branding: the product is "Health Insurance Chatbot" with a text logo (a chat-bubble mark); colors follow the system light or dark setting, and every page has a toggle to pin light, dark or system: in the header on signed-in pages, and in the top-right corner on login, signup and onboarding. The palette is an indigo accent (#2C4BD0 light, #8FA3FF dark) on cool neutrals (#F4F6FA / #0D1119 page, #FFFFFF / #151B27 cards), with soft 1px dividers, 10px control and 14px card radii, and soft shadows. Tokens live in `frontend/src/index.css`.
 - The chatbot is the primary way to do everything (book, cancel, complain, ask). The drawer is a convenience.
 - Out of scope for v1: password reset, profile editing, user replies in complaints, deleting chats, Excel upload, notifications.
 
@@ -147,7 +147,7 @@ Guards (UX only; the backend checks the role on every call, B8):
 |  "I need a derm" |  +------------------+   +------------------+         |
 |  2 min ago       |  | Book a clinic    |   | Check my         |         |
 |                  |  | visit            |   | visits           |         |
-| Policy question  |  +------------------+   +------------------+         |
+| Insurance ques.. |  +------------------+   +------------------+         |
 |  "What does my.."|  +------------------+   +------------------+         |
 |  Yesterday       |  | Cancel a         |   | File a           |         |
 |                  |  | visit            |   | complaint        |         |
@@ -184,7 +184,7 @@ Guards (UX only; the backend checks the role on every call, B8):
 | complaint.file | File a complaint |
 | complaint.check | My complaints |
 | qa.db | Clinic question |
-| qa.kb | Policy question |
+| qa.kb | Insurance question |
 | other | Chat |
 | (null) | New chat |
 
@@ -203,7 +203,7 @@ Six cards in a 2 by 3 grid, in this order:
 | Cancel a visit | "I want to cancel a visit." | visit.cancel |
 | File a complaint | "I want to file a complaint about a visit." | complaint.file |
 | Check my complaints | "Show me my complaints." | complaint.check |
-| Ask a policy question | "What does my health insurance cover?" | qa.kb |
+| Ask an insurance question | "What does my health insurance cover?" | qa.kb |
 
 The expected intent is what the classifier should return for that message. The routing eval checks it (`ai.md`).
 
@@ -232,6 +232,7 @@ The expected intent is what the classifier should return for that message. The r
 
 - On send: user bubble appears, assistant bubble shows a typing indicator, then tokens stream in.
 - Cards render only after the last token, from a final event carrying the card payload.
+- Card language (F17): the payload says `ar` or `en`. Arabic cards lay out right to left with Arabic buttons, badges, error lines and dates ("الثلاثاء 15 ديسمبر، 10:00 UTC"); doctor, specialty, clinic and location names show exactly as stored, isolated with `<bdi>` so their word order holds. The click sends the same language, so the static messages match, and "Show other options" sends "اعرض لي خيارات أخرى." on an Arabic card.
 - Assistant text renders as Markdown (lists, bold, links) with raw HTML disabled (F17). It re-renders as tokens arrive.
 - While a turn streams: the input is disabled, `[ Send ]` becomes `[ Stop ]`, and all older cards are disabled.
 - `[ Stop ]`, closing the tab or losing the connection cancels the turn: the LLM call is aborted and nothing is stored, not even the user message (F16). The input gets the unsent text back so the user can resend.
@@ -363,7 +364,7 @@ Header as in section 3, with a section menu next to the `[User view]` toggle so 
 | Health Insurance Chatbot   admin1  [KB documents v] [User view] [Log out] |
 |                                    +-----------------------------------+ |
 |                                    | KB documents                      | |
-|                                    |   Documents for policy questions  | |
+|                                    |  Documents for insurance questions| |
 |                                    | Catalog                           | |
 |                                    |   Locations, specialties, clinics,| |
 |                                    |   doctors                         | |
@@ -530,7 +531,7 @@ Decided:
 2. Time zone: UTC everywhere (C8).
 3. Numbers: 3 recommendation cards, context = last 40 message rows (F4), upload limit 10 MB, abuse limits per F15.
 4. Accepted defaults: sibling cards disabled after a booking; admins land on /admin/kb; catalog is add and delete only (renames in the DB); replies on closed complaints are rejected (E5).
-5. Language and rendering: English only; assistant text is Markdown without raw HTML (F17).
+5. Language and rendering: English UI; replies in Modern Standard Arabic or American English per turn, bubbles with `dir="auto"`; assistant text is Markdown without raw HTML (F17).
 6. UI stack: see section 1.
 7. Storage: KB originals on a local Docker volume. S3 is not used (G11).
 8. Auth: session cookie, argon2, 7-day sessions, create_admin script (B10 to B13).

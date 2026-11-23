@@ -67,7 +67,7 @@ describe('intent label map', () => {
     expect(intentLabel('complaint.file')).toBe('File a complaint');
     expect(intentLabel('complaint.check')).toBe('My complaints');
     expect(intentLabel('qa.db')).toBe('Clinic question');
-    expect(intentLabel('qa.kb')).toBe('Policy question');
+    expect(intentLabel('qa.kb')).toBe('Insurance question');
     expect(intentLabel('other')).toBe('Chat');
     expect(intentLabel(null)).toBe('New chat');
   });
@@ -86,6 +86,21 @@ describe('time formatting', () => {
   it('C8: shows the UTC wall time with a UTC suffix and no conversion', () => {
     expect(formatUtc('2026-11-15T10:00:00Z')).toBe('Sun 15 Nov, 10:00 UTC');
     expect(formatUtc('2026-11-15T23:30:00+00:00')).toBe('Sun 15 Nov, 23:30 UTC');
+  });
+
+  it('F17 C8: Arabic cards use Arabic day and month names, the UTC wall time and Western digits', () => {
+    expect(formatUtc('2026-11-15T10:00:00Z', 'ar')).toBe('الأحد 15 نوفمبر، 10:00 UTC');
+    expect(formatUtc('2026-12-15T23:30:00Z', 'ar')).toBe('الثلاثاء 15 ديسمبر، 23:30 UTC');
+  });
+
+  it('F17: the cards event keeps its language and anything else reads as English', () => {
+    const events: StreamEvent[] = [];
+    const parser = createSseParser(event => events.push(event));
+    parser.push('event: cards\ndata: {"type": "doctors", "items": [], "language": "ar"}\n\n');
+    parser.push('event: cards\ndata: {"type": "doctors", "items": [], "language": "fr"}\n\n');
+    parser.push('event: cards\ndata: {"type": "doctors", "items": []}\n\n');
+    parser.end();
+    expect(events.map(event => (event.event === 'cards' ? event.cards.language : null))).toEqual(['ar', 'en', 'en']);
   });
 
   it('relative time uses the injected clock', () => {

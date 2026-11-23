@@ -9,16 +9,17 @@ from chatbot_ai.context import to_openai_messages
 from chatbot_ai.intents import AgentName
 from chatbot_ai.interface import HistoryRow, Token
 from chatbot_ai.llm import StreamedReply, reply_output, stream_reply
-from chatbot_ai.prompts import agent_system_prompt
+from chatbot_ai.prompts import agent_system_prompt, language_reminder
 from chatbot_ai.settings import Role
 
 
 def agent_messages(context: AgentContext, agent: AgentName) -> list[ChatCompletionMessageParam]:
     request = context.request
     return [
-        {"role": "system", "content": agent_system_prompt(agent, request.profile)},
+        {"role": "system", "content": agent_system_prompt(agent, request.profile, context.language)},
         *to_openai_messages(request.history),
         {"role": "user", "content": request.message},
+        *language_reminder(context.language),
     ]
 
 

@@ -5,6 +5,7 @@ import { ChatCards } from './ChatCards';
 import { type CardSetState, INITIAL_CARD_STATE } from './cardState';
 
 const DOCTORS: CardsPayload = {
+  language: 'en',
   type: 'doctors',
   items: [
     { slot_id: 1, doctor_name: 'Dr. Sara Nabil', specialty: 'Dermatology', clinic: 'Cairo Clinic', location: 'Cairo', start_at: '2026-11-15T10:00:00Z' },
@@ -74,7 +75,7 @@ describe('doctor cards', () => {
 });
 
 describe('cancel cards', () => {
-  const CANCEL: CardsPayload = { type: 'cancel_confirm', items: [VISIT, OTHER_VISIT] };
+  const CANCEL: CardsPayload = { language: 'en', type: 'cancel_confirm', items: [VISIT, OTHER_VISIT] };
 
   it('D8: the button names the action and calls cancel with the visit id', () => {
     const handlers = renderCards(CANCEL);
@@ -108,7 +109,7 @@ describe('cancel cards', () => {
 });
 
 describe('complaint cards', () => {
-  const COMPLAINT: CardsPayload = { type: 'visits_for_complaint', items: [VISIT, OTHER_VISIT] };
+  const COMPLAINT: CardsPayload = { language: 'en', type: 'visits_for_complaint', items: [VISIT, OTHER_VISIT] };
 
   it('E6: Select expands the form and a description is required before submit', () => {
     const handlers = renderCards(COMPLAINT);
@@ -154,5 +155,36 @@ describe('complaint cards', () => {
   it('F13: complaint cards are disabled while a turn streams', () => {
     renderCards(COMPLAINT, INITIAL_CARD_STATE, true);
     expect(buttons('select-visit-btn').every(b => b.disabled)).toBe(true);
+  });
+});
+
+describe('Arabic cards', () => {
+  it('F17: labels and dates are Arabic, right to left, and the database names stay as stored', () => {
+    renderCards({ ...DOCTORS, language: 'ar' });
+    const container = screen.getByTestId('chat-cards');
+    expect(container.getAttribute('dir')).toBe('rtl');
+    expect(screen.getAllByTestId('doctor-name').map(name => name.textContent)).toEqual(['Dr. Sara Nabil', 'Dr. Omar Hassan']);
+    expect(screen.getAllByText('Dermatology')).toHaveLength(2);
+    expect(screen.getByText('Cairo Clinic, Cairo').tagName).toBe('BDI');
+    expect(screen.getByText('الأحد 15 نوفمبر، 10:00 UTC')).toBeTruthy();
+    expect(buttons('book-btn').map(b => b.textContent)).toEqual(['احجز', 'احجز']);
+  });
+
+  it('F17: card states and the complaint form are Arabic too', () => {
+    renderCards({ ...DOCTORS, language: 'ar' }, { ...INITIAL_CARD_STATE, doneId: 1 });
+    expect(screen.getByTestId('booked-badge').textContent).toBe('تم الحجز');
+  });
+
+  it('F17: an Arabic complaint card asks what happened in Arabic', () => {
+    renderCards({ language: 'ar', type: 'visits_for_complaint', items: [VISIT] });
+    fireEvent.click(screen.getByTestId('select-visit-btn'));
+    expect(screen.getByText('ماذا حدث؟')).toBeTruthy();
+    expect(screen.getByTestId('submit-complaint-btn').textContent).toBe('أرسل الشكوى');
+  });
+
+  it('F17: English cards are left to right with English labels', () => {
+    renderCards(DOCTORS);
+    expect(screen.getByTestId('chat-cards').getAttribute('dir')).toBe('ltr');
+    expect(buttons('book-btn').map(b => b.textContent)).toEqual(['Book', 'Book']);
   });
 });
