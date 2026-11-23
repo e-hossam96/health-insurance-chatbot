@@ -28,5 +28,9 @@ def reply_language(language: LanguageCode) -> ReplyLanguage:
     return REPLY_LANGUAGE_FOR[language]
 
 
+def display_language(language: LanguageCode) -> LanguageCode:
+    return LanguageCode.arabic if language is LanguageCode.arabic else LanguageCode.english
+
+
 def script_language(text: str) -> LanguageCode:
     return LanguageCode.arabic if ARABIC_LETTER.search(text) else LanguageCode.english

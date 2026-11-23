@@ -34,10 +34,13 @@ export type VisitCardItem = {
   clinic: string;
 };
 
-export type CardsPayload =
+export type CardLanguage = 'en' | 'ar';
+
+export type CardsPayload = { language: CardLanguage } & (
   | { type: 'doctors'; items: DoctorCardItem[] }
   | { type: 'visits_for_complaint'; items: VisitCardItem[] }
-  | { type: 'cancel_confirm'; items: VisitCardItem[] };
+  | { type: 'cancel_confirm'; items: VisitCardItem[] }
+);
 
 export type StreamEvent =
   | { event: 'session'; session_id: number }
@@ -88,7 +91,7 @@ function toStreamEvent(name: string, data: string): StreamEvent | null {
     case 'intent':
       return { event: 'intent', intent: parsed.intent as string };
     case 'cards':
-      return { event: 'cards', cards: parsed as CardsPayload };
+      return { event: 'cards', cards: { ...(parsed as CardsPayload), language: parsed.language === 'ar' ? 'ar' : 'en' } };
     case 'done':
       return { event: 'done' };
     case 'error':
@@ -212,12 +215,17 @@ export const STARTER_CARDS: readonly { label: string; message: string }[] = [
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const ARABIC_WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+const ARABIC_MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
-export function formatUtc(iso: string): string {
+export function formatUtc(iso: string, language: CardLanguage = 'en'): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return `${iso} UTC`;
   const hours = String(date.getUTCHours()).padStart(2, '0');
   const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+  if (language === 'ar') {
+    return `${ARABIC_WEEKDAYS[date.getUTCDay()]} ${date.getUTCDate()} ${ARABIC_MONTHS[date.getUTCMonth()]}، ${hours}:${minutes} UTC`;
+  }
   return `${WEEKDAYS[date.getUTCDay()]} ${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]}, ${hours}:${minutes} UTC`;
 }
 

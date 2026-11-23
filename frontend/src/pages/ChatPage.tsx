@@ -15,7 +15,7 @@ import { Header } from '../components/Header';
 import { LogoMark } from '../components/Logo';
 import { SendIcon } from '../components/icons';
 import { VisitsDrawer } from '../components/VisitsDrawer';
-import { ChatCards } from '../components/chat/ChatCards';
+import { ChatCards, SHOW_OTHER_OPTIONS } from '../components/chat/ChatCards';
 import { type CardFailureKind, type CardSetState, INITIAL_CARD_STATE } from '../components/chat/cardState';
 import { ChatSidebar } from '../components/chat/ChatSidebar';
 import { MarkdownContent } from '../components/chat/MarkdownContent';
@@ -26,7 +26,6 @@ type ChatItem =
 
 type TurnError = { userKey: string; text: string; message: string };
 
-const SHOW_OTHER_OPTIONS = 'Show me other options.';
 const GENERIC_ERROR = 'Something went wrong.';
 
 let keyCounter = 0;
@@ -300,12 +299,12 @@ export function ChatPage(): ReactNode {
                   cards={item.cards}
                   state={item.state}
                   locked={isStreaming}
-                  onBook={slotId => void runCardAction(item.key, slotId, sid => bookVisit(sid, slotId))}
-                  onCancelVisit={visitId => void runCardAction(item.key, visitId, sid => cancelVisit(visitId, sid))}
+                  onBook={slotId => void runCardAction(item.key, slotId, sid => bookVisit(sid, slotId, item.cards.language))}
+                  onCancelVisit={visitId => void runCardAction(item.key, visitId, sid => cancelVisit(visitId, sid, item.cards.language))}
                   onFileComplaint={(visitId, description) =>
-                    void runCardAction(item.key, visitId, sid => fileComplaint(sid, visitId, description))
+                    void runCardAction(item.key, visitId, sid => fileComplaint(sid, visitId, description, item.cards.language))
                   }
-                  onShowOther={() => void sendMessage(SHOW_OTHER_OPTIONS)}
+                  onShowOther={() => void sendMessage(SHOW_OTHER_OPTIONS[item.cards.language])}
                 />
               ),
             )}

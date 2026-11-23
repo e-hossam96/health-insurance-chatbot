@@ -232,6 +232,7 @@ The expected intent is what the classifier should return for that message. The r
 
 - On send: user bubble appears, assistant bubble shows a typing indicator, then tokens stream in.
 - Cards render only after the last token, from a final event carrying the card payload.
+- Card language (F17): the payload says `ar` or `en`. Arabic cards lay out right to left with Arabic buttons, badges, error lines and dates ("الثلاثاء 15 ديسمبر، 10:00 UTC"); doctor, specialty, clinic and location names show exactly as stored, isolated with `<bdi>` so their word order holds. The click sends the same language, so the static messages match, and "Show other options" sends "اعرض لي خيارات أخرى." on an Arabic card.
 - Assistant text renders as Markdown (lists, bold, links) with raw HTML disabled (F17). It re-renders as tokens arrive.
 - While a turn streams: the input is disabled, `[ Send ]` becomes `[ Stop ]`, and all older cards are disabled.
 - `[ Stop ]`, closing the tab or losing the connection cancels the turn: the LLM call is aborted and nothing is stored, not even the user message (F16). The input gets the unsent text back so the user can resend.

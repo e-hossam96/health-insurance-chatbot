@@ -216,6 +216,8 @@ async def test_F12_cards_after_tokens(
     # All tokens come before cards
     token_indices = [i for i, t in enumerate(event_types) if t == "token"]
     assert all(i < cards_idx for i in token_indices)
+    cards = next(json.loads(e["data"]) for e in events if e.get("event") == "cards")
+    assert cards["language"] == "en"
 
 
 @pytest.mark.anyio()

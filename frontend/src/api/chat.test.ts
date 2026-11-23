@@ -88,6 +88,21 @@ describe('time formatting', () => {
     expect(formatUtc('2026-11-15T23:30:00+00:00')).toBe('Sun 15 Nov, 23:30 UTC');
   });
 
+  it('F17 C8: Arabic cards use Arabic day and month names, the UTC wall time and Western digits', () => {
+    expect(formatUtc('2026-11-15T10:00:00Z', 'ar')).toBe('الأحد 15 نوفمبر، 10:00 UTC');
+    expect(formatUtc('2026-12-15T23:30:00Z', 'ar')).toBe('الثلاثاء 15 ديسمبر، 23:30 UTC');
+  });
+
+  it('F17: the cards event keeps its language and anything else reads as English', () => {
+    const events: StreamEvent[] = [];
+    const parser = createSseParser(event => events.push(event));
+    parser.push('event: cards\ndata: {"type": "doctors", "items": [], "language": "ar"}\n\n');
+    parser.push('event: cards\ndata: {"type": "doctors", "items": [], "language": "fr"}\n\n');
+    parser.push('event: cards\ndata: {"type": "doctors", "items": []}\n\n');
+    parser.end();
+    expect(events.map(event => (event.event === 'cards' ? event.cards.language : null))).toEqual(['ar', 'en', 'en']);
+  });
+
   it('relative time uses the injected clock', () => {
     const now = new Date('2026-11-15T12:00:00Z');
     expect(relativeTime('2026-11-15T11:59:30Z', now)).toBe('just now');

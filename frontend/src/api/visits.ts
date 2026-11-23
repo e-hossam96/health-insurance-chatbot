@@ -1,3 +1,4 @@
+import type { CardLanguage } from './chat';
 import { apiFetch } from './client';
 
 export type VisitItem = {
@@ -50,10 +51,10 @@ export type FileComplaintResponse = {
   messages: StaticMessage[];
 };
 
-export function bookVisit(sessionId: number, slotId: number): Promise<BookResponse> {
+export function bookVisit(sessionId: number, slotId: number, language: CardLanguage): Promise<BookResponse> {
   return apiFetch('/me/visits', {
     method: 'POST',
-    body: JSON.stringify({ session_id: sessionId, slot_id: slotId }),
+    body: JSON.stringify({ session_id: sessionId, slot_id: slotId, language }),
   });
 }
 
@@ -61,10 +62,10 @@ export function getMyVisits(): Promise<VisitItem[]> {
   return apiFetch('/me/visits');
 }
 
-export function cancelVisit(visitId: number, sessionId?: number): Promise<CancelResponse> {
+export function cancelVisit(visitId: number, sessionId?: number, language?: CardLanguage): Promise<CancelResponse> {
   return apiFetch(`/me/visits/${visitId}/cancel`, {
     method: 'POST',
-    body: JSON.stringify(sessionId ? { session_id: sessionId } : {}),
+    body: JSON.stringify(sessionId ? { session_id: sessionId, language: language ?? 'en' } : {}),
   });
 }
 
@@ -76,9 +77,10 @@ export function fileComplaint(
   sessionId: number,
   visitId: number,
   description: string,
+  language: CardLanguage,
 ): Promise<FileComplaintResponse> {
   return apiFetch('/me/complaints', {
     method: 'POST',
-    body: JSON.stringify({ session_id: sessionId, visit_id: visitId, description }),
+    body: JSON.stringify({ session_id: sessionId, visit_id: visitId, description, language }),
   });
 }

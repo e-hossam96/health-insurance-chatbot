@@ -44,7 +44,7 @@ Per-screen endpoint paths are in the `Calls:` lines of `wireframes.md` (sections
 | session | {session_id} | first, always |
 | token | {text} | repeated while the answer streams |
 | intent | {intent} | once, when the sidebar label is first set (usually the first turn, F6) |
-| cards | {type, items} | after the last token, only if the turn produced cards |
+| cards | {type, items, language} | after the last token, only if the turn produced cards. `language` is `ar` or `en`, the turn's reply language (F17) |
 | done | {} | end of turn |
 | error | {code, message} | turn failed; nothing is stored (F3). The code is always `turn_error` and the message "Something went wrong." |
 
@@ -62,9 +62,10 @@ If the client disconnects (Stop, closed tab), the LLM call is cancelled and noth
 
 All three write the 4 static messages in the same transaction as the change (D6, E6, D8) and return the two displayable ones (static user message, static assistant confirmation).
 
-- POST /me/visits {session_id, slot_id} -> 201 {visit, messages}. 409 slot_taken.
-- POST /me/visits/:id/cancel {session_id?} -> {visit, messages?}. `messages` only when session_id is given. 409 visit_not_cancellable.
-- POST /me/complaints {session_id, visit_id, description} -> 201 {complaint, messages}. 409 visit_not_completed, complaint_exists.
+- POST /me/visits {session_id, slot_id, language?} -> 201 {visit, messages}. 409 slot_taken.
+- POST /me/visits/:id/cancel {session_id?, language?} -> {visit, messages?}. `messages` only when session_id is given. 409 visit_not_cancellable.
+- POST /me/complaints {session_id, visit_id, description, language?} -> 201 {complaint, messages}. 409 visit_not_completed, complaint_exists.
+- `language` on the three card actions is `en` (default) or `ar`, taken from the card's `cards` event; it picks the language of the static user message and confirmation (D6, D8, E6, F17). Any other value is a 422. Doctor names come from the database unchanged.
 
 ## Admin KB documents
 

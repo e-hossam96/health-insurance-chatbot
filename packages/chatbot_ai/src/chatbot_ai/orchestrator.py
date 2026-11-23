@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import AsyncIterator, Mapping
+from dataclasses import replace
 
 from chatbot_ai.agents.base import (
     Agent,
@@ -16,6 +17,7 @@ from chatbot_ai.agents.tool_loop import complaints_agent, scheduling_agent
 from chatbot_ai.clients import RoleClients
 from chatbot_ai.intents import AgentName, agent_for
 from chatbot_ai.interface import (
+    Cards,
     Done,
     HistoryRow,
     Intent,
@@ -25,6 +27,7 @@ from chatbot_ai.interface import (
     TurnRequest,
     Usage,
 )
+from chatbot_ai.languages import display_language
 from chatbot_ai.router import classify, router_messages
 from chatbot_ai.settings import AISettings, Role
 
@@ -95,6 +98,8 @@ async def run_turn(
             async for event in agent.run(context):
                 if isinstance(event, AgentResult):
                     result = event
+                elif isinstance(event, Cards):
+                    yield replace(event, language=display_language(classification.language))
                 else:
                     yield event
             if result is None:

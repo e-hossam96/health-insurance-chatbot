@@ -136,6 +136,30 @@ async def test_D6_booking_writes_4_messages(
 
 
 @pytest.mark.anyio()
+async def test_D6_F17_an_arabic_card_writes_arabic_messages_with_the_doctor_name_as_stored(
+    user_client: AsyncClient, setup_slot: int, db_engine: Engine
+) -> None:
+    session_id = _get_chat_session_id(db_engine)
+    resp = await user_client.post("/me/visits", json={"session_id": session_id, "slot_id": setup_slot, "language": "ar"})
+    assert resp.status_code == 201
+    messages = resp.json()["messages"]
+    assert messages[0]["content"] == "احجز موعدًا مع Dr Test يوم الثلاثاء 15 ديسمبر، 10:00 UTC."
+    assert messages[1]["tool_calls"][0]["function"]["name"] == "book_visit"
+    assert messages[3]["content"] == "تم حجز موعدك بنجاح."
+
+
+@pytest.mark.anyio()
+async def test_D6_F17_an_unknown_card_language_is_rejected(
+    user_client: AsyncClient, setup_slot: int, db_engine: Engine
+) -> None:
+    session_id = _get_chat_session_id(db_engine)
+    resp = await user_client.post("/me/visits", json={"session_id": session_id, "slot_id": setup_slot, "language": "fr"})
+    assert resp.status_code == 422
+    with db_engine.connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM visit")).scalar_one() == 0
+
+
+@pytest.mark.anyio()
 async def test_D1_past_slot_rejected(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:

@@ -127,6 +127,19 @@ async def test_D8_cancel_with_session_writes_messages(
 
 
 @pytest.mark.anyio()
+async def test_D8_F17_an_arabic_cancel_card_writes_arabic_messages(
+    user_client: AsyncClient, db_engine: Engine
+) -> None:
+    visit_id, _ = _setup_booked_visit(db_engine)
+    session_id = _get_chat_session_id(db_engine)
+    resp = await user_client.post(f"/me/visits/{visit_id}/cancel", json={"session_id": session_id, "language": "ar"})
+    assert resp.status_code == 200
+    messages = resp.json()["messages"]
+    assert messages[0]["content"] == "ألغِ موعدي مع Dr يوم الثلاثاء 15 ديسمبر، 10:00 UTC."
+    assert messages[3]["content"] == "تم إلغاء موعدك."
+
+
+@pytest.mark.anyio()
 async def test_D8_cancel_without_session_no_messages(
     user_client: AsyncClient, db_engine: Engine
 ) -> None:

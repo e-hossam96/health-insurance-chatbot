@@ -9,7 +9,7 @@ from chatbot_ai.agents.knowledge import NOT_FOUND_REPLY
 from chatbot_ai.clients import RoleClients
 from chatbot_ai.evals.routing import RoutingOutcome, summarize
 from chatbot_ai.intents import AgentName, IntentCode
-from chatbot_ai.interface import Done, ProfileInfo, Token, TurnEvent, TurnRequest
+from chatbot_ai.interface import Cards, Done, ProfileInfo, Token, TurnEvent, TurnRequest
 from chatbot_ai.languages import LanguageCode, script_language
 from chatbot_ai.orchestrator import run_turn
 from chatbot_ai.prompts import agent_system_prompt, load_prompt
@@ -19,11 +19,13 @@ from chatbot_ai.settings import AISettings, Role
 from testkit.fake_openai import (
     ChatReply,
     FakeOpenAI,
+    ToolCallSpec,
     error_reply,
     json_reply,
     text_reply,
+    tool_reply,
 )
-from testkit.fake_ports import fake_ports, sample_catalog
+from testkit.fake_ports import fake_ports, make_fake_ports, sample_catalog
 
 PROFILE = ProfileInfo(display_name="Mona", location_name="Cairo", location_id=1)
 PORTS = fake_ports(sample_catalog(), profile_id=10, profile_location_id=1, now=datetime(2026, 12, 1, tzinfo=UTC))
@@ -158,3 +160,23 @@ def test_F17_routing_eval_scores_the_language_label_separately() -> None:
     assert report.language_accuracy == pytest.approx(2 / 3)
     assert [m.id for m in report.language_mistakes] == ["b"]
     assert [m.id for m in report.mistakes] == ["c"]
+
+
+@pytest.mark.anyio()
+@pytest.mark.parametrize(("language", "card_language"), [("ar", "ar"), ("en", "en"), ("other", "en")])
+async def test_F17_cards_carry_the_turn_language_and_keep_the_catalog_names(
+    fake_openai: FakeOpenAI, ai_settings: AISettings, role_clients: RoleClients, language: str, card_language: str
+) -> None:
+    ports = make_fake_ports(sample_catalog(), profile_id=10, profile_location_id=1, now=datetime(2026, 12, 1, tzinfo=UTC))
+    fake_openai.queue(json_reply({"intent": "visit.book", "language": language}), model="router-model")
+    fake_openai.queue(
+        tool_reply(ToolCallSpec("list_specialties", {}, id="c1")),
+        tool_reply(ToolCallSpec("recommend_doctors", {"specialty_id": 1}, id="c2")),
+        text_reply("ok"),
+        model="chat-model",
+    )
+    events = await _collect(run_turn(_request("dermatologist"), ports.as_ports(), ai_settings, role_clients))
+    cards = next(e for e in events if isinstance(e, Cards))
+    assert cards.language is LanguageCode(card_language)
+    catalog_doctors = {doctor.name for doctor in sample_catalog().doctors}
+    assert cards.items and all(item["doctor_name"] in catalog_doctors for item in cards.items)
