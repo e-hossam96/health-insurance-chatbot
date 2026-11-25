@@ -15,7 +15,7 @@ Companion files: `schema.dbml` (tables; its A-items are migration notes), `rules
 - Auth: server-side session in an HTTP-only cookie (B10, B11). Contracts in `api.md`.
 - Time: everything is UTC and the UI says so (C8). No time zone conversion anywhere.
 - Frontend stack: Vite, TypeScript, React Router, TanStack Query, Tailwind with the app's own component classes (`btn`, `input`, `card`, `badge`, ... in `frontend/src/index.css`). The chat stream is read with fetch (it is a POST), not EventSource.
-- Language: the UI is English only. Assistant replies are in Modern Standard Arabic or American English, following the member's language (F17); message bubbles and the message inputs use `dir="auto"` so Arabic reads right to left. Assistant text renders as Markdown with raw HTML disabled (F17). Branding: the product is "Health Insurance Chatbot" with a text logo (a chat-bubble mark); colors follow the system light or dark setting, and every page has a toggle to pin light, dark or system: in the header on signed-in pages, and in the top-right corner on login, signup and onboarding. The palette is an indigo accent (#2C4BD0 light, #8FA3FF dark) on cool neutrals (#F4F6FA / #0D1119 page, #FFFFFF / #151B27 cards), with soft 1px dividers, 10px control and 14px card radii, and soft shadows. Tokens live in `frontend/src/index.css`.
+- Language: the UI is English only. Assistant replies are in Modern Standard Arabic or American English, following the member's language (F17); message bubbles and the message inputs use `dir="auto"` so Arabic reads right to left. Assistant text renders as Markdown with raw HTML disabled (F17). Branding: the product is "Health Insurance Chatbot" with a text logo (a flat chat-bubble mark, one-color wordmark); colors follow the system light or dark setting, and every page has a toggle to pin light, dark or system: in the header on signed-in pages, and in the top-right corner on login, signup and onboarding. The palette is built from four brand colors: Thunder #252022 (light-mode text, dark-mode page), Heather #C0CDD7 (the hue of the light neutrals and dark-mode muted text), Jelly Bean #227599 (light-mode accent) and Fountain Blue #5FA7C0 (dark-mode accent). Light: #F2F5F7 page, #FFFFFF cards. Dark: #252022 page, #2E292B cards. Flat page background, no gradients, system font stack. Soft 1px dividers, 10px control and 14px card radii. In-page surfaces (cards, tables, bubbles) use a border only; shadows are kept for things that float (drawer, menus, dialogs). Only new chat content animates in. Tokens live in `frontend/src/index.css`.
 - The chatbot is the primary way to do everything (book, cancel, complain, ask). The drawer is a convenience.
 - Out of scope for v1: password reset, profile editing, user replies in complaints, deleting chats, Excel upload, notifications.
 
@@ -29,7 +29,7 @@ Companion files: `schema.dbml` (tables; its A-items are migration notes), `rules
 | /login | anonymous | Log in (users and admins) |
 | /onboarding | user without profile | Create profile (name, location) |
 | /chat, /chat/:sessionId | user; admin in user view | Chat + visits/complaints drawer |
-| /admin/kb | admin | KB documents |
+| /admin/kb | admin | Knowledge base |
 | /admin/catalog | admin | Locations, specialties, clinics, doctors |
 | /admin/slots | admin | Slots |
 | /admin/visits | admin | Visits |
@@ -62,7 +62,7 @@ Guards (UX only; the backend checks the role on every call, B8):
 - Display name: `profile.name`, or the username if there is no profile (admin in admin panel).
 - `[My visits & complaints]`: user view only. Opens the drawer (section 6).
 - Mode toggle: admins only. In the admin panel it reads `[User view]`, in user view it reads `[Admin panel]`. Calls POST /auth/mode, then goes to /chat or /admin/kb.
-- Section menu: admin panel only, just before `[User view]`. See section 7.
+- Section tabs: admin panel only, a second header row. See section 7.
 - `[Log out]`, then the theme switch (system, light, dark).
 - Desktop first. On narrow screens the chat sidebar collapses and the drawer goes full screen.
 
@@ -142,23 +142,19 @@ Guards (UX only; the backend checks the role on every call, B8):
 | HEADER (section 3)                                                      |
 +------------------+------------------------------------------------------+
 | [+ New chat]     |                                                      |
-|                  |        Hi Sara, how can I help today?                |
-| Book a visit     |                                                      |
-|  "I need a derm" |  +------------------+   +------------------+         |
-|  2 min ago       |  | Book a clinic    |   | Check my         |         |
-|                  |  | visit            |   | visits           |         |
-| Insurance ques.. |  +------------------+   +------------------+         |
-|  "What does my.."|  +------------------+   +------------------+         |
-|  Yesterday       |  | Cancel a         |   | File a           |         |
+|                  |  Hi Sara, how can I help today?                      |
+| I need a derm... |                                                      |
+| [Book a visit]   |  +------------------+   +------------------+         |
+|  2 min ago       |  | Book a clinic    |   | File a           |         |
 |                  |  | visit            |   | complaint        |         |
+| How much is t... |  +------------------+   +------------------+         |
+| [Insurance q.]   |  +------------------+   +------------------+         |
+|  Yesterday       |  | Find a pediatri- |   | What is my out-  |         |
+|                  |  | cian in Cairo    |   | patient co-pay?  |         |
 | ...              |  +------------------+   +------------------+         |
-|                  |  +------------------+   +------------------+         |
-|                  |  | Check my         |   | Ask a policy     |         |
-|                  |  | complaints       |   | question         |         |
-|                  |  +------------------+   +------------------+         |
 |                  |                                                      |
 |                  | +-----------------------------------+ +----------+   |
-|                  | | Type your message...              | |  Send    |   |
+|                  | | Ask about a visit, a clinic or... | |  Send    |   |
 |                  | +-----------------------------------+ +----------+   |
 |                  | All times are UTC.                                   |
 +------------------+------------------------------------------------------+
@@ -167,7 +163,9 @@ Guards (UX only; the backend checks the role on every call, B8):
 ### Sidebar
 
 - Sessions of the logged-in profile, newest `last_message_at` first.
-- Each item: line 1 = intent label (from `chat_session.intent`, code mapped to a display name in the frontend; null -> "New chat"). Line 2 = first user message truncated (about 40 chars). Line 3 = relative time.
+- Each item: line 1 (title) = first user message truncated (about 40 chars), or the intent label when there is none. Line 2 = the intent label as a small badge (from `chat_session.intent`, code mapped to a display name in the frontend; null -> "New chat"), then the relative time.
+- If the list fails to load, the sidebar shows "Could not load your chats." with `[Retry]`, never an empty list.
+- Below the `md` breakpoint the sidebar is hidden; a `[Chats]` button above the transcript opens it as an overlay, and picking a chat or New chat closes it.
 - `[+ New chat]` only clears the UI. No session row is created until the first message is sent (F1).
 - Clicking an item opens /chat/:sessionId and loads its transcript.
 - No delete/archive in v1.
@@ -194,16 +192,14 @@ qa.db is answered from the database (clinics, specialties, doctors, availability
 
 Clicking a card sends its text as the first user message. Fixed texts:
 
-Six cards in a 2 by 3 grid, in this order:
+Above them, a left-aligned greeting "Hi <profile name>, how can I help today?" (`name` from GET /auth/me). Four cards in a 2 by 2 grid, in this order, chosen to show the range of what the bot does (checking visits and complaints is one click away in the drawer):
 
 | Card | Message sent | Expected intent |
 |---|---|---|
 | Book a clinic visit | "I'd like to book a clinic visit." | visit.book |
-| Check my visits | "Show me my visits." | visit.check |
-| Cancel a visit | "I want to cancel a visit." | visit.cancel |
 | File a complaint | "I want to file a complaint about a visit." | complaint.file |
-| Check my complaints | "Show me my complaints." | complaint.check |
-| Ask an insurance question | "What does my health insurance cover?" | qa.kb |
+| Find a pediatrician in Cairo | "Which clinics in Cairo have a pediatrician?" | qa.db |
+| What is my outpatient co-pay? | "How much is the co-pay for an outpatient visit?" | qa.kb |
 
 The expected intent is what the classifier should return for that message. The routing eval checks it (`ai.md`).
 
@@ -350,38 +346,25 @@ Complaints tab:
 
 - Visits: upcoming first. Status badges: Scheduled, Completed, Cancelled. `[Cancel]` only on Scheduled, with a confirm dialog. Convenience only: the chatbot can also cancel (D8). It calls the cancel endpoint without `session_id`, so no chat message is written (D8).
 - Complaints: read-only. Shows description, date, status badge, and admin replies as a thread (label "Support team", date). Empty -> "No reply yet".
-- Empty states: "No visits yet" / "No complaints yet".
+- Empty states: "No visits yet" / "No complaints yet". A failed load shows "Could not load your visits." (or complaints) with `[Retry]` instead of the empty state.
 - Calls: GET /me/visits, POST /me/visits/:id/cancel (no session_id), GET /me/complaints
 
 ---
 
 ## 7. Admin panel
 
-Header as in section 3, with a section menu next to the `[User view]` toggle so admins never type a path:
+Header as in section 3, with a row of section tabs under it so admins never type a path:
 
 ```
 +-------------------------------------------------------------------------+
-| Health Insurance Chatbot   admin1  [KB documents v] [User view] [Log out] |
-|                                    +-----------------------------------+ |
-|                                    | KB documents                      | |
-|                                    |  Documents for insurance questions| |
-|                                    | Catalog                           | |
-|                                    |   Locations, specialties, clinics,| |
-|                                    |   doctors                         | |
-|                                    | Slots                             | |
-|                                    |   Open and remove appointment     | |
-|                                    |   slots                           | |
-|                                    | Visits                            | |
-|                                    |   Review and complete booked      | |
-|                                    |   visits                          | |
-|                                    | Complaints                        | |
-|                                    |   Reply to and close complaints   | |
-|                                    +-----------------------------------+ |
+| Health Insurance Chatbot            Admin One  [User view] [Log out]    |
+| Knowledge base   Catalog   Slots   Visits   Complaints                  |
+| ==============                                                          |
 +-------------------------------------------------------------------------+
 ```
 
-- The trigger shows the current section's name and icon. The menu lists the five sections in this order, each with an icon and a one-line hint, and highlights the current one.
-- Picking a section goes to its page and closes the menu. Escape or a click outside closes it; arrow keys move between sections.
+- Five tabs, in this order, text only. The current one is underlined in the accent color and carries `aria-current="page"`.
+- Clicking a tab goes to its page. Each page's `<h1>` matches its tab label (sentence case).
 - Shown only in admin mode. In user view an admin sees `[Admin panel]`, which lands on /admin/kb.
 
 Row actions and confirmations (all admin screens, and the member's visits drawer):
@@ -393,7 +376,7 @@ Row actions and confirmations (all admin screens, and the member's visits drawer
 - Every delete, close, complete, cancel and auto-fill opens the same in-app confirm dialog, never the browser's `confirm()`: a title naming the item ("Delete Cairo?"), one line on what happens (including what cascades), `[Cancel]` (focused) and a confirm button labelled with the action (red for destructive, accent otherwise). Escape or a click outside cancels. While the request runs both buttons are disabled; on failure the dialog stays open and shows the server's message (for example A5's "Can't delete: it has visit history."); on success it closes and the list reloads.
 - Errors that are not tied to a confirmation (a rejected reply, a slot that cannot be removed) show inline next to the control, never in `alert()`.
 
-### AP1. KB documents (/admin/kb)
+### AP1. Knowledge base (/admin/kb)
 
 ```
 +-------------------------------------------------------------------------+

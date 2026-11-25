@@ -17,11 +17,9 @@ from testkit.fake_openai import FakeOpenAI, json_reply
 
 STARTER_MESSAGES = {
     "I'd like to book a clinic visit.": "visit.book",
-    "Show me my visits.": "visit.check",
-    "I want to cancel a visit.": "visit.cancel",
     "I want to file a complaint about a visit.": "complaint.file",
-    "Show me my complaints.": "complaint.check",
-    "What does my health insurance cover?": "qa.kb",
+    "Which clinics in Cairo have a pediatrician?": "qa.db",
+    "How much is the co-pay for an outpatient visit?": "qa.kb",
 }
 
 

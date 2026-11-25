@@ -9,8 +9,8 @@ async function signInAsAdmin(page: Page): Promise<void> {
   await page.route('**/api/admin/kb-documents?limit=*', route => json(route, { items: [], total: 0, max_upload_bytes: 10 * 1024 * 1024 }));
 }
 
-const LIGHT_BG = 'rgb(244, 246, 250)';
-const DARK_BG = 'rgb(13, 17, 25)';
+const LIGHT_BG = 'rgb(242, 245, 247)';
+const DARK_BG = 'rgb(37, 32, 34)';
 
 function bodyBackground(page: Page): Promise<string> {
   return page.evaluate(() => getComputedStyle(document.body).backgroundColor);
@@ -140,8 +140,7 @@ test.describe('admin row actions', () => {
     await page.getByTestId('confirm-yes').click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
 
-    await page.getByTestId('admin-nav-btn').click();
-    await page.getByRole('menuitem', { name: /Complaints/ }).click();
+    await page.getByTestId('admin-nav-complaints').click();
     await page.getByTestId('complaint-item').click();
     await page.getByRole('button', { name: 'Close complaint' }).click();
     await expect(page.getByRole('dialog', { name: 'Close complaint #7?' })).toBeVisible();

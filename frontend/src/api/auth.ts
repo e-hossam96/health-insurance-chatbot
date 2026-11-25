@@ -5,6 +5,7 @@ export type MeResponse = {
   role: 'user' | 'admin';
   has_profile: boolean;
   mode: 'user' | 'admin';
+  name: string | null;
 };
 
 export type LocationItem = {

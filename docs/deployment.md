@@ -51,7 +51,7 @@ $P exec backend python scripts/create_admin.py --username admin1 --password <pas
 $P exec backend python scripts/seed.py
 ```
 
-Log in as the admin, open **KB documents** and upload the knowledge-base documents (policy handbook, member guide and similar) that answer members' insurance questions. The seed's sample members (`user1`, `user2`) have demo passwords; change or remove them before sharing the link widely.
+Log in as the admin, open the **Knowledge base** tab and upload the knowledge-base documents (policy handbook, member guide and similar) that answer members' insurance questions. The seed's sample members (`user1`, `user2`) have demo passwords; change or remove them before sharing the link widely.
 
 ## 6. Operate
 

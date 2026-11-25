@@ -59,7 +59,7 @@ export function AdminVisitsPage(): ReactNode {
     <div>
       <Header />
       <div className="page">
-        <h2 className="page-title">Visits</h2>
+        <h1 className="page-title">Visits</h1>
         <div className="mb-4 flex flex-wrap items-center gap-4">
           <select
             className="input w-auto py-2 text-sm"

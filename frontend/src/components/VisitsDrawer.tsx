@@ -20,15 +20,38 @@ function statusBadge(status: string): ReactNode {
   );
 }
 
+function LoadError({ what, onRetry }: { what: string; onRetry: () => void }): ReactNode {
+  return (
+    <p className="alert error mb-3" data-testid="drawer-load-error">
+      Could not load {what}.
+      <button type="button" onClick={onRetry} className="link-btn ml-2 underline">
+        Retry
+      </button>
+    </p>
+  );
+}
+
 export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => void }): ReactNode {
   const [visits, setVisits] = useState<VisitItem[]>([]);
   const [complaints, setComplaints] = useState<ComplaintItem[]>([]);
   const [tab, setTab] = useState<'visits' | 'complaints'>('visits');
+  const [visitsFailed, setVisitsFailed] = useState(false);
+  const [complaintsFailed, setComplaintsFailed] = useState(false);
   const { confirm, confirmDialog } = useConfirm();
 
   const load = useCallback(() => {
-    getMyVisits().then(setVisits).catch(() => {});
-    getMyComplaints().then(setComplaints).catch(() => {});
+    getMyVisits()
+      .then(items => {
+        setVisits(items);
+        setVisitsFailed(false);
+      })
+      .catch(() => setVisitsFailed(true));
+    getMyComplaints()
+      .then(items => {
+        setComplaints(items);
+        setComplaintsFailed(false);
+      })
+      .catch(() => setComplaintsFailed(true));
   }, []);
 
   useEffect(() => {
@@ -81,7 +104,8 @@ export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => 
 
           {tab === 'visits' && (
             <div data-testid="visits-list">
-              {visits.length === 0 && <p className="text-sm text-muted">No visits yet.</p>}
+              {visitsFailed && <LoadError what="your visits" onRetry={load} />}
+              {!visitsFailed && visits.length === 0 && <p className="text-sm text-muted">No visits yet.</p>}
               {visits.map((v) => (
                 <div key={v.id} className="mb-3 rounded-card border border-line bg-surface p-4">
                   <div className="flex justify-between items-start">
@@ -109,12 +133,13 @@ export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => 
 
           {tab === 'complaints' && (
             <div data-testid="complaints-list">
-              {complaints.length === 0 && <p className="text-sm text-muted">No complaints yet.</p>}
+              {complaintsFailed && <LoadError what="your complaints" onRetry={load} />}
+              {!complaintsFailed && complaints.length === 0 && <p className="text-sm text-muted">No complaints yet.</p>}
               {complaints.map((c) => (
                 <div key={c.id} className="mb-3 rounded-card border border-line bg-surface p-4">
                   <div className="flex justify-between items-start mb-1">
                     <p className="text-sm font-semibold" data-testid="complaint-visit">
-                      Visit {formatUtcDay(c.visit_start_at)} - {c.doctor_name}
+                      Visit {formatUtcDay(c.visit_start_at)} · {c.doctor_name}
                     </p>
                     {statusBadge(c.status)}
                   </div>

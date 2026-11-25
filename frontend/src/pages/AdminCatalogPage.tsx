@@ -449,7 +449,7 @@ export function AdminCatalogPage(): ReactNode {
     <div>
       <Header />
       <div className="page">
-        <h2 className="page-title">Catalog</h2>
+        <h1 className="page-title">Catalog</h1>
         <div className="segmented mb-6" data-testid="catalog-tabs">
           {TABS.map((t) => (
             <button

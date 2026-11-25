@@ -62,7 +62,7 @@ test.describe('AP1 KB documents', () => {
     });
 
     await page.goto('/admin/kb');
-    await expect(page.getByTestId('kb-limit')).toHaveText('pdf, txt, docx - max 10 MB');
+    await expect(page.getByTestId('kb-limit')).toHaveText('pdf, txt, docx · max 10 MB');
 
     await page.getByTestId('kb-file-input').setInputFiles({ name: 'handbook.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 demo') });
     await expect(page.getByTestId('kb-row')).toHaveCount(1);
@@ -83,20 +83,19 @@ test.describe('AP1 KB documents', () => {
     expect(deleted).toBe(1);
   });
 
-  test('B5: the admin header menu reaches every section without typing a path', async ({ page }) => {
+  test('B5: the admin header tabs reach every section without typing a path', async ({ page }) => {
     await page.route('**/api/auth/me', route => json(route, { username: 'admin1', role: 'admin', has_profile: true, mode: 'admin' }));
     await page.route('**/api/admin/kb-documents?limit=*', route => json(route, { items: [], total: 0, max_upload_bytes: LIMIT }));
     await page.route('**/api/admin/locations', route => json(route, [{ id: 1, name: 'Cairo' }]));
 
     await page.goto('/admin/kb');
-    await expect(page.getByTestId('admin-nav-btn')).toHaveText('KB documents');
-    await page.getByTestId('admin-nav-btn').click();
-    await expect(page.getByRole('menuitem')).toHaveText([/KB documents/, /Catalog/, /Slots/, /Visits/, /Complaints/]);
+    const tabs = page.getByRole('navigation', { name: 'Admin sections' }).getByRole('link');
+    await expect(tabs).toHaveText(['Knowledge base', 'Catalog', 'Slots', 'Visits', 'Complaints']);
+    await expect(page.getByTestId('admin-nav-kb')).toHaveAttribute('aria-current', 'page');
 
-    await page.getByRole('menuitem', { name: /Catalog/ }).click();
+    await page.getByTestId('admin-nav-catalog').click();
     await expect(page).toHaveURL(/\/admin\/catalog$/);
     await expect(page.getByRole('heading', { name: 'Catalog' })).toBeVisible();
-    await expect(page.getByTestId('admin-nav-btn')).toHaveText('Catalog');
-    await expect(page.getByRole('menu')).toHaveCount(0);
+    await expect(page.getByTestId('admin-nav-catalog')).toHaveAttribute('aria-current', 'page');
   });
 });

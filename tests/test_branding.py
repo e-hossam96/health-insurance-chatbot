@@ -14,14 +14,23 @@ RAW_PALETTE_CLASS = re.compile(
 def test_the_page_title_and_theme_colours_use_the_brand() -> None:
     html = (FRONTEND / "index.html").read_text(encoding="utf-8")
     assert "<title>Health Insurance Chatbot</title>" in html
-    assert 'media="(prefers-color-scheme: light)" content="#f4f6fa"' in html
-    assert 'media="(prefers-color-scheme: dark)" content="#0d1119"' in html
+    assert 'media="(prefers-color-scheme: light)" content="#f2f5f7"' in html
+    assert 'media="(prefers-color-scheme: dark)" content="#252022"' in html
 
 
-def test_the_theme_defines_the_indigo_accent_for_light_and_dark() -> None:
+def test_the_theme_uses_the_brand_palette_for_light_and_dark() -> None:
     css = (FRONTEND / "src" / "index.css").read_text(encoding="utf-8").lower()
-    assert "--accent: light-dark(#2c4bd0, #8fa3ff);" in css
+    assert "--accent: light-dark(#227599, #5fa7c0);" in css
+    assert "--text: light-dark(#252022, " in css
+    assert "--bg: light-dark(#f2f5f7, #252022);" in css
     assert "--color-accent: var(--accent);" in css
+
+
+def test_the_page_background_is_flat_and_the_font_is_the_system_stack() -> None:
+    css = (FRONTEND / "src" / "index.css").read_text(encoding="utf-8")
+    assert "radial-gradient" not in css
+    assert "linear-gradient" not in css
+    assert "'Inter'" not in css
 
 
 def test_components_use_theme_tokens_not_raw_palette_classes_or_the_placeholder_name() -> None:

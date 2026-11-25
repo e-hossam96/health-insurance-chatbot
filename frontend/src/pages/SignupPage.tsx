@@ -46,11 +46,11 @@ export function SignupPage(): ReactNode {
 
   return (
     <AuthLayout>
-      <form onSubmit={handleSubmit} className="card rise w-full max-w-sm p-8">
-        <h1 className="mb-3 flex justify-center">
+      <form onSubmit={handleSubmit} className="card w-full max-w-sm p-8">
+        <div className="mb-4 flex justify-center">
           <Logo size={40} />
-        </h1>
-        <h2 className="mb-6 text-center text-base font-medium text-muted">Create your account</h2>
+        </div>
+        <h1 className="mb-6 text-center text-lg font-semibold">Create your account</h1>
         {error && <p className="alert error mb-4" role="alert">{error}</p>}
         <label className="field-label">Username</label>
         <input

@@ -110,6 +110,21 @@ async def test_B2_admin_has_profile(client: AsyncClient) -> None:
     resp = await client.get("/auth/me")
     assert resp.status_code == 200
     assert resp.json()["has_profile"] is True
+    assert resp.json()["name"] == "Admin One"
+
+
+@pytest.mark.anyio()
+async def test_B3_me_carries_the_profile_name_once_it_exists(client: AsyncClient) -> None:
+    await _signup(client)
+    before = (await client.get("/auth/me")).json()
+    assert before["has_profile"] is False
+    assert before["name"] is None
+
+    loc_id = await _seed_location(client)
+    await client.post("/me/profile", json={"name": "Alice Smith", "location_id": loc_id})
+    after = (await client.get("/auth/me")).json()
+    assert after["has_profile"] is True
+    assert after["name"] == "Alice Smith"
 
 
 @pytest.mark.anyio()

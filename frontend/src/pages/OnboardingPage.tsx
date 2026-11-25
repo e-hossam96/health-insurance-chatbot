@@ -1,5 +1,5 @@
 import { AuthLayout } from '../components/AuthLayout';
-import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
+import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from 'react';
 import { errorMessage } from '../api/client';
 import { useNavigate } from 'react-router';
 import { createProfile, getLocations, type LocationItem } from '../api/auth';
@@ -11,12 +11,22 @@ export function OnboardingPage(): ReactNode {
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [locationsFailed, setLocationsFailed] = useState(false);
   const navigate = useNavigate();
   const { refresh } = useAuth();
 
-  useEffect(() => {
-    void getLocations().then(setLocations);
+  const loadLocations = useCallback((): void => {
+    getLocations()
+      .then(items => {
+        setLocations(items);
+        setLocationsFailed(false);
+      })
+      .catch(() => setLocationsFailed(true));
   }, []);
+
+  useEffect(() => {
+    loadLocations();
+  }, [loadLocations]);
 
   const handleSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
@@ -45,8 +55,8 @@ export function OnboardingPage(): ReactNode {
 
   return (
     <AuthLayout>
-      <form onSubmit={handleSubmit} className="card rise w-full max-w-sm p-8">
-        <h2 className="mb-6 text-xl font-bold">Complete your profile</h2>
+      <form onSubmit={handleSubmit} className="card w-full max-w-sm p-8">
+        <h1 className="mb-6 text-xl font-bold">Complete your profile</h1>
         {error && <p className="alert error mb-4" role="alert">{error}</p>}
         <label className="field-label">Full name</label>
         <input
@@ -55,6 +65,14 @@ export function OnboardingPage(): ReactNode {
           onChange={(e) => setName(e.target.value)}
         />
         <label className="field-label">Location</label>
+        {locationsFailed && (
+          <p className="alert error mb-2" data-testid="locations-error">
+            Could not load locations.
+            <button type="button" onClick={loadLocations} className="link-btn ml-2 underline">
+              Retry
+            </button>
+          </p>
+        )}
         <select
           className="input mb-4"
           value={locationId}

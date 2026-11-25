@@ -48,6 +48,7 @@ class MeResponse(BaseModel):
     role: str
     has_profile: bool
     mode: str
+    name: str | None
 
 
 def _set_cookie(response: Response, token: str, max_age: int) -> None:
@@ -180,13 +181,14 @@ async def me(
     account: CurrentAccount,
     db: Db,
 ) -> MeResponse:
-    has_profile = await find_profile(db, account.id) is not None
+    profile = await find_profile(db, account.id)
 
     return MeResponse(
         username=account.username,
         role=account.role.value,
-        has_profile=has_profile,
+        has_profile=profile is not None,
         mode=session.active_mode.value,
+        name=profile.name if profile is not None else None,
     )
 
 
