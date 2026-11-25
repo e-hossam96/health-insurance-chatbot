@@ -68,58 +68,6 @@ export function InfoIcon(): ReactNode {
   );
 }
 
-export function ChevronDownIcon(): ReactNode {
-  return (
-    <Icon size={14}>
-      <path d="M6 9l6 6 6-6" />
-    </Icon>
-  );
-}
-
-export function BookIcon(): ReactNode {
-  return (
-    <Icon size={18}>
-      <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" />
-      <path d="M4 21V5M8 7h7" />
-    </Icon>
-  );
-}
-
-export function BuildingIcon(): ReactNode {
-  return (
-    <Icon size={18}>
-      <path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16M16 9h2a2 2 0 0 1 2 2v10M3 21h18M8 7h4M8 11h4M8 15h4" />
-    </Icon>
-  );
-}
-
-export function CalendarIcon(): ReactNode {
-  return (
-    <Icon size={18}>
-      <rect x="3" y="5" width="18" height="16" rx="2" />
-      <path d="M3 10h18M8 3v4M16 3v4" />
-    </Icon>
-  );
-}
-
-export function ClipboardCheckIcon(): ReactNode {
-  return (
-    <Icon size={18}>
-      <rect x="5" y="4" width="14" height="17" rx="2" />
-      <path d="M9 4V3h6v1M9 13l2 2 4-4" />
-    </Icon>
-  );
-}
-
-export function MessageAlertIcon(): ReactNode {
-  return (
-    <Icon size={18}>
-      <path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7l-5 4v-4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
-      <path d="M12 8v3M12 14v.01" />
-    </Icon>
-  );
-}
-
 export function MonitorIcon(): ReactNode {
   return (
     <Icon>
@@ -142,6 +90,14 @@ export function MoonIcon(): ReactNode {
   return (
     <Icon>
       <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
+    </Icon>
+  );
+}
+
+export function MenuIcon(): ReactNode {
+  return (
+    <Icon>
+      <path d="M4 6h16M4 12h16M4 18h16" />
     </Icon>
   );
 }

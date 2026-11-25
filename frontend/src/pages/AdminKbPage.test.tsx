@@ -83,7 +83,7 @@ describe('AdminKbPage', () => {
       ]),
     );
     renderPage();
-    expect(await screen.findByText('pdf, txt, docx - max 10 MB')).toBeTruthy();
+    expect(await screen.findByText('pdf, txt, docx · max 10 MB')).toBeTruthy();
     expect(screen.getAllByTestId('kb-status').map(s => s.textContent)).toEqual(['Ready', 'Processing', 'Failed']);
     expect(screen.getByText('2.1 MB')).toBeTruthy();
     expect(screen.getByText('80 KB')).toBeTruthy();
@@ -117,7 +117,7 @@ describe('AdminKbPage', () => {
   it('G2: a file over the limit is refused before it is sent', async () => {
     getKbDocuments.mockResolvedValue({ items: [], total: 0, max_upload_bytes: 4 });
     renderPage();
-    await screen.findByText('pdf, txt, docx - max 4 B');
+    await screen.findByText('pdf, txt, docx · max 4 B');
     pick([new File(['too many bytes'], 'big.txt')]);
     expect((await screen.findByTestId('kb-errors')).textContent).toBe('big.txt: too large (max 4 B).');
     expect(uploadKbDocument).not.toHaveBeenCalled();

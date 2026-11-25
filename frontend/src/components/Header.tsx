@@ -26,27 +26,31 @@ export function Header({ onVisitsClick }: { onVisitsClick?: () => void } = {}): 
     navigate(newMode === 'admin' ? '/admin/kb' : '/chat');
   };
 
+  const showAdminNav = user.role === 'admin' && user.mode === 'admin';
+
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-card/80 px-5 py-3 backdrop-blur">
-      <Logo />
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-2 text-sm text-muted">{user.username}</span>
-        {user.mode === 'user' && onVisitsClick && (
-          <button type="button" onClick={onVisitsClick} className="btn btn-ghost btn-sm" data-testid="visits-btn">
-            My visits &amp; complaints
+    <header className="border-b border-line bg-card px-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+        <Logo />
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-2 hidden text-sm text-muted sm:inline" data-testid="display-name">{user.name ?? user.username}</span>
+          {user.mode === 'user' && onVisitsClick && (
+            <button type="button" onClick={onVisitsClick} className="btn btn-ghost btn-sm" data-testid="visits-btn">
+              My visits &amp; complaints
+            </button>
+          )}
+          {user.role === 'admin' && (
+            <button type="button" onClick={handleModeToggle} className="btn btn-secondary btn-sm" data-testid="mode-toggle">
+              {user.mode === 'admin' ? 'User view' : 'Admin panel'}
+            </button>
+          )}
+          <button type="button" onClick={handleLogout} className="btn btn-ghost btn-sm" data-testid="logout-btn">
+            Log out
           </button>
-        )}
-        {user.role === 'admin' && user.mode === 'admin' && <AdminNav />}
-        {user.role === 'admin' && (
-          <button type="button" onClick={handleModeToggle} className="btn btn-secondary btn-sm" data-testid="mode-toggle">
-            {user.mode === 'admin' ? 'User view' : 'Admin panel'}
-          </button>
-        )}
-        <button type="button" onClick={handleLogout} className="btn btn-ghost btn-sm" data-testid="logout-btn">
-          Log out
-        </button>
-        <ThemeToggle />
+          <ThemeToggle />
+        </div>
       </div>
+      {showAdminNav && <AdminNav />}
     </header>
   );
 }

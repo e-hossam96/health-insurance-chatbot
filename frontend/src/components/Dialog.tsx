@@ -31,7 +31,7 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`card rise p-6 shadow-raised ${panelClassName}`}
+        className={`card p-6 shadow-raised ${panelClassName}`}
         onClick={(e) => e.stopPropagation()}
       >
         <h3 id={titleId} className="mb-4 text-lg font-semibold">{title}</h3>

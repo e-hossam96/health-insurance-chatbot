@@ -9,11 +9,11 @@ import {
   getSessions,
   streamChat,
 } from '../api/chat';
+import { useAuth } from '../api/AuthContext';
 import type { ApiError } from '../api/client';
 import { type StaticMessage, bookVisit, cancelVisit, fileComplaint } from '../api/visits';
 import { Header } from '../components/Header';
-import { LogoMark } from '../components/Logo';
-import { SendIcon } from '../components/icons';
+import { MenuIcon, SendIcon } from '../components/icons';
 import { VisitsDrawer } from '../components/VisitsDrawer';
 import { ChatCards, SHOW_OTHER_OPTIONS } from '../components/chat/ChatCards';
 import { type CardFailureKind, type CardSetState, INITIAL_CARD_STATE } from '../components/chat/cardState';
@@ -21,7 +21,7 @@ import { ChatSidebar } from '../components/chat/ChatSidebar';
 import { MarkdownContent } from '../components/chat/MarkdownContent';
 
 type ChatItem =
-  | { kind: 'message'; key: string; role: 'user' | 'assistant'; content: string }
+  | { kind: 'message'; key: string; role: 'user' | 'assistant'; content: string; replayed?: boolean }
   | { kind: 'cards'; key: string; cards: CardsPayload; state: CardSetState };
 
 type TurnError = { userKey: string; text: string; message: string };
@@ -60,6 +60,8 @@ function parseSessionId(param: string | undefined): number | null {
 export function ChatPage(): ReactNode {
   const { sessionId: routeSessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
+  const auth = useAuth();
+  const memberName = auth.status === 'authenticated' ? auth.user.name : null;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
@@ -69,6 +71,8 @@ export function ChatPage(): ReactNode {
   const [turnError, setTurnError] = useState<TurnError | null>(null);
   const [input, setInput] = useState('');
   const [loadFailed, setLoadFailed] = useState(false);
+  const [sessionsFailed, setSessionsFailed] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const activeSessionRef = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -77,9 +81,10 @@ export function ChatPage(): ReactNode {
   const refreshSessions = useCallback(async (): Promise<void> => {
     try {
       setSessions(await getSessions());
+      setSessionsFailed(false);
       setNow(new Date());
     } catch {
-      return;
+      setSessionsFailed(true);
     }
   }, []);
 
@@ -99,7 +104,7 @@ export function ChatPage(): ReactNode {
     void getMessages(sessionId)
       .then(messages => {
         if (activeSessionRef.current !== sessionId) return;
-        setItems(messages.map(m => ({ kind: 'message', key: `db-${m.id}`, role: m.role, content: m.content })));
+        setItems(messages.map(m => ({ kind: 'message', key: `db-${m.id}`, role: m.role, content: m.content, replayed: true })));
       })
       .catch(() => {
         if (activeSessionRef.current === sessionId) setLoadFailed(true);
@@ -232,12 +237,14 @@ export function ChatPage(): ReactNode {
   }
 
   function handleNewChat(): void {
+    setSidebarOpen(false);
     activateSession(null);
     setInput('');
     navigate('/chat', { replace: true });
   }
 
   function handleSelectSession(sessionId: number): void {
+    setSidebarOpen(false);
     if (sessionId === activeSessionRef.current) return;
     activateSession(sessionId);
     navigate(`/chat/${sessionId}`);
@@ -253,26 +260,34 @@ export function ChatPage(): ReactNode {
           sessions={sessions}
           activeSessionId={activeSessionId}
           now={now}
+          loadFailed={sessionsFailed}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onRetry={() => void refreshSessions()}
           onSelect={handleSelectSession}
           onNewChat={handleNewChat}
         />
         <main className="flex-1 flex flex-col min-w-0" data-testid="chat-main">
+          <div className="flex items-center border-b border-line px-3 py-2 md:hidden">
+            <button type="button" onClick={() => setSidebarOpen(true)} className="btn btn-ghost btn-sm" data-testid="open-sidebar-btn">
+              <MenuIcon />
+              Chats
+            </button>
+          </div>
           <div className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-6">
             {showStarters && (
               <div data-testid="starter-cards">
-                <div className="mx-auto mt-[12vh] mb-6 flex max-w-lg flex-col items-center gap-3 text-center">
-                  <LogoMark size={48} />
-                  <p className="text-xl font-bold">How can I help today?</p>
-                  <p className="text-sm text-muted">Book a visit, check a complaint, ask about clinics, or ask an insurance question such as refunds or spending limits.</p>
-                </div>
+                <h1 className="mx-auto mt-[12vh] mb-6 max-w-lg text-xl font-bold" data-testid="chat-greeting">
+                  {memberName ? `Hi ${memberName}, how can I help today?` : 'How can I help today?'}
+                </h1>
                 <div className="mx-auto grid max-w-lg grid-cols-1 gap-3 sm:grid-cols-2">
                   {STARTER_CARDS.map(card => (
                     <button
                       type="button"
                       key={card.label}
                       onClick={() => void sendMessage(card.message)}
-                      className="card rise p-4 text-left text-sm font-medium transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent"
+                      className="card p-4 text-left text-sm font-medium transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent"
                       data-testid="starter-card"
                     >
                       {card.label}
@@ -284,12 +299,12 @@ export function ChatPage(): ReactNode {
 
             {items.map(item =>
               item.kind === 'message' ? (
-                <div key={item.key} className={`rise flex ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div key={item.key} className={`${item.replayed ? '' : 'rise '}flex ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div
                     className={`max-w-xl px-4 py-2.5 ${
                       item.role === 'user'
                         ? 'rounded-card rounded-br-md bg-accent text-on-accent'
-                        : 'rounded-card rounded-bl-md border border-line bg-card shadow-card'
+                        : 'rounded-card rounded-bl-md border border-line bg-card'
                     }`}
                     data-testid={`msg-${item.role}`}
                   >
@@ -314,7 +329,7 @@ export function ChatPage(): ReactNode {
 
             {isStreaming && (
               <div className="flex justify-start">
-                <div className="max-w-xl rounded-card rounded-bl-md border border-line bg-card px-4 py-2.5 shadow-card" data-testid="msg-streaming">
+                <div className="max-w-xl rounded-card rounded-bl-md border border-line bg-card px-4 py-2.5" data-testid="msg-streaming">
                   {streamingText === '' ? (
                     <span className="animate-pulse text-muted" data-testid="typing-indicator">…</span>
                   ) : (
@@ -348,7 +363,7 @@ export function ChatPage(): ReactNode {
           </div>
           </div>
 
-          <div className="border-t border-line bg-card/70 px-4 py-3 backdrop-blur">
+          <div className="border-t border-line bg-card px-4 py-3">
             <div className="mx-auto w-full max-w-3xl">
             <form
               onSubmit={e => {
@@ -362,7 +377,7 @@ export function ChatPage(): ReactNode {
                 dir="auto"
                 value={input}
                 onChange={e => setInput(e.target.value)}
-                placeholder="Type your message..."
+                placeholder="Ask about a visit, a clinic or your coverage…"
                 maxLength={1000}
                 className="input flex-1 px-4"
                 disabled={isStreaming}

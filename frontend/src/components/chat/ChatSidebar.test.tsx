@@ -18,6 +18,10 @@ function renderSidebar(activeSessionId: number | null): { onSelect: ReturnType<t
       sessions={[session(1, 'I need a dermatologist'), session(2, 'Is physiotherapy covered?')]}
       activeSessionId={activeSessionId}
       now={NOW}
+      loadFailed={false}
+      open={false}
+      onClose={vi.fn()}
+      onRetry={vi.fn()}
       onSelect={onSelect}
       onNewChat={onNewChat}
     />,

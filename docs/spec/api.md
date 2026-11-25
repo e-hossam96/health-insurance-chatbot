@@ -31,7 +31,7 @@ Per-screen endpoint paths are in the `Calls:` lines of `wireframes.md` (sections
 - POST /auth/signup {username, password} -> 201, logged in
 - POST /auth/login {username, password}
 - POST /auth/logout
-- GET /auth/me -> {username, role, has_profile, mode}
+- GET /auth/me -> {username, role, has_profile, mode, name}. `name` is the profile name, or null when the account has no profile yet.
 - POST /auth/mode {mode: "admin" | "user"} (admins only)
 - Cookie: HTTP-only, Secure, SameSite=Lax (B10). Mode rules in B11. Passwords: argon2, minimum 8 characters. Sessions last 7 days (B12).
 

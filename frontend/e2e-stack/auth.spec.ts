@@ -19,7 +19,7 @@ test.describe('auth flows', () => {
     await page.click('button:has-text("Continue")');
 
     await expect(page).toHaveURL(/\/chat/, { timeout: 5000 });
-    await expect(page.getByText('How can I help today?')).toBeVisible();
+    await expect(page.getByTestId('chat-greeting')).toHaveText('Hi E2E Test User, how can I help today?');
   });
 
   test('admin login to /admin/kb', async ({ page }) => {
@@ -29,7 +29,7 @@ test.describe('auth flows', () => {
     await page.click('button:has-text("Log in")');
 
     await expect(page).toHaveURL(/\/admin\/kb/, { timeout: 5000 });
-    await expect(page.getByText('Knowledge Base')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Knowledge base' })).toBeVisible();
   });
 
   test('mode toggle', async ({ page }) => {

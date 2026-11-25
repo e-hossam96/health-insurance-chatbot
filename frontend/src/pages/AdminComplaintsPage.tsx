@@ -108,7 +108,7 @@ export function AdminComplaintsPage(): ReactNode {
     <div>
       <Header />
       <div className="page">
-        <h2 className="page-title">Complaints</h2>
+        <h1 className="page-title">Complaints</h1>
         <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
           <section aria-label="Complaint list">
             <div className="mb-4 flex items-center gap-4">

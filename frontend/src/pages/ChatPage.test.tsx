@@ -8,7 +8,7 @@ import { ChatPage } from './ChatPage';
 vi.mock('../api/AuthContext', () => ({
   useAuth: () => ({
     status: 'authenticated',
-    user: { username: 'user1', role: 'user', has_profile: true, mode: 'user' },
+    user: { username: 'user1', role: 'user', has_profile: true, mode: 'user', name: 'Sara' },
     refresh: vi.fn(),
   }),
 }));
@@ -104,17 +104,54 @@ describe('ChatPage', () => {
     expect((await screen.findByTestId('chat-input')).getAttribute('dir')).toBe('auto');
   });
 
-  it('F1: shows the six starter cards in order on an empty chat', async () => {
+  it('F1: shows the four starter cards in order on an empty chat', async () => {
     renderChat();
     const cards = await screen.findAllByTestId('starter-card');
     expect(cards.map(c => c.textContent)).toEqual([
       'Book a clinic visit',
-      'Check my visits',
-      'Cancel a visit',
       'File a complaint',
-      'Check my complaints',
-      'Ask an insurance question',
+      'Find a pediatrician in Cairo',
+      'What is my outpatient co-pay?',
     ]);
+  });
+
+  it('greets the member by profile name on an empty chat', async () => {
+    renderChat();
+    expect(await screen.findByTestId('chat-greeting')).toHaveTextContent('Hi Sara, how can I help today?');
+  });
+
+  it('the sidebar titles each chat with its first message and shows the intent as a badge', async () => {
+    getSessions.mockResolvedValue([
+      { id: 1, intent: 'visit.book', created_at: '2026-11-15T10:00:00Z', last_message_at: '2026-11-15T10:00:00Z', first_user_message: 'I need a dermatologist' },
+    ]);
+    renderChat();
+    expect(await screen.findByTestId('session-title')).toHaveTextContent('I need a dermatologist');
+    expect(screen.getByTestId('session-label')).toHaveTextContent('Book a visit');
+  });
+
+  it('a failed chat list load shows an error with Retry instead of an empty sidebar', async () => {
+    getSessions.mockRejectedValueOnce(new Error('offline'));
+    renderChat();
+    expect(await screen.findByTestId('sessions-error')).toHaveTextContent('Could not load your chats.');
+    getSessions.mockResolvedValue([
+      { id: 1, intent: 'qa.kb', created_at: '2026-11-15T10:00:00Z', last_message_at: '2026-11-15T10:00:00Z', first_user_message: 'co-pay?' },
+    ]);
+    await userEvent.setup().click(screen.getByTestId('sessions-retry-btn'));
+    expect(await screen.findByTestId('session-title')).toHaveTextContent('co-pay?');
+    expect(screen.queryByTestId('sessions-error')).toBeNull();
+  });
+
+  it('on a narrow screen the Chats button opens the sidebar and picking a chat closes it', async () => {
+    getSessions.mockResolvedValue([
+      { id: 4, intent: 'qa.kb', created_at: '2026-11-15T10:00:00Z', last_message_at: '2026-11-15T10:00:00Z', first_user_message: 'co-pay?' },
+    ]);
+    renderChat();
+    const user = userEvent.setup();
+    expect(screen.getByTestId('chat-sidebar').className).toContain('hidden');
+    await user.click(screen.getByTestId('open-sidebar-btn'));
+    expect(screen.getByTestId('chat-sidebar').className).not.toMatch(/(^| )hidden( |$)/);
+    await user.click(await screen.findByTestId('session-item'));
+    expect(screen.getByTestId('chat-sidebar').className).toMatch(/(^| )hidden( |$)/);
   });
 
   it('F1: a starter card sends its fixed text as the first message', async () => {
@@ -340,7 +377,7 @@ describe('ChatPage', () => {
 
     await userEvent.setup().click(screen.getByTestId('new-chat-btn'));
 
-    expect(await screen.findAllByTestId('starter-card')).toHaveLength(6);
+    expect(await screen.findAllByTestId('starter-card')).toHaveLength(4);
     expect(screen.queryByText('old answer')).toBeNull();
     expect(getMessages).toHaveBeenCalledTimes(1);
     expect(getSessions.mock.calls.length).toBe(sessionsCallsBefore);

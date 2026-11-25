@@ -5,11 +5,11 @@ Setup: the stack is running with real models, the demo data is seeded, and `poli
 ## 1. A new member (2 min)
 
 1. Sign up as a new user. Onboarding asks for a name and location (Cairo) and warns that they can't be changed later.
-2. The chat opens with six starter cards. Point out "All times are UTC" under the input.
+2. The chat opens with a greeting by name and four starter cards. Point out "All times are UTC" under the input.
 
 ## 2. Booking from a card (3 min)
 
-1. Type "I need a dermatologist". The sidebar item becomes **Book a visit**.
+1. Type "I need a dermatologist". The sidebar item gets the **Book a visit** badge.
 2. The answer streams in and names up to three doctors with their dates and times in UTC; doctor cards appear after the last word.
 3. Click **Book** on the first card. The card shows **Booked**, the other cards lock, and a confirmation appears in the chat. The model never booked anything; the click did.
 4. Open **My visits & complaints** in the header: the visit is listed as Scheduled.

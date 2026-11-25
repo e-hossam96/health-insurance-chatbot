@@ -146,7 +146,7 @@ export function AdminSlotsPage(): ReactNode {
     <div>
       <Header />
       <div className="page">
-        <h2 className="page-title">Slots</h2>
+        <h1 className="page-title">Slots</h1>
 
         <div className="card mb-4 flex flex-wrap items-end gap-4 p-4">
           <div>

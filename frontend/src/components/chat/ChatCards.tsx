@@ -85,14 +85,14 @@ export const SHOW_OTHER_OPTIONS: Record<CardLanguage, string> = {
 
 const BUTTON = 'btn btn-sm mt-3';
 const LINK_BUTTON = 'link-btn ms-1 text-xs';
-const CARD = 'card rise p-4 text-sm';
+const CARD = 'card p-4 text-sm';
 
 function Spinner(): ReactNode {
   return <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />;
 }
 
-function Badge({ text, tone, testId }: { text: string; tone: 'green' | 'red'; testId: string }): ReactNode {
-  const colors = tone === 'green' ? 'success' : 'danger';
+function Badge({ text, tone, testId }: { text: string; tone: 'green' | 'neutral'; testId: string }): ReactNode {
+  const colors = tone === 'green' ? 'success' : '';
   return (
     <span className={`badge mt-3 ${colors}`} data-testid={testId}>
       {text}
@@ -170,7 +170,7 @@ function CancelCard({ item, language, status, disabled, onCancel }: {
       <div className="font-semibold"><bdi>{item.doctor_name}</bdi></div>
       <div className="text-xs text-muted"><bdi>{item.specialty}</bdi></div>
       <div className="text-xs text-muted"><bdi>{item.clinic}</bdi></div>
-      {status === 'done' && <Badge text={text.cancelled} tone="red" testId="cancelled-badge" />}
+      {status === 'done' && <Badge text={text.cancelled} tone="neutral" testId="cancelled-badge" />}
       {status === 'not_cancellable' && (
         <FailureLine text={text.notCancellable} disabled={disabled} testId="not-cancellable" />
       )}
@@ -265,7 +265,7 @@ export function ChatCards({ cards, state, locked, onBook, onCancelVisit, onFileC
   const disabled = locked || state.busyId !== null || state.doneId !== null;
 
   return (
-    <div dir={cards.language === 'ar' ? 'rtl' : 'ltr'} lang={cards.language} className="flex flex-wrap gap-3" data-testid="chat-cards">
+    <div dir={cards.language === 'ar' ? 'rtl' : 'ltr'} lang={cards.language} className="rise flex flex-wrap gap-3" data-testid="chat-cards">
       {cards.type === 'doctors' && cards.items.map(item => (
         <DoctorCard
           key={item.slot_id}

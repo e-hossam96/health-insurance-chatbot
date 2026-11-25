@@ -121,7 +121,7 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="page flex-1 space-y-4">
-        <h1 className="page-title">Knowledge Base</h1>
+        <h1 className="page-title">Knowledge base</h1>
         <div
           onDragOver={e => {
             e.preventDefault();
@@ -132,17 +132,15 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
           className={`flex flex-col items-center gap-2 rounded-card border-2 border-dashed px-4 py-8 text-center text-sm transition-colors ${dragging ? 'border-accent bg-accent-soft' : 'border-line-strong bg-surface hover:border-accent'}`}
           data-testid="kb-dropzone"
         >
-          <span className="grid h-12 w-12 place-items-center rounded-full bg-accent-soft text-accent">
-            <UploadIcon />
-          </span>
-          <span className="font-semibold">
-          Drag files here or{' '}
-          <button type="button" onClick={() => inputRef.current?.click()} className="link-btn underline">
-            Browse
-          </button>
+          <span className="inline-flex items-center gap-2 font-semibold">
+            <span className="text-muted"><UploadIcon /></span>
+            Drag files here or{' '}
+            <button type="button" onClick={() => inputRef.current?.click()} className="link-btn underline">
+              Browse
+            </button>
           </span>
           <span className="text-muted" data-testid="kb-limit">
-            pdf, txt, docx{maxBytes !== null ? ` - max ${formatBytes(maxBytes)}` : ''}
+            pdf, txt, docx{maxBytes !== null ? ` · max ${formatBytes(maxBytes)}` : ''}
           </span>
           <input
             ref={inputRef}

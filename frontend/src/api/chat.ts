@@ -206,11 +206,9 @@ export function intentLabel(intent: string | null): string {
 
 export const STARTER_CARDS: readonly { label: string; message: string }[] = [
   { label: 'Book a clinic visit', message: "I'd like to book a clinic visit." },
-  { label: 'Check my visits', message: 'Show me my visits.' },
-  { label: 'Cancel a visit', message: 'I want to cancel a visit.' },
   { label: 'File a complaint', message: 'I want to file a complaint about a visit.' },
-  { label: 'Check my complaints', message: 'Show me my complaints.' },
-  { label: 'Ask an insurance question', message: 'What does my health insurance cover?' },
+  { label: 'Find a pediatrician in Cairo', message: 'Which clinics in Cairo have a pediatrician?' },
+  { label: 'What is my outpatient co-pay?', message: 'How much is the co-pay for an outpatient visit?' },
 ];
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

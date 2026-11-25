@@ -101,7 +101,7 @@ describe('VisitsDrawer', () => {
     );
     fireEvent.click(await screen.findByTestId('drawer-tab-complaints'));
     const visits = await screen.findAllByTestId('complaint-visit');
-    expect(visits.map((v) => v.textContent)).toEqual(['Visit 10 Dec - Dr. Omar', 'Visit 3 Dec - Dr. Sara']);
+    expect(visits.map((v) => v.textContent)).toEqual(['Visit 10 Dec · Dr. Omar', 'Visit 3 Dec · Dr. Sara']);
     expect(screen.getAllByTestId('complaint-filed').map((f) => f.textContent)).toEqual(['Filed 11 Dec', 'Filed 4 Dec']);
     expect(screen.getAllByTestId('complaint-no-reply')).toHaveLength(1);
     expect(screen.getByTestId('complaint-no-reply').textContent).toBe('No reply yet');
