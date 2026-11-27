@@ -61,13 +61,13 @@ export function ChatSidebar({
               onClick={() => onSelect(s.id)}
               aria-current={s.id === activeSessionId ? 'true' : undefined}
               className={`w-full rounded-control px-3 py-2.5 text-left transition-colors ${
-                s.id === activeSessionId ? 'bg-accent-soft' : 'hover:bg-surface'
+                s.id === activeSessionId ? 'bg-surface shadow-[inset_3px_0_0_var(--accent)]' : 'hover:bg-surface'
               }`}
               data-testid="session-item"
             >
               <div
                 dir="auto"
-                className={`truncate text-sm font-medium ${s.id === activeSessionId ? 'text-accent' : ''}`}
+                className={`truncate text-sm font-medium ${s.id === activeSessionId ? 'font-semibold' : ''}`}
                 data-testid="session-title"
               >
                 {s.first_user_message ? preview(s.first_user_message) : intentLabel(s.intent)}

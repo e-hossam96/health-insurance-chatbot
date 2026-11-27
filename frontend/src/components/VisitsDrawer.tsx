@@ -10,7 +10,7 @@ function statusBadge(status: string): ReactNode {
     scheduled: 'accent',
     completed: 'success',
     cancelled: '',
-    open: 'warn',
+    open: 'new',
     closed: '',
   };
   return (
@@ -112,7 +112,7 @@ export function VisitsDrawer({ open, onClose }: { open: boolean; onClose: () => 
                     <div>
                       <p className="text-sm font-semibold">{v.doctor_name}</p>
                       <p className="text-xs text-muted">{v.specialty} · {v.clinic} · {v.location}</p>
-                      <p className="mt-1 text-xs font-medium text-accent">{formatUtc(v.start_at)}</p>
+                      <p className="mt-1 text-xs font-medium text-fg">{formatUtc(v.start_at)}</p>
                     </div>
                     {statusBadge(v.status)}
                   </div>

@@ -3,32 +3,39 @@
 /* Every color is light-dark(<light>, <dark>); theme.test.ts checks text at 4.5:1 and control edges at 3:1. */
 :root {
   color-scheme: light dark;
-  --bg: light-dark(#f2f5f7, #252022);
-  --card: light-dark(#ffffff, #2e292b);
-  --surface: light-dark(#eef2f5, #363133);
-  --text: light-dark(#252022, #eef1f4);
-  --muted: light-dark(#55616b, #a9b6c0);
-  --border: light-dark(#dce3e9, #423c3e);
-  --border-strong: light-dark(#7b8994, #808c96);
-  --accent: light-dark(#227599, #5fa7c0);
-  --accent-hover: light-dark(#1b6082, #84bcd0);
-  --accent-text: light-dark(#ffffff, #252022);
-  --accent-soft: light-dark(#e8f2f6, #263238);
-  --danger: light-dark(#c42f2f, #ff9a9a);
-  --danger-hover: light-dark(#a52323, #ffb8b8);
-  --danger-on: light-dark(#ffffff, #252022);
-  --danger-bg: light-dark(#fdecec, #3f2427);
-  --danger-text: light-dark(#8f1d1d, #ffb8b8);
-  --success-bg: light-dark(#e5f5eb, #1f3327);
-  --success-text: light-dark(#17613a, #9fe0b5);
-  --warn-bg: light-dark(#fff4d6, #3a3020);
-  --warn-text: light-dark(#6b4700, #f4d084);
-  --info-bg: light-dark(#e8f2f6, #263238);
-  --info-text: light-dark(#1b6082, #a9d3e2);
-  --overlay: light-dark(rgb(37 32 34 / 0.32), rgb(0 0 0 / 0.55));
+  --bg: light-dark(#f3f5f0, #0a1b2e);
+  --card: light-dark(#dce8ee, #12304a);
+  --surface: light-dark(#f3f5f0, #0a1b2e);
+  --text: light-dark(#0b2d4f, #eaf1f5);
+  --muted: light-dark(#3f5f7c, #9db6c9);
+  --border: light-dark(#bfd0da, #24435e);
+  --border-strong: light-dark(#627f97, #6a8ba6);
+  --link: light-dark(#1f5f8b, #8db4cc);
+  --accent: light-dark(#1e78a6, #5fa8d3);
+  --accent-hover: light-dark(#1f5f8b, #8db4cc);
+  --accent-text: light-dark(#ffffff, #0a1b2e);
+  --accent-soft: light-dark(#8db4cc, #2f6690);
+  --sand: light-dark(#f0c98a, #f0c98a);
+  --sand-text: light-dark(#0b2d4f, #0b2d4f);
+  --rust: light-dark(#b5532e, #e08a63);
+  --rust-text: light-dark(#ffffff, #0a1b2e);
+  --danger: light-dark(#b5532e, #e08a63);
+  --danger-hover: light-dark(#9a4425, #eba587);
+  --danger-on: light-dark(#ffffff, #0a1b2e);
+  --danger-bg: light-dark(#f5e1d7, #353139);
+  --danger-text: light-dark(#9a4425, #eba587);
+  --success-bg: light-dark(#8db4cc, #2f6690);
+  --success-text: light-dark(#0b2d4f, #eaf1f5);
+  --warn-bg: light-dark(#f0c98a, #f0c98a);
+  --warn-text: light-dark(#0b2d4f, #0b2d4f);
+  --info-bg: light-dark(#8db4cc, #2f6690);
+  --info-text: light-dark(#0b2d4f, #eaf1f5);
+  --tag-bg: light-dark(#bfd0da, #24435e);
+  --tag-text: light-dark(#0b2d4f, #eaf1f5);
+  --overlay: light-dark(rgb(11 45 79 / 0.32), rgb(3 10 18 / 0.6));
   --shadow-raised:
-    0 2px 6px light-dark(rgb(37 32 34 / 0.08), rgb(0 0 0 / 0.45)),
-    0 18px 48px light-dark(rgb(37 32 34 / 0.14), rgb(0 0 0 / 0.45));
+    0 2px 6px light-dark(rgb(11 45 79 / 0.08), rgb(0 0 0 / 0.45)),
+    0 18px 48px light-dark(rgb(11 45 79 / 0.14), rgb(0 0 0 / 0.45));
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
@@ -51,11 +58,12 @@
   --color-muted: var(--muted);
   --color-line: var(--border);
   --color-line-strong: var(--border-strong);
+  --color-link: var(--link);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-on-accent: var(--accent-text);
   --color-accent-soft: var(--accent-soft);
-  --color-danger: var(--danger);
+  --color-danger: var(--danger-text);
   --color-danger-soft: var(--danger-bg);
   --color-danger-fg: var(--danger-text);
   --color-success-soft: var(--success-bg);
@@ -150,11 +158,11 @@
   .btn-secondary,
   .btn-secondary:not(:disabled):hover {
     background: var(--card);
-    color: var(--accent);
+    color: var(--link);
   }
 
   .btn-secondary:not(:disabled):hover {
-    background: var(--accent-soft);
+    background: var(--surface);
     border-color: var(--accent);
   }
 
@@ -184,15 +192,15 @@
   }
 
   .btn-ghost:not(:disabled):hover {
-    background: var(--accent-soft);
-    color: var(--accent);
+    background: var(--surface);
+    color: var(--text);
   }
 
   .btn-danger-ghost,
   .btn-danger-ghost:not(:disabled):hover {
     background: transparent;
     border-color: transparent;
-    color: var(--danger);
+    color: var(--danger-text);
   }
 
   .btn-danger-ghost:not(:disabled):hover {
@@ -212,16 +220,16 @@
     padding: 0;
     border: none;
     background: none;
-    color: var(--accent);
+    color: var(--link);
     font: inherit;
     font-weight: 550;
-    text-decoration: none;
+    text-decoration: underline;
+    text-underline-offset: 3px;
     border-radius: 4px;
   }
 
   .link-btn:not(:disabled):hover {
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    text-decoration-thickness: 2px;
   }
 
   .link-btn:disabled {
@@ -229,7 +237,7 @@
   }
 
   .link-btn.danger {
-    color: var(--danger);
+    color: var(--danger-text);
   }
 
   .link-btn.quiet {
@@ -241,7 +249,7 @@
     padding: 9px 12px;
     border: 1px solid var(--border-strong);
     border-radius: 10px;
-    background: var(--card);
+    background: var(--surface);
     color: var(--text);
     font: inherit;
     transition:
@@ -260,7 +268,7 @@
   }
 
   .input:disabled {
-    background: var(--surface);
+    background: var(--card);
     color: var(--muted);
   }
 
@@ -283,8 +291,8 @@
     gap: 4px;
     padding: 2px 10px;
     border-radius: 999px;
-    background: var(--surface);
-    color: var(--muted);
+    background: var(--tag-bg);
+    color: var(--tag-text);
     font-size: 0.75rem;
     font-weight: 600;
     line-height: 1.5;
@@ -292,8 +300,13 @@
   }
 
   .badge.accent {
-    background: var(--accent-soft);
-    color: var(--accent);
+    background: var(--accent);
+    color: var(--accent-text);
+  }
+
+  .badge.new {
+    background: var(--rust);
+    color: var(--rust-text);
   }
 
   .badge.success {
@@ -340,7 +353,7 @@
 
   .segmented > button[aria-pressed='true'] {
     background: var(--accent-soft);
-    color: var(--accent);
+    color: var(--text);
   }
 
   .segmented.icons > button {
@@ -431,7 +444,7 @@
   }
 
   .markdown-content a {
-    color: var(--accent);
+    color: var(--link);
     text-decoration: underline;
     text-underline-offset: 3px;
   }

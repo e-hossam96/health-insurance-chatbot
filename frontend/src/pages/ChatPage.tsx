@@ -287,7 +287,7 @@ export function ChatPage(): ReactNode {
                       type="button"
                       key={card.label}
                       onClick={() => void sendMessage(card.message)}
-                      className="card p-4 text-left text-sm font-medium transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent"
+                      className="card p-4 text-left text-sm font-medium transition-colors hover:border-accent hover:bg-surface"
                       data-testid="starter-card"
                     >
                       {card.label}

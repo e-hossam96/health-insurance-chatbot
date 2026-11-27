@@ -14,7 +14,7 @@ export function AdminNav(): ReactNode {
             to={section.path}
             aria-current={active ? 'page' : undefined}
             className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold no-underline transition-colors ${
-              active ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-fg'
+              active ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg'
             }`}
             data-testid={`admin-nav-${section.path.split('/').pop() ?? ''}`}
           >
