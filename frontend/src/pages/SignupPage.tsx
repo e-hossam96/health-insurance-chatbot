@@ -83,7 +83,7 @@ export function SignupPage(): ReactNode {
           Sign up
         </button>
         <p className="mt-5 text-center text-sm text-muted">
-          Already have an account? <Link to="/login" className="font-semibold text-accent hover:underline hover:underline-offset-3">Log in</Link>
+          Already have an account? <Link to="/login" className="font-semibold text-link underline underline-offset-3">Log in</Link>
         </p>
       </form>
     </AuthLayout>

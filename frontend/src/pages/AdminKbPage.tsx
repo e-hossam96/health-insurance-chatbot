@@ -25,7 +25,7 @@ const STATUS_LABELS: Record<KbStatus, string> = {
 
 const STATUS_STYLES: Record<KbStatus, string> = {
   uploaded: '',
-  processing: 'accent',
+  processing: 'new',
   ready: 'success',
   failed: 'danger',
 };
@@ -129,7 +129,7 @@ export function AdminKbPage({ pollMs = 3000 }: { pollMs?: number }): ReactNode {
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
-          className={`flex flex-col items-center gap-2 rounded-card border-2 border-dashed px-4 py-8 text-center text-sm transition-colors ${dragging ? 'border-accent bg-accent-soft' : 'border-line-strong bg-surface hover:border-accent'}`}
+          className={`flex flex-col items-center gap-2 rounded-card border-2 border-dashed px-4 py-8 text-center text-sm transition-colors ${dragging ? 'border-accent bg-card' : 'border-line-strong bg-surface hover:border-accent'}`}
           data-testid="kb-dropzone"
         >
           <span className="inline-flex items-center gap-2 font-semibold">

@@ -9,8 +9,8 @@ async function signInAsAdmin(page: Page): Promise<void> {
   await page.route('**/api/admin/kb-documents?limit=*', route => json(route, { items: [], total: 0, max_upload_bytes: 10 * 1024 * 1024 }));
 }
 
-const LIGHT_BG = 'rgb(242, 245, 247)';
-const DARK_BG = 'rgb(37, 32, 34)';
+const LIGHT_BG = 'rgb(243, 245, 240)';
+const DARK_BG = 'rgb(10, 27, 46)';
 
 function bodyBackground(page: Page): Promise<string> {
   return page.evaluate(() => getComputedStyle(document.body).backgroundColor);

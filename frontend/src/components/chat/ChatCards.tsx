@@ -133,7 +133,7 @@ function DoctorCard({ item, language, status, disabled, onBook, onShowOther }: {
       <div className="font-semibold" data-testid="doctor-name"><bdi>{item.doctor_name}</bdi></div>
       <div className="text-xs text-muted"><bdi>{item.specialty}</bdi></div>
       <div className="text-xs text-muted"><bdi>{item.clinic}, {item.location}</bdi></div>
-      <div className="mt-2 text-xs font-medium text-accent">{formatUtc(item.start_at, language)}</div>
+      <div className="mt-2 text-xs font-medium text-fg">{formatUtc(item.start_at, language)}</div>
       {status === 'done' && <Badge text={text.booked} tone="green" testId="booked-badge" />}
       {status === 'slot_taken' && (
         <div className="mt-3" data-testid="slot-taken">
@@ -166,7 +166,7 @@ function CancelCard({ item, language, status, disabled, onCancel }: {
   const text = CARD_TEXT[language];
   return (
     <div className={`${CARD} w-60`} data-testid="cancel-card">
-      <div className="text-xs font-medium text-accent">{formatUtc(item.start_at, language)}</div>
+      <div className="text-xs font-medium text-fg">{formatUtc(item.start_at, language)}</div>
       <div className="font-semibold"><bdi>{item.doctor_name}</bdi></div>
       <div className="text-xs text-muted"><bdi>{item.specialty}</bdi></div>
       <div className="text-xs text-muted"><bdi>{item.clinic}</bdi></div>
@@ -201,7 +201,7 @@ function ComplaintCard({ item, language, status, disabled, onFile }: {
 
   return (
     <div className={`${CARD} w-72`} data-testid="complaint-card">
-      <div className="text-xs font-medium text-accent">{formatUtc(item.start_at, language)}</div>
+      <div className="text-xs font-medium text-fg">{formatUtc(item.start_at, language)}</div>
       <div className="font-semibold"><bdi>{item.doctor_name}</bdi></div>
       <div className="text-xs text-muted"><bdi>{item.clinic}</bdi></div>
       {status === 'done' && <Badge text={text.complaintFiled} tone="green" testId="filed-badge" />}

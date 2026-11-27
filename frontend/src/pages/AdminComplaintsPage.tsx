@@ -22,7 +22,7 @@ function replyCountLabel(count: number): string {
 
 function StatusBadge({ status }: { status: string }): ReactNode {
   return (
-    <span className={`badge capitalize ${status === 'open' ? 'warn' : ''}`} data-testid="complaint-status-badge">
+    <span className={`badge capitalize ${status === 'open' ? 'new' : ''}`} data-testid="complaint-status-badge">
       {status}
     </span>
   );
@@ -131,7 +131,7 @@ export function AdminComplaintsPage(): ReactNode {
                 <li key={c.id}>
                   <button
                     type="button"
-                    className={`w-full p-4 text-left hover:bg-accent-soft ${selectedId === c.id ? 'bg-accent-soft' : ''}`}
+                    className={`w-full p-4 text-left hover:bg-surface ${selectedId === c.id ? 'bg-surface shadow-[inset_3px_0_0_var(--accent)]' : ''}`}
                     aria-current={selectedId === c.id ? 'true' : undefined}
                     onClick={() => select(c.id)}
                     data-testid="complaint-item"

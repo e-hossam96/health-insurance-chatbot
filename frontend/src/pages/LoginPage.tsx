@@ -78,7 +78,7 @@ export function LoginPage(): ReactNode {
           Log in
         </button>
         <p className="mt-5 text-center text-sm text-muted">
-          New here? <Link to="/signup" className="font-semibold text-accent hover:underline hover:underline-offset-3">Sign up</Link>
+          New here? <Link to="/signup" className="font-semibold text-link underline underline-offset-3">Sign up</Link>
         </p>
       </form>
     </AuthLayout>

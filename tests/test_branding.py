@@ -14,15 +14,20 @@ RAW_PALETTE_CLASS = re.compile(
 def test_the_page_title_and_theme_colours_use_the_brand() -> None:
     html = (FRONTEND / "index.html").read_text(encoding="utf-8")
     assert "<title>Health Insurance Chatbot</title>" in html
-    assert 'media="(prefers-color-scheme: light)" content="#f2f5f7"' in html
-    assert 'media="(prefers-color-scheme: dark)" content="#252022"' in html
+    assert 'media="(prefers-color-scheme: light)" content="#f3f5f0"' in html
+    assert 'media="(prefers-color-scheme: dark)" content="#0a1b2e"' in html
 
 
 def test_the_theme_uses_the_brand_palette_for_light_and_dark() -> None:
     css = (FRONTEND / "src" / "index.css").read_text(encoding="utf-8").lower()
-    assert "--accent: light-dark(#227599, #5fa7c0);" in css
-    assert "--text: light-dark(#252022, " in css
-    assert "--bg: light-dark(#f2f5f7, #252022);" in css
+    assert "--accent: light-dark(#1e78a6, #5fa8d3);" in css
+    assert "--text: light-dark(#0b2d4f, #eaf1f5);" in css
+    assert "--bg: light-dark(#f3f5f0, #0a1b2e);" in css
+    assert "--card: light-dark(#dce8ee, #12304a);" in css
+    assert "--link: light-dark(#1f5f8b, #8db4cc);" in css
+    assert "--accent-soft: light-dark(#8db4cc, #2f6690);" in css
+    assert "--sand: light-dark(#f0c98a, #f0c98a);" in css
+    assert "--rust: light-dark(#b5532e, #e08a63);" in css
     assert "--color-accent: var(--accent);" in css
 
 
